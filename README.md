@@ -87,25 +87,35 @@ ArchiveMaster es un sistema de gestión documental avanzado, diseñado para opti
 
 #### Panel Administrativo (Filament)
 
-- Resource de Empresa (CompanyResource)
-  - Gestión básica de empresas
-  - RelationManagers para sucursales, departamentos, categorías, etiquetas, estados y usuarios
+- Resources implementados:
+  - Company (Empresa)
+    - Gestión básica de empresas
+    - Relaciones: sucursales, departamentos, categorías, etiquetas, estados y usuarios
+  - Branch (Sucursal)
+    - Gestión de sucursales por empresa
+    - Relaciones: departamentos, usuarios y documentos
+  - Department (Departamento)
+    - Gestión de departamentos y estructura jerárquica
+    - Relaciones: usuarios, documentos y subdepartamentos
+  - Category (Categoría)
+    - Gestión de categorías jerárquicas para documentos
+    - Relaciones: documentos y subcategorías
+  - Status (Estado)
+    - Gestión de estados para flujos de trabajo
+    - Relaciones: documentos y definiciones de workflow
+  - Tag (Etiqueta)
+    - Gestión de etiquetas para documentos
+    - Relaciones: documentos
 
 ### 🚧 En Desarrollo
 
 #### Panel Administrativo (Filament)
 
-- Recursos para las entidades restantes:
-  - Branch (Sucursal)
-  - Department (Departamento)
-  - Category (Categoría)
-  - Tag (Etiqueta)
-  - Status (Estado)
-  - WorkflowDefinition (Definición de flujo)
+- Resources pendientes:
+  - WorkflowDefinition (Definición de flujo de trabajo)
   - Document (Documento)
   - User (Usuario)
-- Widgets para el dashboard
-- Formularios para gestión documental
+  - DocumentVersion (Versiones de documento)
 
 #### Sistema de Flujos de Trabajo
 
@@ -113,9 +123,15 @@ ArchiveMaster es un sistema de gestión documental avanzado, diseñado para opti
 - Motor de reglas de negocio
 - Notificaciones de cambios de estado
 
-### ⏳ Próximos Pasos
+#### Interfaz de Usuario
 
-#### Fase 1: Configuración Básica
+- Widgets para el dashboard
+- Reportes y estadísticas
+- Visualizador de documentos integrado
+
+### ⏳ Plan de Trabajo
+
+#### Fase 1: Configuración Básica ✅
 
 - [x] Estructura de base de datos
 - [x] Modelos y relaciones
@@ -123,20 +139,27 @@ ArchiveMaster es un sistema de gestión documental avanzado, diseñado para opti
 - [x] Seeders para datos iniciales
 - [x] Implementación de roles y permisos
 - [x] Resource de Company completo
+- [x] Resource de Branch completo
+- [x] Resource de Department completo
+- [x] Resource de Category completo
+- [x] Resource de Status completo
+- [x] Resource de Tag completo
 
-#### Fase 2: Panel Administrativo
+#### Fase 2: Resources Principales (En Progreso)
 
-- [ ] Resources para entidades principales restantes
-- [ ] Dashboard con widgets informativos
-- [ ] Formularios de captura de documentos
-- [ ] Visualizador de documentos integrado
+- [ ] Resource de WorkflowDefinition
+- [ ] Resource de User
+- [ ] Resource de Document (con soporte para subida de archivos)
+- [ ] Resource de DocumentVersion
 
 #### Fase 3: Funcionalidades Avanzadas
 
+- [ ] Dashboard con widgets informativos
+- [ ] Formularios de captura de documentos
+- [ ] Visualizador de documentos integrado
 - [ ] Motor de búsqueda avanzada
 - [ ] Sistema de notificaciones
 - [ ] Reportes y estadísticas
-- [ ] Integración con herramientas externas
 
 #### Fase 4: Optimización y Seguridad
 
@@ -150,7 +173,7 @@ ArchiveMaster es un sistema de gestión documental avanzado, diseñado para opti
 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/tu-usuario/archive-master.git
+git clone https://github.com/korozcolt/archive-master-app.git
 cd archive-master
 ```
 
