@@ -10,7 +10,7 @@ class DocumentTag extends Pivot
 {
     use LogsActivity;
 
-    protected $table = 'document_tag';
+    protected $table = 'document_tags';
 
     public function getActivitylogOptions(): LogOptions
     {

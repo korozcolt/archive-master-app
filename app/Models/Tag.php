@@ -43,7 +43,7 @@ class Tag extends Model
 
     public function documents(): BelongsToMany
     {
-        return $this->belongsToMany(Document::class)
+        return $this->belongsToMany(Document::class, 'document_tags')
             ->using(DocumentTag::class)
             ->withTimestamps();
     }
