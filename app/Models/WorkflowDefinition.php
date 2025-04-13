@@ -59,6 +59,20 @@ class WorkflowDefinition extends Model
         return $this->belongsTo(Status::class, 'to_status_id');
     }
 
+    /**
+     * Obtener los estados relacionados con esta definición de flujo
+     * Esta es una relación personalizada para el RelationManager de Filament
+     */
+    public function statuses()
+    {
+        // Retornamos una consulta que incluye tanto el estado de origen como el de destino
+        return Status::where('company_id', $this->company_id)
+            ->where(function($query) {
+                $query->where('id', $this->from_status_id)
+                      ->orWhere('id', $this->to_status_id);
+            });
+    }
+
     // Scopes
     public function scopeActive($query)
     {
