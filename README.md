@@ -75,6 +75,7 @@ ArchiveMaster es un sistema de gestión documental avanzado, diseñado para opti
 - Estructura completa de la base de datos
 - Modelos con relaciones y métodos auxiliares
 - Migraciones para todas las tablas
+- Seeder para usuarios y datos base
 
 #### Enumeraciones (Enums)
 
@@ -84,11 +85,25 @@ ArchiveMaster es un sistema de gestión documental avanzado, diseñado para opti
 - Role (roles del sistema)
 - StatusGlobal (estados globales)
 
+#### Panel Administrativo (Filament)
+
+- Resource de Empresa (CompanyResource)
+  - Gestión básica de empresas
+  - RelationManagers para sucursales, departamentos, categorías, etiquetas, estados y usuarios
+
 ### 🚧 En Desarrollo
 
 #### Panel Administrativo (Filament)
 
-- Recursos para las entidades principales
+- Recursos para las entidades restantes:
+  - Branch (Sucursal)
+  - Department (Departamento)
+  - Category (Categoría)
+  - Tag (Etiqueta)
+  - Status (Estado)
+  - WorkflowDefinition (Definición de flujo)
+  - Document (Documento)
+  - User (Usuario)
 - Widgets para el dashboard
 - Formularios para gestión documental
 
@@ -105,12 +120,13 @@ ArchiveMaster es un sistema de gestión documental avanzado, diseñado para opti
 - [x] Estructura de base de datos
 - [x] Modelos y relaciones
 - [x] Enumeraciones para estados y tipos
-- [ ] Seeders para datos iniciales
-- [ ] Implementación de roles y permisos
+- [x] Seeders para datos iniciales
+- [x] Implementación de roles y permisos
+- [x] Resource de Company completo
 
 #### Fase 2: Panel Administrativo
 
-- [ ] Recursos de Filament para entidades principales
+- [ ] Resources para entidades principales restantes
 - [ ] Dashboard con widgets informativos
 - [ ] Formularios de captura de documentos
 - [ ] Visualizador de documentos integrado
@@ -160,7 +176,15 @@ php artisan key:generate
 php artisan migrate --seed
 ```
 
-6. Iniciar el servidor de desarrollo
+6. Publicar y ejecutar migraciones de paquetes
+
+```bash
+php artisan vendor:publish --provider="Spatie\Activitylog\ActivitylogServiceProvider" --tag="activitylog-migrations"
+php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider" --tag="migrations"
+php artisan migrate
+```
+
+7. Iniciar el servidor de desarrollo
 
 ```bash
 php artisan serve
