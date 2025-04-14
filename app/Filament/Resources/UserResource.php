@@ -229,7 +229,18 @@ class UserResource extends Resource
                     ->label('Roles')
                     ->formatStateUsing(fn (string $state): string => Role::tryFrom($state)?->getLabel() ?? $state)
                     ->badge()
-                    ->icon('heroicon-o-shield-check'),
+                    ->icon(fn (string $state): string => match($state) {
+                        Role::SuperAdmin->value => 'heroicon-o-shield-check',
+                        Role::Admin->value => 'heroicon-o-user-circle',
+                        Role::RegularUser->value => 'heroicon-o-user',
+                        default => 'heroicon-o-user',
+                    })
+                    ->color(fn (string $state): string => match($state) {
+                        Role::SuperAdmin->value => 'danger',
+                        Role::Admin->value => 'warning',
+                        Role::RegularUser->value => 'success',
+                        default => 'gray',
+                    }),
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Activo')
                     ->boolean(),

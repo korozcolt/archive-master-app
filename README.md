@@ -88,34 +88,46 @@ ArchiveMaster es un sistema de gestión documental avanzado, diseñado para opti
 #### Panel Administrativo (Filament)
 
 - Resources implementados:
-  - Company (Empresa)
-    - Gestión básica de empresas
-    - Relaciones: sucursales, departamentos, categorías, etiquetas, estados y usuarios
-  - Branch (Sucursal)
-    - Gestión de sucursales por empresa
-    - Relaciones: departamentos, usuarios y documentos
-  - Department (Departamento)
-    - Gestión de departamentos y estructura jerárquica
-    - Relaciones: usuarios, documentos y subdepartamentos
-  - Category (Categoría)
-    - Gestión de categorías jerárquicas para documentos
-    - Relaciones: documentos y subcategorías
-  - Status (Estado)
-    - Gestión de estados para flujos de trabajo
-    - Relaciones: documentos y definiciones de workflow
-  - Tag (Etiqueta)
-    - Gestión de etiquetas para documentos
-    - Relaciones: documentos
+  - CompanyResource (Empresas)
+  - UserResource (Usuarios)
+  - DocumentResource (Documentos)
+- Relation Managers para:
+  - Sucursales (BranchesRelationManager)
+  - Departamentos (DepartmentsRelationManager)
+  - Categorías (CategoriesRelationManager)
+  - Etiquetas (TagsRelationManager)
+  - Estados (StatusesRelationManager)
+  - Usuarios (UsersRelationManager)
+  - Documentos (DocumentsRelationManager)
+  - Documentos Asignados (AssignedDocumentsRelationManager)
+  - Versiones de documentos (VersionsRelationManager)
+  - Historial de workflow (WorkflowHistoryRelationManager)
+
+#### Rutas
+
+- Rutas para descargas de documentos
+- Rutas para descargas de versiones
+- Rutas de API base
 
 ### 🚧 En Desarrollo
 
 #### Panel Administrativo (Filament)
 
 - Resources pendientes:
-  - WorkflowDefinition (Definición de flujo de trabajo)
-  - Document (Documento)
-  - User (Usuario)
-  - DocumentVersion (Versiones de documento)
+  - BranchResource (Sucursales)
+  - DepartmentResource (Departamentos)
+  - CategoryResource (Categorías)
+  - TagResource (Etiquetas)
+  - StatusResource (Estados)
+  - WorkflowDefinitionResource (Definición de flujos de trabajo)
+
+#### Widgets para Dashboard
+
+- Documentos por estado
+- Documentos recientes
+- Documentos vencidos
+- Actividad reciente
+- Métricas de cumplimiento de SLA
 
 #### Sistema de Flujos de Trabajo
 
@@ -123,15 +135,9 @@ ArchiveMaster es un sistema de gestión documental avanzado, diseñado para opti
 - Motor de reglas de negocio
 - Notificaciones de cambios de estado
 
-#### Interfaz de Usuario
+### ⏳ Próximos Pasos
 
-- Widgets para el dashboard
-- Reportes y estadísticas
-- Visualizador de documentos integrado
-
-### ⏳ Plan de Trabajo
-
-#### Fase 1: Configuración Básica ✅
+#### Fase 1: Configuración Básica
 
 - [x] Estructura de base de datos
 - [x] Modelos y relaciones
@@ -139,27 +145,22 @@ ArchiveMaster es un sistema de gestión documental avanzado, diseñado para opti
 - [x] Seeders para datos iniciales
 - [x] Implementación de roles y permisos
 - [x] Resource de Company completo
-- [x] Resource de Branch completo
-- [x] Resource de Department completo
-- [x] Resource de Category completo
-- [x] Resource de Status completo
-- [x] Resource de Tag completo
+- [x] Resource de User completo
+- [x] Resource de Document completo
 
-#### Fase 2: Resources Principales (En Progreso)
+#### Fase 2: Completar Panel Administrativo
 
-- [ ] Resource de WorkflowDefinition
-- [ ] Resource de User
-- [ ] Resource de Document (con soporte para subida de archivos)
-- [ ] Resource de DocumentVersion
+- [ ] Resources para entidades principales restantes
+- [ ] Dashboard con widgets informativos
+- [ ] Formularios mejorados para captura de documentos
+- [ ] Visualizador de documentos integrado
 
 #### Fase 3: Funcionalidades Avanzadas
 
-- [ ] Dashboard con widgets informativos
-- [ ] Formularios de captura de documentos
-- [ ] Visualizador de documentos integrado
 - [ ] Motor de búsqueda avanzada
 - [ ] Sistema de notificaciones
 - [ ] Reportes y estadísticas
+- [ ] Integración con herramientas externas
 
 #### Fase 4: Optimización y Seguridad
 
