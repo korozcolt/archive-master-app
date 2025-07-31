@@ -14,9 +14,11 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Str;
+use Filament\Resources\Concerns\Translatable;
 
 class TagResource extends Resource
 {
+    use Translatable;
     protected static ?string $model = Tag::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-tag';
@@ -89,11 +91,23 @@ class TagResource extends Resource
                 Tables\Columns\TextColumn::make('company.name')
                     ->label('Empresa')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->formatStateUsing(function ($state, $record) {
+                        if (is_array($state)) {
+                            return $record->company->getTranslation('name', app()->getLocale());
+                        }
+                        return $state;
+                    }),
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nombre')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->formatStateUsing(function ($state, $record) {
+                        if (is_array($state)) {
+                            return $record->getTranslation('name', app()->getLocale());
+                        }
+                        return $state;
+                    }),
                 Tables\Columns\TextColumn::make('slug')
                     ->label('Slug')
                     ->searchable()

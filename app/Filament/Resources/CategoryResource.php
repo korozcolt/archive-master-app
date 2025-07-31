@@ -14,9 +14,11 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Str;
+use Filament\Resources\Concerns\Translatable;
 
 class CategoryResource extends Resource
 {
+    use Translatable;
     protected static ?string $model = Category::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
@@ -110,11 +112,23 @@ class CategoryResource extends Resource
                 Tables\Columns\TextColumn::make('company.name')
                     ->label('Empresa')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->formatStateUsing(function ($state, $record) {
+                        if (is_array($state)) {
+                            return $record->company->getTranslation('name', app()->getLocale());
+                        }
+                        return $state;
+                    }),
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nombre')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->formatStateUsing(function ($state, $record) {
+                        if (is_array($state)) {
+                            return $record->getTranslation('name', app()->getLocale());
+                        }
+                        return $state;
+                    }),
                 Tables\Columns\TextColumn::make('slug')
                     ->label('Slug')
                     ->searchable()
@@ -124,7 +138,13 @@ class CategoryResource extends Resource
                     ->label('Categoría padre')
                     ->searchable()
                     ->sortable()
-                    ->toggleable(),
+                    ->toggleable()
+                    ->formatStateUsing(function ($state, $record) {
+                        if ($record->parent && is_array($state)) {
+                            return $record->parent->getTranslation('name', app()->getLocale());
+                        }
+                        return $state;
+                    }),
                 Tables\Columns\ColorColumn::make('color')
                     ->label('Color'),
                 Tables\Columns\TextColumn::make('children_count')

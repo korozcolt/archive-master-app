@@ -13,9 +13,11 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Filament\Resources\Concerns\Translatable;
 
 class BranchResource extends Resource
 {
+    use Translatable;
     protected static ?string $model = Branch::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-building-storefront';
@@ -113,11 +115,23 @@ class BranchResource extends Resource
                 Tables\Columns\TextColumn::make('company.name')
                     ->label('Empresa')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->formatStateUsing(function ($state, $record) {
+                        if (is_array($state)) {
+                            return $record->company->getTranslation('name', app()->getLocale());
+                        }
+                        return $state;
+                    }),
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nombre')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->formatStateUsing(function ($state, $record) {
+                        if (is_array($state)) {
+                            return $record->getTranslation('name', app()->getLocale());
+                        }
+                        return $state;
+                    }),
                 Tables\Columns\TextColumn::make('code')
                     ->label('Código')
                     ->searchable()

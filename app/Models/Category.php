@@ -9,10 +9,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Translatable\HasTranslations;
 
 class Category extends Model
 {
-    use HasFactory, LogsActivity, SoftDeletes;
+    use HasFactory, LogsActivity, SoftDeletes, HasTranslations;
 
     protected $fillable = [
         'company_id',
@@ -25,6 +26,11 @@ class Category extends Model
         'order',
         'active',
         'settings',
+    ];
+    
+    public $translatable = [
+        'name',
+        'description',
     ];
 
     protected $casts = [
@@ -88,12 +94,12 @@ class Category extends Model
         return implode(' > ', $path);
     }
 
-    public function getColorHtmlAttribute()
+    public function getColorHtmlAttribute(): string
     {
         return $this->color ? "bg-{$this->color}-100" : 'bg-gray-100';
     }
 
-    public function getLabelHtmlAttribute()
+    public function getLabelHtmlAttribute(): string
     {
         return '<span class="py-1 px-3 rounded ' . $this->color_html . '">' . $this->name . '</span>';
     }

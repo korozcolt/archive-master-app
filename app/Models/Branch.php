@@ -9,10 +9,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Translatable\HasTranslations;
 
 class Branch extends Model
 {
-    use HasFactory, LogsActivity, SoftDeletes;
+    use HasFactory, LogsActivity, SoftDeletes, HasTranslations;
 
     protected $fillable = [
         'company_id',
@@ -27,6 +28,14 @@ class Branch extends Model
         'email',
         'active',
         'settings',
+    ];
+    
+    public $translatable = [
+        'name',
+        'address',
+        'city',
+        'state',
+        'country',
     ];
 
     protected $casts = [
@@ -72,7 +81,7 @@ class Branch extends Model
         return $query->where('company_id', $companyId);
     }
 
-    public function getFullAddressAttribute()
+    public function getFullAddressAttribute(): string
     {
         $parts = array_filter([
             $this->address,
@@ -85,7 +94,7 @@ class Branch extends Model
         return implode(', ', $parts);
     }
 
-    public function getInitialsAttribute()
+    public function getInitialsAttribute(): string
     {
         $words = explode(' ', $this->name);
         $initials = '';

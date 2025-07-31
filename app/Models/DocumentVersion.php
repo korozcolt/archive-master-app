@@ -71,7 +71,7 @@ class DocumentVersion extends Model
     }
 
     // Accessors
-    public function getFileUrlAttribute()
+    public function getFileUrlAttribute(): ?string
     {
         if ($this->file_path) {
             return asset('storage/' . $this->file_path);
@@ -80,7 +80,7 @@ class DocumentVersion extends Model
         return null;
     }
 
-    public function getFileExtensionAttribute()
+    public function getFileExtensionAttribute(): ?string
     {
         if ($this->file_name) {
             return pathinfo($this->file_name, PATHINFO_EXTENSION);
@@ -89,7 +89,7 @@ class DocumentVersion extends Model
         return null;
     }
 
-    public function getHumanFileSizeAttribute()
+    public function getHumanFileSizeAttribute(): ?string
     {
         if (!$this->file_size) {
             return null;
@@ -107,12 +107,12 @@ class DocumentVersion extends Model
         return round($bytes, 2) . ' ' . $units[$i];
     }
 
-    public function getVersionNameAttribute()
+    public function getVersionNameAttribute(): string
     {
         return "V{$this->version_number}" . ($this->is_current ? ' (Actual)' : '');
     }
 
-    public function getCreatedByNameAttribute()
+    public function getCreatedByNameAttribute(): string
     {
         return $this->creator?->name ?? 'Sistema';
     }

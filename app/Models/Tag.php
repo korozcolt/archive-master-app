@@ -9,10 +9,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Translatable\HasTranslations;
 
 class Tag extends Model
 {
-    use HasFactory, LogsActivity, SoftDeletes;
+    use HasFactory, LogsActivity, SoftDeletes, HasTranslations;
 
     protected $fillable = [
         'company_id',
@@ -24,6 +25,11 @@ class Tag extends Model
         'active',
     ];
 
+    public $translatable = [
+        'name',
+        'description',
+    ];
+    
     protected $casts = [
         'active' => 'boolean',
     ];
@@ -58,12 +64,12 @@ class Tag extends Model
         return $query->where('company_id', $companyId);
     }
 
-    public function getColorHtmlAttribute()
+    public function getColorHtmlAttribute(): string
     {
         return $this->color ? "bg-{$this->color}-100" : 'bg-gray-100';
     }
 
-    public function getLabelHtmlAttribute()
+    public function getLabelHtmlAttribute(): string
     {
         return '<span class="py-1 px-3 rounded ' . $this->color_html . '">' . $this->name . '</span>';
     }

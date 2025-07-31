@@ -24,9 +24,9 @@ class UserResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-users';
 
-    protected static ?string $navigationLabel = 'Usuarios';
+    protected static ?string $navigationLabel = 'Users';
 
-    protected static ?string $navigationGroup = 'Administración';
+    protected static ?string $navigationGroup = 'Administration';
 
     protected static ?int $navigationSort = 3;
 
@@ -41,32 +41,32 @@ class UserResource extends Resource
             ->schema([
                 Forms\Components\Group::make()
                     ->schema([
-                        Forms\Components\Section::make('Información personal')
+                        Forms\Components\Section::make('Personal Information')
                             ->schema([
                                 Forms\Components\TextInput::make('name')
-                                    ->label('Nombre')
+                                    ->label('Name')
                                     ->required()
                                     ->maxLength(255),
                                 Forms\Components\TextInput::make('email')
-                                    ->label('Correo electrónico')
+                                    ->label('Email')
                                     ->email()
                                     ->required()
                                     ->maxLength(255)
                                     ->unique(ignoreRecord: true),
                                 Forms\Components\TextInput::make('position')
-                                    ->label('Cargo')
+                                    ->label('Position')
                                     ->maxLength(255),
                                 Forms\Components\TextInput::make('phone')
-                                    ->label('Teléfono')
+                                    ->label('Phone')
                                     ->tel()
                                     ->maxLength(255),
                             ])
                             ->columns(2),
 
-                        Forms\Components\Section::make('Asignación organizacional')
+                        Forms\Components\Section::make('Organizational Assignment')
                             ->schema([
                                 Forms\Components\Select::make('company_id')
-                                    ->label('Empresa')
+                                    ->label('Company')
                                     ->relationship('company', 'name')
                                     ->searchable()
                                     ->preload()
@@ -75,7 +75,7 @@ class UserResource extends Resource
                                     ->disabled(fn () => !Auth::user()->hasRole('super_admin') && Auth::user()->company_id)
                                     ->reactive(),
                                 Forms\Components\Select::make('branch_id')
-                                    ->label('Sucursal')
+                                    ->label('Branch')
                                     ->relationship('branch', 'name', function (Builder $query, callable $get) {
                                         $companyId = $get('company_id');
                                         if ($companyId) {
@@ -87,7 +87,7 @@ class UserResource extends Resource
                                     ->preload()
                                     ->reactive(),
                                 Forms\Components\Select::make('department_id')
-                                    ->label('Departamento')
+                                    ->label('Department')
                                     ->relationship('department', 'name', function (Builder $query, callable $get) {
                                         $companyId = $get('company_id');
                                         if ($companyId) {
@@ -100,10 +100,10 @@ class UserResource extends Resource
                             ])
                             ->columns(2),
 
-                        Forms\Components\Section::make('Acceso y seguridad')
+                        Forms\Components\Section::make('Authentication')
                             ->schema([
                                 Forms\Components\TextInput::make('password')
-                                    ->label('Contraseña')
+                                    ->label('Password')
                                     ->password()
                                     ->autocomplete('new-password')
                                     ->dehydrateStateUsing(fn (string $state): string => Hash::make($state))
@@ -111,7 +111,7 @@ class UserResource extends Resource
                                     ->required(fn (string $operation): bool => $operation === 'create')
                                     ->confirmed(),
                                 Forms\Components\TextInput::make('password_confirmation')
-                                    ->label('Confirmar contraseña')
+                                    ->label('Password Confirmation')
                                     ->password()
                                     ->autocomplete('new-password')
                                     ->requiredWith('password'),
@@ -139,10 +139,10 @@ class UserResource extends Resource
 
                 Forms\Components\Group::make()
                     ->schema([
-                        Forms\Components\Section::make('Imagen y estado')
+                        Forms\Components\Section::make('Image and Status')
                             ->schema([
                                 Forms\Components\FileUpload::make('profile_photo')
-                                    ->label('Foto de perfil')
+                                    ->label('Profile Photo')
                                     ->image()
                                     ->imageResizeMode('cover')
                                     ->imageCropAspectRatio('1:1')
@@ -150,21 +150,21 @@ class UserResource extends Resource
                                     ->imageResizeTargetHeight('200')
                                     ->directory('profile-photos'),
                                 Forms\Components\Toggle::make('is_active')
-                                    ->label('Usuario activo')
+                                    ->label('Is Active')
                                     ->default(true),
                             ]),
 
-                        Forms\Components\Section::make('Preferencias')
+                        Forms\Components\Section::make('Preferences')
                             ->schema([
                                 Forms\Components\Select::make('language')
-                                    ->label('Idioma')
+                                    ->label('Language')
                                     ->options([
                                         'es' => 'Español',
                                         'en' => 'Inglés',
                                     ])
                                     ->default('es'),
                                 Forms\Components\Select::make('timezone')
-                                    ->label('Zona horaria')
+                                    ->label('Timezone')
                                     ->options([
                                         'America/Bogota' => 'Colombia (Bogotá)',
                                         'America/Mexico_City' => 'México (Ciudad de México)',
@@ -177,11 +177,11 @@ class UserResource extends Resource
                                     ])
                                     ->default('America/Bogota'),
                                 Forms\Components\KeyValue::make('settings')
-                                    ->label('Configuración adicional')
-                                    ->keyLabel('Clave')
-                                    ->valueLabel('Valor')
-                                    ->keyPlaceholder('Ingrese una clave')
-                                    ->valuePlaceholder('Ingrese un valor')
+                                    ->label(__('filament::resources.user.fields.settings'))
+                                    ->keyLabel(__('filament::resources.user.fields.settings_key'))
+                                    ->valueLabel(__('filament::resources.user.fields.settings_value'))
+                                    ->keyPlaceholder(__('filament::resources.user.placeholders.enter_key'))
+                                    ->valuePlaceholder(__('filament::resources.user.placeholders.enter_value'))
                                     ->columnSpan('full'),
                             ]),
                     ])
@@ -195,33 +195,33 @@ class UserResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\ImageColumn::make('profile_photo')
-                    ->label('Foto')
+                    ->label('Profile Photo')
                     ->circular(),
                 Tables\Columns\TextColumn::make('name')
-                    ->label('Nombre')
+                    ->label('Name')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('email')
-                    ->label('Correo electrónico')
+                    ->label('Email')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('position')
-                    ->label('Cargo')
+                    ->label('Position')
                     ->searchable()
                     ->sortable()
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('company.name')
-                    ->label('Empresa')
+                    ->label('Company')
                     ->searchable()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: Auth::user()->hasRole('super_admin') ? false : true),
                 Tables\Columns\TextColumn::make('branch.name')
-                    ->label('Sucursal')
+                    ->label('Branch')
                     ->searchable()
                     ->sortable()
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('department.name')
-                    ->label('Departamento')
+                    ->label('Department')
                     ->searchable()
                     ->sortable()
                     ->toggleable(),
@@ -242,36 +242,36 @@ class UserResource extends Resource
                         default => 'gray',
                     }),
                 Tables\Columns\IconColumn::make('is_active')
-                    ->label('Activo')
+                    ->label('Is Active')
                     ->boolean(),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->label('Creado el')
+                    ->label('Created At')
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('last_login_at')
-                    ->label('Último acceso')
+                    ->label('Last Login At')
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(),
             ])
             ->filters([
                 Tables\Filters\Filter::make('is_active')
-                    ->label('Usuarios activos')
+                    ->label('Active Users')
                     ->query(fn (Builder $query): Builder => $query->where('is_active', true))
                     ->toggle(),
                 Tables\Filters\SelectFilter::make('company')
-                    ->label('Empresa')
+                    ->label('Company')
                     ->relationship('company', 'name')
                     ->visible(fn() => Auth::user()->hasRole('super_admin')),
                 Tables\Filters\SelectFilter::make('branch')
-                    ->label('Sucursal')
+                    ->label('Branch')
                     ->relationship('branch', 'name'),
                 Tables\Filters\SelectFilter::make('department')
-                    ->label('Departamento')
+                    ->label('Department')
                     ->relationship('department', 'name'),
                 Tables\Filters\SelectFilter::make('roles')
-                    ->label('Rol')
+                    ->label('Role')
                     ->options(collect(Role::cases())->pluck('value', 'value')
                         ->mapWithKeys(fn ($value, $key) => [$value => Role::from($value)->getLabel()]))
                     ->query(function (Builder $query, array $data) {
@@ -286,17 +286,17 @@ class UserResource extends Resource
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
                 Tables\Actions\Action::make('resetPassword')
-                    ->label('Restablecer contraseña')
+                    ->label('Reset Password')
                     ->icon('heroicon-o-key')
                     ->form([
                         Forms\Components\TextInput::make('password')
-                            ->label('Nueva contraseña')
+                            ->label('New Password')
                             ->password()
                             ->required()
                             ->minLength(8)
                             ->confirmed(),
                         Forms\Components\TextInput::make('password_confirmation')
-                            ->label('Confirmar contraseña')
+                            ->label('Password Confirmation')
                             ->password()
                             ->required(),
                     ])
@@ -310,11 +310,11 @@ class UserResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                     Tables\Actions\BulkAction::make('activateUsers')
-                        ->label('Activar usuarios')
+                        ->label('Activate Users')
                         ->icon('heroicon-o-check-circle')
                         ->action(fn (Collection $records) => $records->each->update(['is_active' => true])),
                     Tables\Actions\BulkAction::make('deactivateUsers')
-                        ->label('Desactivar usuarios')
+                        ->label('Deactivate Users')
                         ->icon('heroicon-o-x-circle')
                         ->color('danger')
                         ->action(fn (Collection $records) => $records->each->update(['is_active' => false])),

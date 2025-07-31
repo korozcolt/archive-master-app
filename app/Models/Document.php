@@ -219,17 +219,17 @@ class Document extends Model
     }
 
     // Accessors
-    public function getCurrentVersionAttribute()
+    public function getCurrentVersionAttribute(): ?DocumentVersion
     {
         return $this->versions()->latest()->first();
     }
 
-    public function getStatusLabelAttribute()
+    public function getStatusLabelAttribute(): string
     {
         return $this->status?->name ?? 'Sin estado';
     }
 
-    public function getPriorityLabelAttribute()
+    public function getPriorityLabelAttribute(): string
     {
         if (!$this->priority) {
             return 'Normal';
@@ -242,7 +242,7 @@ class Document extends Model
         }
     }
 
-    public function getCategoryNameAttribute()
+    public function getCategoryNameAttribute(): string
     {
         return $this->category?->name ?? 'Sin categoría';
     }
@@ -253,7 +253,7 @@ class Document extends Model
         return $this->due_at && $this->due_at < now() && !$this->completed_at;
     }
 
-    public function getDaysUntilDueAttribute()
+    public function getDaysUntilDueAttribute(): ?int
     {
         if (!$this->due_at) {
             return null;
@@ -262,7 +262,7 @@ class Document extends Model
         return now()->diffInDays($this->due_at, false);
     }
 
-    public function getTimeElapsedAttribute()
+    public function getTimeElapsedAttribute(): string
     {
         return $this->created_at->diffForHumans();
     }
@@ -380,7 +380,12 @@ class Document extends Model
     public function generateDocumentNumber(): string
     {
         $prefix = 'DOC';
-        $companyCode = strtoupper(substr($this->company->name, 0, 3));
+        // Handle translatable company name
+        $companyName = $this->company->name;
+        if (is_array($companyName)) {
+            $companyName = $this->company->getTranslation('name', app()->getLocale());
+        }
+        $companyCode = strtoupper(substr($companyName, 0, 3));
         $timestamp = now()->format('YmdHis');
         $random = strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 4));
 
@@ -399,10 +404,16 @@ class Document extends Model
     public function generateQRCode(): string
     {
         // Crear un JSON con la información importante del documento
+        $companyName = $this->company->name;
+        // Handle translatable attribute
+        if (is_array($companyName)) {
+            $companyName = $this->company->getTranslation('name', app()->getLocale());
+        }
+        
         $data = [
             'id' => $this->id,
             'document_number' => $this->document_number,
-            'company' => $this->company->name,
+            'company' => $companyName,
             'created_at' => $this->created_at->toDateTimeString()
         ];
 

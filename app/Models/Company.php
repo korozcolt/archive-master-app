@@ -8,10 +8,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Translatable\HasTranslations;
 
 class Company extends Model
 {
-    use HasFactory, LogsActivity, SoftDeletes;
+    use HasFactory, LogsActivity, SoftDeletes, HasTranslations;
 
     protected $fillable = [
         'name',
@@ -26,6 +27,12 @@ class Company extends Model
         'secondary_color',
         'active',
         'settings',
+    ];
+    
+    public $translatable = [
+        'name',
+        'legal_name',
+        'address',
     ];
 
     protected $casts = [
@@ -86,18 +93,21 @@ class Company extends Model
         return $query->where('active', true);
     }
 
-    public function getLogoUrlAttribute()
+    public function getLogoUrlAttribute(): string
     {
         if ($this->logo) {
             return asset('storage/' . $this->logo);
         }
 
-        return asset('images/default-company-logo.png');
+        // Use the SVG default logo
+        return asset('storage/images/default-company-logo.svg');
     }
 
-    public function getInitialsAttribute()
+    public function getInitialsAttribute(): string
     {
-        $words = explode(' ', $this->name);
+        // Ensure we're working with a string by getting the current locale's value
+        $name = is_array($this->name) ? $this->getTranslation('name', app()->getLocale()) : $this->name;
+        $words = explode(' ', $name);
         $initials = '';
 
         foreach ($words as $word) {

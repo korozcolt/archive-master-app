@@ -18,9 +18,11 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
+use Filament\Resources\Concerns\Translatable;
 
 class CompanyResource extends Resource
 {
+    use Translatable;
     protected static ?string $model = Company::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-building-office';
@@ -116,7 +118,13 @@ class CompanyResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nombre')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->formatStateUsing(function ($state, $record) {
+                        if (is_array($state)) {
+                            return $record->getTranslation('name', app()->getLocale());
+                        }
+                        return $state;
+                    }),
                 Tables\Columns\TextColumn::make('legal_name')
                     ->label('Razón Social')
                     ->searchable()

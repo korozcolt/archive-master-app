@@ -9,10 +9,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Translatable\HasTranslations;
 
 class Department extends Model
 {
-    use HasFactory, LogsActivity, SoftDeletes;
+    use HasFactory, LogsActivity, SoftDeletes, HasTranslations;
 
     protected $fillable = [
         'company_id',
@@ -25,6 +26,11 @@ class Department extends Model
         'settings',
     ];
 
+    public $translatable = [
+        'name',
+        'description',
+    ];
+    
     protected $casts = [
         'active' => 'boolean',
         'settings' => 'json',
