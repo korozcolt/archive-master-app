@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\DocumentStatus;
 use App\Enums\Priority;
+use App\Services\WorkflowEngine;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,6 +16,15 @@ use Illuminate\Support\Facades\Auth;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
+/**
+ * @property-read Status|null $status
+ * @property-read Company $company
+ * @property-read Branch|null $branch
+ * @property-read Department|null $department
+ * @property-read Category|null $category
+ * @property-read User $creator
+ * @property-read User|null $assignee
+ */
 class Document extends Model
 {
     use HasFactory, LogsActivity, SoftDeletes;
@@ -87,6 +97,9 @@ class Document extends Model
         return $this->belongsTo(Category::class);
     }
 
+    /**
+     * @return BelongsTo<Status>
+     */
     public function status(): BelongsTo
     {
         return $this->belongsTo(Status::class);
@@ -423,6 +436,43 @@ class Document extends Model
     public function syncTags(array $tagIds): void
     {
         $this->tags()->sync($tagIds);
+    }
+
+    /**
+     * Transicionar el documento a un nuevo estado
+     */
+    public function transitionTo(Status $newStatus, ?string $comment = null, ?User $user = null): bool
+    {
+        $workflowEngine = app(WorkflowEngine::class);
+        return $workflowEngine->transitionDocument($this, $newStatus, $comment, $user);
+    }
+
+    /**
+     * Obtener transiciones disponibles para el usuario actual
+     */
+    public function getAvailableTransitions(?User $user = null): array
+    {
+        $user = $user ?? Auth::user();
+        if (!$user) {
+            return [];
+        }
+        
+        $workflowEngine = app(WorkflowEngine::class);
+        return $workflowEngine->getAvailableTransitions($this, $user);
+    }
+
+    /**
+     * Verificar si puede transicionar a un estado específico
+     */
+    public function canTransitionTo(Status $newStatus, ?User $user = null): bool
+    {
+        $user = $user ?? Auth::user();
+        if (!$user) {
+            return false;
+        }
+        
+        $workflowEngine = app(WorkflowEngine::class);
+        return $workflowEngine->canTransition($this, $newStatus, $user);
     }
 
     // Hooks

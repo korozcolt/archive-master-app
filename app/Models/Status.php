@@ -100,6 +100,9 @@ class Status extends Model
         return '<span class="py-1 px-3 rounded ' . $this->color_html . '">' . $this->name . '</span>';
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Collection<int, Status>
+     */
     public function getNextStatuses()
     {
         return Status::whereIn('id', $this->fromWorkflows()->active()->pluck('to_status_id'))->get();
