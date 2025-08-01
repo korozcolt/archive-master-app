@@ -17,7 +17,14 @@ class ListDocuments extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()
+                ->label('Crear Rápido'),
+            Actions\Action::make('createWizard')
+                ->label('Crear con Asistente')
+                ->icon('heroicon-o-sparkles')
+                ->color('success')
+                ->url(fn (): string => DocumentResource::getUrl('create-wizard'))
+                ->tooltip('Crear documento paso a paso con asistente'),
             Actions\Action::make('myDocuments')
                 ->label('Mis Documentos')
                 ->icon('heroicon-o-user')

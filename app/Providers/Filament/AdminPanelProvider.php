@@ -45,9 +45,13 @@ class AdminPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
                 \App\Filament\Widgets\StatsOverview::class,
+                \App\Filament\Widgets\CompanyStatsWidget::class,
                 \App\Filament\Widgets\DocumentsByStatus::class,
+                \App\Filament\Widgets\CategoryDepartmentWidget::class,
                 \App\Filament\Widgets\RecentDocuments::class,
+                \App\Filament\Widgets\UserActivityWidget::class,
                 \App\Filament\Widgets\OverdueDocuments::class,
+                \App\Filament\Widgets\WorkflowStatsWidget::class,
                 \App\Filament\Widgets\RecentActivity::class,
             ])
             ->middleware([

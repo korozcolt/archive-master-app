@@ -47,15 +47,16 @@ class RecentDocuments extends BaseWidget
                         }
                         return $state;
                     })
-                    ->color(fn (Document $record): string => {
+                    ->color(function (Document $record): string {
                         $statusColor = $record->status instanceof \App\Models\Status ? ($record->status->color ?? 'gray') : 'gray';
                         return match ($statusColor) {
-                        'red' => 'danger',
-                        'yellow' => 'warning', 
-                        'green' => 'success',
-                        'blue' => 'info',
-                        'purple' => 'primary',
-                        default => 'gray',
+                            'red' => 'danger',
+                            'yellow' => 'warning', 
+                            'green' => 'success',
+                            'blue' => 'info',
+                            'purple' => 'primary',
+                            default => 'gray',
+                        };
                     }),
                     
                 Tables\Columns\TextColumn::make('category.name')
@@ -83,13 +84,13 @@ class RecentDocuments extends BaseWidget
                 Tables\Actions\Action::make('view')
                     ->label('Ver')
                     ->icon('heroicon-m-eye')
-                    ->url(fn (Document $record): string => "/admin/documents/{$record->id}")
+                    ->url(fn (Document $record): string => '/admin/documents/' . $record->id)
                     ->openUrlInNewTab(),
                     
                 Tables\Actions\Action::make('edit')
                     ->label('Editar')
                     ->icon('heroicon-m-pencil-square')
-                    ->url(fn (Document $record): string => "/admin/documents/{$record->id}/edit")
+                    ->url(fn (Document $record): string => '/admin/documents/' . $record->id . '/edit')
                     ->visible(fn (Document $record): bool => Auth::user()->can('update', $record)),
             ])
             ->emptyStateHeading('No hay documentos recientes')

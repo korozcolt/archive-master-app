@@ -16,7 +16,14 @@ class ListCompanies extends ListRecords
     {
         return [
             Actions\LocaleSwitcher::make(),
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()
+                ->label('Crear Rápido'),
+            Actions\Action::make('createWizard')
+                ->label('Crear con Asistente')
+                ->icon('heroicon-o-sparkles')
+                ->color('success')
+                ->url(fn (): string => CompanyResource::getUrl('create-wizard'))
+                ->tooltip('Crear empresa paso a paso con asistente'),
         ];
     }
 }

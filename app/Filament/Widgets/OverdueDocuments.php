@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Models\Document;
+use Filament\Forms;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
@@ -113,9 +114,11 @@ class OverdueDocuments extends BaseWidget
                     ->color('info')
                     ->visible(fn (Document $record): bool => Auth::user()->can('update', $record))
                     ->form([
-                        Tables\Actions\Action::make('new_due_date')
+                        Forms\Components\DateTimePicker::make('new_due_date')
                             ->label('Nueva fecha límite')
-                            ->required(),
+                            ->required()
+                            ->native(false)
+                            ->minDate(now()),
                     ])
                     ->action(function (Document $record, array $data): void {
                         $record->update([
