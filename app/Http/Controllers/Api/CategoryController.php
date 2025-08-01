@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\CategoryResource;
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Requests\Api\StoreCategoryRequest;
 use App\Http\Requests\Api\UpdateCategoryRequest;
 
@@ -35,7 +37,7 @@ class CategoryController extends Controller
     public function index(Request $request)
     {
         $query = Category::with(['company', 'parent', 'children'])
-            ->where('company_id', auth()->user()->company_id);
+            ->where('company_id', Auth::user()->company_id);
 
         if ($request->has('search')) {
             $search = $request->get('search');

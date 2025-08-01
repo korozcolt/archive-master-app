@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * @OA\Tag(
@@ -58,7 +59,7 @@ class DocumentController extends Controller
     public function index(Request $request)
     {
         $query = Document::with(['company', 'branch', 'department', 'category', 'status', 'creator', 'assignedTo', 'tags'])
-            ->where('company_id', auth()->user()->company_id);
+            ->where('company_id', Auth::user()->company_id);
 
         if ($request->has('search')) {
             $search = $request->get('search');
@@ -116,10 +117,10 @@ class DocumentController extends Controller
     public function store(StoreDocumentRequest $request)
     {
         $data = $request->validated();
-        $data['company_id'] = auth()->user()->company_id;
-        $data['branch_id'] = auth()->user()->branch_id;
-        $data['department_id'] = auth()->user()->department_id;
-        $data['created_by'] = auth()->id();
+        $data['company_id'] = Auth::user()->company_id;
+        $data['branch_id'] = Auth::user()->branch_id;
+        $data['department_id'] = Auth::user()->department_id;
+        $data['created_by'] = Auth::id();
         $data['document_number'] = $this->generateDocumentNumber();
 
         if ($request->hasFile('file')) {

@@ -6,8 +6,13 @@ use App\Models\Document;
 use App\Models\User;
 use App\Models\Department;
 use App\Models\Status;
+use App\Models\ScheduledReport;
+use App\Models\ReportTemplate;
+use App\Services\AdvancedFilterService;
+use App\Services\PerformanceMetricsService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class ReportBuilderService
@@ -19,6 +24,23 @@ class ReportBuilderService
     protected string $reportType = 'documents';
     protected ?Carbon $dateFrom = null;
     protected ?Carbon $dateTo = null;
+    protected string $exportFormat = 'pdf';
+    protected ?string $chartType = null;
+    protected bool $includeAggregates = false;
+    protected $reportService;
+    protected $advancedFilterService;
+    protected $performanceMetricsService;
+    protected $template = null;
+
+    public function __construct(
+        ReportService $reportService,
+        AdvancedFilterService $advancedFilterService,
+        PerformanceMetricsService $performanceMetricsService
+    ) {
+        $this->reportService = $reportService;
+        $this->advancedFilterService = $advancedFilterService;
+        $this->performanceMetricsService = $performanceMetricsService;
+    }
 
     /**
      * Set the report type
@@ -27,6 +49,87 @@ class ReportBuilderService
     {
         $this->reportType = $type;
         return $this;
+    }
+    
+    public function loadTemplate(ReportTemplate $template)
+    {
+        $this->template = $template;
+        $config = $template->configuration;
+        
+        if (isset($config['report_type'])) {
+            $this->setReportType($config['report_type']);
+        }
+        
+        if (isset($config['filters'])) {
+            $this->filters = $config['filters'];
+        }
+        
+        if (isset($config['columns'])) {
+            $this->columns = $config['columns'];
+        }
+        
+        if (isset($config['group_by'])) {
+            $this->groupBy = $config['group_by'];
+        }
+        
+        if (isset($config['order_by'])) {
+            $this->orderBy = $config['order_by'];
+        }
+        
+        if (isset($config['date_range'])) {
+            if (isset($config['date_range']['from'])) {
+                $this->dateFrom = Carbon::parse($config['date_range']['from']);
+            }
+            if (isset($config['date_range']['to'])) {
+                $this->dateTo = Carbon::parse($config['date_range']['to']);
+            }
+        }
+        
+        if (isset($config['export_format'])) {
+            $this->exportFormat = $config['export_format'];
+        }
+        
+        if (isset($config['chart_type'])) {
+            $this->chartType = $config['chart_type'];
+        }
+        
+        if (isset($config['include_aggregates'])) {
+            $this->includeAggregates = $config['include_aggregates'];
+        }
+        
+        // Increment usage count
+        $template->incrementUsage();
+        
+        return $this;
+    }
+    
+    public function saveAsTemplate($name, $description = null, $isPublic = false, $isFavorite = false)
+    {
+        $config = [
+            'report_type' => $this->reportType,
+            'filters' => $this->filters,
+            'columns' => $this->columns,
+            'group_by' => $this->groupBy,
+            'order_by' => $this->orderBy,
+            'date_range' => [
+                'from' => $this->dateFrom?->toISOString(),
+                'to' => $this->dateTo?->toISOString()
+            ],
+            'export_format' => $this->exportFormat,
+            'chart_type' => $this->chartType,
+            'include_aggregates' => $this->includeAggregates,
+        ];
+        
+        return ReportTemplate::create([
+            'name' => $name,
+            'description' => $description,
+            'report_type' => $this->reportType,
+            'configuration' => $config,
+            'is_public' => $isPublic,
+            'is_favorite' => $isFavorite,
+            'user_id' => Auth::id(),
+            'company_id' => Auth::user()->company_id ?? null,
+        ]);
     }
 
     /**
@@ -41,6 +144,109 @@ class ReportBuilderService
         ];
         return $this;
     }
+    
+    public function addAdvancedFilter($field, $operator, $value = null, $options = [])
+    {
+        $filter = [
+            'field' => $field,
+            'operator' => $operator,
+            'value' => $value,
+            'advanced' => true,
+            'options' => $options
+        ];
+        
+        // Validate filter using AdvancedFilterService
+        if ($this->advancedFilterService->validateFilter($filter, $this->reportType)) {
+            $this->filters[] = $filter;
+        }
+        
+        return $this;
+    }
+    
+    public function getFilterSummary()
+    {
+        return $this->advancedFilterService->buildFilterSummary($this->filters);
+    }
+    
+    public function getAvailableFields()
+    {
+        return $this->advancedFilterService->getFieldMetadata($this->reportType);
+    }
+    
+    public function getAvailableOperators($fieldType)
+    {
+        return $this->advancedFilterService->getOperatorsForFieldType($fieldType);
+    }
+    
+    public function getPerformanceMetrics()
+    {
+        return $this->performanceMetricsService->getOverviewMetrics(
+            $this->dateFrom,
+            $this->dateTo
+        );
+    }
+    
+    public function getProductivityMetrics()
+    {
+        return $this->performanceMetricsService->getProductivityMetrics(
+            $this->dateFrom,
+            $this->dateTo
+        );
+    }
+    
+    public function getEfficiencyMetrics()
+    {
+        return $this->performanceMetricsService->getEfficiencyMetrics(
+            $this->dateFrom,
+            $this->dateTo
+        );
+    }
+    
+    public function getQualityMetrics()
+    {
+        return $this->performanceMetricsService->getQualityMetrics(
+            $this->dateFrom,
+            $this->dateTo
+        );
+    }
+    
+    public function getTrendMetrics()
+    {
+        return $this->performanceMetricsService->getTrendMetrics(
+            $this->dateFrom,
+            $this->dateTo
+        );
+    }
+    
+    public function getDepartmentComparison()
+    {
+        return $this->performanceMetricsService->getDepartmentComparison(
+            $this->dateFrom,
+            $this->dateTo
+        );
+    }
+    
+    public function getUserPerformance($userId = null)
+    {
+        return $this->performanceMetricsService->getUserPerformanceMetrics(
+            $this->dateFrom,
+            $this->dateTo,
+            $userId
+        );
+    }
+    
+    public function getKPIDashboard()
+    {
+        $filters = [];
+        if ($this->dateFrom) {
+            $filters['date_from'] = $this->dateFrom->format('Y-m-d');
+        }
+        if ($this->dateTo) {
+            $filters['date_to'] = $this->dateTo->format('Y-m-d');
+        }
+        
+        return $this->performanceMetricsService->getKPIDashboard($filters);
+    }
 
     /**
      * Set columns to include in the report
@@ -48,6 +254,59 @@ class ReportBuilderService
     public function setColumns(array $columns): self
     {
         $this->columns = $columns;
+        return $this;
+    }
+    
+    public function setExportFormat(string $format): self
+    {
+        $this->exportFormat = $format;
+        return $this;
+    }
+    
+    public function setChartType(?string $chartType): self
+    {
+        $this->chartType = $chartType;
+        return $this;
+    }
+    
+    public function setIncludeAggregates(bool $include): self
+    {
+        $this->includeAggregates = $include;
+        return $this;
+    }
+    
+    public function getConfiguration(): array
+    {
+        return [
+            'report_type' => $this->reportType,
+            'filters' => $this->filters,
+            'columns' => $this->columns,
+            'group_by' => $this->groupBy,
+            'order_by' => $this->orderBy,
+            'date_range' => [
+                'from' => $this->dateFrom?->toISOString(),
+                'to' => $this->dateTo?->toISOString()
+            ],
+            'export_format' => $this->exportFormat,
+            'chart_type' => $this->chartType,
+            'include_aggregates' => $this->includeAggregates,
+        ];
+    }
+    
+    public function reset(): self
+    {
+        $this->reportType = 'documents';
+        $this->filters = [];
+        $this->columns = [];
+        $this->groupBy = [];
+        $this->orderBy = [];
+        $this->dateFrom = null;
+        $this->dateTo = null;
+        $this->exportFormat = 'pdf';
+        $this->chartType = null;
+        $this->includeAggregates = false;
+        $this->template = null;
+        
         return $this;
     }
 
@@ -314,49 +573,55 @@ class ReportBuilderService
      */
     protected function applyFilter($query, array $filter): void
     {
-        $field = $filter['field'];
-        $operator = $filter['operator'];
-        $value = $filter['value'];
-        
-        switch ($operator) {
-            case '=':
-                $query->where($field, $value);
-                break;
-            case '!=':
-                $query->where($field, '!=', $value);
-                break;
-            case '>':
-                $query->where($field, '>', $value);
-                break;
-            case '<':
-                $query->where($field, '<', $value);
-                break;
-            case '>=':
-                $query->where($field, '>=', $value);
-                break;
-            case '<=':
-                $query->where($field, '<=', $value);
-                break;
-            case 'like':
-                $query->where($field, 'like', "%{$value}%");
-                break;
-            case 'in':
-                $query->whereIn($field, is_array($value) ? $value : [$value]);
-                break;
-            case 'not_in':
-                $query->whereNotIn($field, is_array($value) ? $value : [$value]);
-                break;
-            case 'between':
-                if (is_array($value) && count($value) === 2) {
-                    $query->whereBetween($field, $value);
-                }
-                break;
-            case 'null':
-                $query->whereNull($field);
-                break;
-            case 'not_null':
-                $query->whereNotNull($field);
-                break;
+        if (isset($filter['advanced']) && $filter['advanced']) {
+            // Use AdvancedFilterService for advanced filters
+            $query = $this->advancedFilterService->applyAdvancedFilters($query, [$filter]);
+        } else {
+            // Legacy filter handling
+            $field = $filter['field'];
+            $operator = $filter['operator'];
+            $value = $filter['value'];
+            
+            switch ($operator) {
+                case '=':
+                    $query->where($field, $value);
+                    break;
+                case '!=':
+                    $query->where($field, '!=', $value);
+                    break;
+                case '>':
+                    $query->where($field, '>', $value);
+                    break;
+                case '<':
+                    $query->where($field, '<', $value);
+                    break;
+                case '>=':
+                    $query->where($field, '>=', $value);
+                    break;
+                case '<=':
+                    $query->where($field, '<=', $value);
+                    break;
+                case 'like':
+                    $query->where($field, 'like', "%{$value}%");
+                    break;
+                case 'in':
+                    $query->whereIn($field, is_array($value) ? $value : [$value]);
+                    break;
+                case 'not_in':
+                    $query->whereNotIn($field, is_array($value) ? $value : [$value]);
+                    break;
+                case 'between':
+                    if (is_array($value) && count($value) === 2) {
+                        $query->whereBetween($field, $value);
+                    }
+                    break;
+                case 'null':
+                    $query->whereNull($field);
+                    break;
+                case 'not_null':
+                    $query->whereNotNull($field);
+                    break;
+            }
         }
     }
 

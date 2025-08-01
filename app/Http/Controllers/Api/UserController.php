@@ -9,6 +9,7 @@ use App\Http\Requests\Api\UpdateUserRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * @OA\Tag(
@@ -50,7 +51,7 @@ class UserController extends Controller
         $this->authorize('viewAny', User::class);
         
         $query = User::with(['company', 'branch', 'department', 'roles'])
-            ->where('company_id', auth()->user()->company_id);
+            ->where('company_id', Auth::user()->company_id);
 
         if ($request->has('search')) {
             $search = $request->get('search');
@@ -106,7 +107,7 @@ class UserController extends Controller
         $this->authorize('create', User::class);
         
         $data = $request->validated();
-        $data['company_id'] = auth()->user()->company_id;
+        $data['company_id'] = Auth::user()->company_id;
         $data['password'] = Hash::make($data['password']);
 
         $user = User::create($data);
@@ -253,7 +254,7 @@ class UserController extends Controller
      */
     public function me()
     {
-        $user = auth()->user();
+        $user = Auth::user();
         $user->load(['company', 'branch', 'department', 'roles', 'permissions']);
         
         return new UserResource($user);

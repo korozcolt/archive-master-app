@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Auth;
 
 class StoreDocumentRequest extends FormRequest
 {
@@ -11,7 +12,7 @@ class StoreDocumentRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return auth()->check();
+        return Auth::check();
     }
 
     /**
@@ -66,7 +67,7 @@ class StoreDocumentRequest extends FormRequest
     {
         // Set default status if not provided
         if (!$this->has('status_id')) {
-            $defaultStatus = \App\Models\Status::where('company_id', auth()->user()->company_id)
+            $defaultStatus = \App\Models\Status::where('company_id', Auth::user()->company_id)
                 ->where('is_active', true)
                 ->orderBy('sort_order')
                 ->first();

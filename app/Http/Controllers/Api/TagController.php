@@ -8,6 +8,7 @@ use App\Models\Tag;
 use App\Http\Requests\Api\StoreTagRequest;
 use App\Http\Requests\Api\UpdateTagRequest;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * @OA\Tag(
@@ -35,7 +36,7 @@ class TagController extends Controller
     public function index(Request $request)
     {
         $query = Tag::with(['company'])
-            ->where('company_id', auth()->user()->company_id);
+            ->where('company_id', Auth::user()->company_id);
 
         if ($request->has('search')) {
             $search = $request->get('search');

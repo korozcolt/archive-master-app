@@ -78,30 +78,27 @@ function initializeTooltips() {
 }
 
 // Sistema de notificaciones mejorado
-function showNotification(message, type = 'info', duration = 5000) {
-    const notification = document.createElement('div');
-    notification.className = `notification-${type} fixed top-4 right-4 z-50 max-w-sm slide-in-right`;
-    notification.innerHTML = `
-        <div class="flex items-center justify-between">
-            <span>${message}</span>
-            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-lg font-bold">&times;</button>
-        </div>
-    `;
-    
-    document.body.appendChild(notification);
-    
-    // Auto-remover después del tiempo especificado
-    setTimeout(() => {
-        if (notification.parentElement) {
-            notification.classList.add('fade-out');
-            setTimeout(() => notification.remove(), 300);
-        }
-    }, duration);
-}
-
 function initializeNotifications() {
-    // Make showNotification available globally
-    window.showNotification = showNotification;
+    window.showNotification = function(message, type = 'info', duration = 5000) {
+        const notification = document.createElement('div');
+        notification.className = `notification-${type} fixed top-4 right-4 z-50 max-w-sm slide-in-right`;
+        notification.innerHTML = `
+            <div class="flex items-center justify-between">
+                <span>${message}</span>
+                <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-lg font-bold">&times;</button>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto-remover después del tiempo especificado
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.classList.add('fade-out');
+                setTimeout(() => notification.remove(), 300);
+            }
+        }, duration);
+    };
 }
 
 // Mejoras para formularios
@@ -343,52 +340,13 @@ const additionalStyles = `
         transform: translateX(20px);
         transition: all 0.3s ease-out;
     }
+    
     .field-error {
         animation: slideInRight 0.3s ease-out;
     }
+    
     .character-counter {
         transition: color 0.2s ease;
-    }
-    .slide-in-right {
-        animation: slideInRight 0.3s ease-out;
-    }
-    @keyframes slideInRight {
-        from {
-            opacity: 0;
-            transform: translateX(100%);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-    .notification-info {
-        background-color: #3b82f6;
-        color: white;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-    .notification-success {
-        background-color: #10b981;
-        color: white;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-    .notification-warning {
-        background-color: #f59e0b;
-        color: white;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-    .notification-error {
-        background-color: #ef4444;
-        color: white;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
 `;
 

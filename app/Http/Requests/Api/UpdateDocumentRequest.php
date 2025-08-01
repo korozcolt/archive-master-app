@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Auth;
 
 class UpdateDocumentRequest extends FormRequest
 {
@@ -11,7 +12,7 @@ class UpdateDocumentRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return auth()->check();
+        return Auth::check();
     }
 
     /**

@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\ReportService;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 
 class ReportsAnalyticsWidget extends BaseWidget
@@ -184,6 +185,6 @@ class ReportsAnalyticsWidget extends BaseWidget
     
     public static function canView(): bool
     {
-        return auth()->user()->can('view_reports') || auth()->user()->hasRole(['admin', 'manager']);
+        return Auth::user()->can('view_reports') || Auth::user()->hasRole(['admin', 'manager']);
     }
 }

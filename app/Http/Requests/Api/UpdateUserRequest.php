@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\Rule;
 
@@ -13,7 +14,7 @@ class UpdateUserRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return auth()->check();
+        return Auth::check();
     }
 
     /**

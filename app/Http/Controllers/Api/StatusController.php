@@ -8,6 +8,7 @@ use App\Models\Status;
 use Illuminate\Http\Request;
 use App\Http\Requests\Api\StoreStatusRequest;
 use App\Http\Requests\Api\UpdateStatusRequest;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * @OA\Tag(
@@ -35,7 +36,7 @@ class StatusController extends Controller
     public function index(Request $request)
     {
         $query = Status::with(['company'])
-            ->where('company_id', auth()->user()->company_id);
+            ->where('company_id', Auth::user()->company_id);
 
         if ($request->has('search')) {
             $search = $request->get('search');

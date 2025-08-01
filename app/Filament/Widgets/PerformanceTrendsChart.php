@@ -2,170 +2,121 @@
 
 namespace App\Filament\Widgets;
 
-use App\Models\Document;
-use App\Models\User;
+use App\Services\PerformanceMetricsService;
 use Filament\Widgets\ChartWidget;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Cache;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\DatePicker;
+use Illuminate\Support\Facades\Auth;
 
 class PerformanceTrendsChart extends ChartWidget
 {
     protected static ?string $heading = 'Tendencias de Rendimiento';
     
-    protected static ?string $description = 'Análisis de rendimiento del sistema en los últimos 30 días';
-    
-    protected static ?int $sort = 5;
+    protected static ?int $sort = 2;
     
     protected int | string | array $columnSpan = 'full';
     
-    protected static ?string $maxHeight = '400px';
+    public ?string $filter = 'documents';
     
-    public ?string $filter = 'processing_time';
-    
-    protected static ?string $pollingInterval = '60s';
+    public ?string $period = '30';
 
     protected function getData(): array
     {
-        $cacheKey = 'performance_trends_' . $this->filter . '_' . auth()->id();
+        $performanceService = app(PerformanceMetricsService::class);
+        $days = (int) $this->period;
+        $dateFrom = Carbon::now()->subDays($days);
+        $dateTo = Carbon::now();
         
-        return Cache::remember($cacheKey, 600, function () {
-            return match ($this->filter) {
-                'processing_time' => $this->getProcessingTimeData(),
-                'throughput' => $this->getThroughputData(),
-                'efficiency' => $this->getEfficiencyData(),
-                'user_productivity' => $this->getUserProductivityData(),
-                'department_comparison' => $this->getDepartmentComparisonData(),
-                default => $this->getProcessingTimeData(),
-            };
-        });
+        $trends = $performanceService->getTrendMetrics($dateFrom, $dateTo);
+        
+        switch ($this->filter) {
+            case 'documents':
+                return $this->getDocumentTrends($trends);
+            case 'productivity':
+                return $this->getProductivityTrends($trends);
+            case 'efficiency':
+                return $this->getEfficiencyTrends($trends);
+            case 'quality':
+                return $this->getQualityTrends($trends);
+            default:
+                return $this->getDocumentTrends($trends);
+        }
     }
 
     protected function getType(): string
     {
-        return match ($this->filter) {
-            'processing_time' => 'line',
-            'throughput' => 'bar',
-            'efficiency' => 'line',
-            'user_productivity' => 'bar',
-            'department_comparison' => 'doughnut',
-            default => 'line',
-        };
+        return 'line';
     }
 
     protected function getFilters(): ?array
     {
         return [
-            'processing_time' => 'Tiempo de Procesamiento',
-            'throughput' => 'Productividad Diaria',
-            'efficiency' => 'Eficiencia del Sistema',
-            'user_productivity' => 'Productividad por Usuario',
-            'department_comparison' => 'Comparación por Departamento',
+            'documents' => 'Documentos Procesados',
+            'productivity' => 'Productividad',
+            'efficiency' => 'Eficiencia',
+            'quality' => 'Calidad',
+        ];
+    }
+    
+    protected function getFormSchema(): array
+    {
+        return [
+            Select::make('period')
+                ->label('Período')
+                ->options([
+                    '7' => 'Últimos 7 días',
+                    '30' => 'Últimos 30 días',
+                    '90' => 'Últimos 90 días',
+                    '365' => 'Último año',
+                ])
+                ->default('30')
+                ->reactive(),
         ];
     }
 
-    /**
-     * Get processing time trend data
-     */
-    private function getProcessingTimeData(): array
+    private function getDocumentTrends($trends): array
     {
-        $data = [];
-        $labels = [];
-        
-        for ($i = 29; $i >= 0; $i--) {
-            $date = Carbon::now()->subDays($i);
-            $labels[] = $date->format('M d');
-            
-            $avgProcessingTime = Document::whereHas('status', function ($query) {
-                $query->where('name', 'Completado');
-            })
-            ->whereDate('updated_at', $date)
-            ->selectRaw('AVG(DATEDIFF(updated_at, created_at)) as avg_days')
-            ->value('avg_days');
-            
-            $data[] = $avgProcessingTime ? round($avgProcessingTime, 1) : 0;
-        }
+        $labels = array_keys($trends['daily_documents'] ?? []);
+        $data = array_values($trends['daily_documents'] ?? []);
         
         return [
             'datasets' => [
                 [
-                    'label' => 'Tiempo Promedio (días)',
+                    'label' => 'Documentos Procesados',
                     'data' => $data,
                     'borderColor' => 'rgb(59, 130, 246)',
                     'backgroundColor' => 'rgba(59, 130, 246, 0.1)',
                     'fill' => true,
-                    'tension' => 0.4,
                 ],
             ],
             'labels' => $labels,
         ];
     }
 
-    /**
-     * Get throughput trend data
-     */
-    private function getThroughputData(): array
+    private function getProductivityTrends($trends): array
     {
-        $createdData = [];
-        $completedData = [];
-        $labels = [];
-        
-        for ($i = 29; $i >= 0; $i--) {
-            $date = Carbon::now()->subDays($i);
-            $labels[] = $date->format('M d');
-            
-            $created = Document::whereDate('created_at', $date)->count();
-            $completed = Document::whereHas('status', function ($query) {
-                $query->where('name', 'Completado');
-            })
-            ->whereDate('updated_at', $date)
-            ->count();
-            
-            $createdData[] = $created;
-            $completedData[] = $completed;
-        }
+        $labels = array_keys($trends['daily_productivity'] ?? []);
+        $data = array_values($trends['daily_productivity'] ?? []);
         
         return [
             'datasets' => [
                 [
-                    'label' => 'Documentos Creados',
-                    'data' => $createdData,
-                    'backgroundColor' => 'rgba(34, 197, 94, 0.8)',
+                    'label' => 'Productividad (%)',
+                    'data' => $data,
                     'borderColor' => 'rgb(34, 197, 94)',
-                ],
-                [
-                    'label' => 'Documentos Completados',
-                    'data' => $completedData,
-                    'backgroundColor' => 'rgba(59, 130, 246, 0.8)',
-                    'borderColor' => 'rgb(59, 130, 246)',
+                    'backgroundColor' => 'rgba(34, 197, 94, 0.1)',
+                    'fill' => true,
                 ],
             ],
             'labels' => $labels,
         ];
     }
 
-    /**
-     * Get efficiency trend data
-     */
-    private function getEfficiencyData(): array
+    private function getEfficiencyTrends($trends): array
     {
-        $data = [];
-        $labels = [];
-        
-        for ($i = 29; $i >= 0; $i--) {
-            $date = Carbon::now()->subDays($i);
-            $labels[] = $date->format('M d');
-            
-            $created = Document::whereDate('created_at', $date)->count();
-            $completed = Document::whereHas('status', function ($query) {
-                $query->where('name', 'Completado');
-            })
-            ->whereDate('updated_at', $date)
-            ->count();
-            
-            $efficiency = $created > 0 ? round(($completed / $created) * 100, 1) : 0;
-            $data[] = $efficiency;
-        }
+        $labels = array_keys($trends['daily_efficiency'] ?? []);
+        $data = array_values($trends['daily_efficiency'] ?? []);
         
         return [
             'datasets' => [
@@ -175,213 +126,33 @@ class PerformanceTrendsChart extends ChartWidget
                     'borderColor' => 'rgb(168, 85, 247)',
                     'backgroundColor' => 'rgba(168, 85, 247, 0.1)',
                     'fill' => true,
-                    'tension' => 0.4,
                 ],
             ],
             'labels' => $labels,
         ];
     }
 
-    /**
-     * Get user productivity data
-     */
-    private function getUserProductivityData(): array
+    private function getQualityTrends($trends): array
     {
-        $users = User::where('is_active', true)
-            ->withCount(['documents' => function ($query) {
-                $query->where('created_at', '>=', Carbon::now()->subDays(30));
-            }])
-            ->orderBy('documents_count', 'desc')
-            ->take(10)
-            ->get();
-        
-        $labels = $users->pluck('name')->toArray();
-        $data = $users->pluck('documents_count')->toArray();
+        $labels = array_keys($trends['daily_quality'] ?? []);
+        $data = array_values($trends['daily_quality'] ?? []);
         
         return [
             'datasets' => [
                 [
-                    'label' => 'Documentos Creados (30 días)',
+                    'label' => 'Calidad (%)',
                     'data' => $data,
-                    'backgroundColor' => [
-                        'rgba(239, 68, 68, 0.8)',
-                        'rgba(245, 158, 11, 0.8)',
-                        'rgba(34, 197, 94, 0.8)',
-                        'rgba(59, 130, 246, 0.8)',
-                        'rgba(168, 85, 247, 0.8)',
-                        'rgba(236, 72, 153, 0.8)',
-                        'rgba(14, 165, 233, 0.8)',
-                        'rgba(99, 102, 241, 0.8)',
-                        'rgba(139, 69, 19, 0.8)',
-                        'rgba(75, 85, 99, 0.8)',
-                    ],
+                    'borderColor' => 'rgb(245, 158, 11)',
+                    'backgroundColor' => 'rgba(245, 158, 11, 0.1)',
+                    'fill' => true,
                 ],
             ],
             'labels' => $labels,
         ];
     }
 
-    /**
-     * Get department comparison data
-     */
-    private function getDepartmentComparisonData(): array
-    {
-        $departments = DB::table('departments')
-            ->leftJoin('documents', 'departments.id', '=', 'documents.department_id')
-            ->select('departments.name', DB::raw('COUNT(documents.id) as document_count'))
-            ->where('documents.created_at', '>=', Carbon::now()->subDays(30))
-            ->groupBy('departments.id', 'departments.name')
-            ->orderBy('document_count', 'desc')
-            ->get();
-        
-        $labels = $departments->pluck('name')->toArray();
-        $data = $departments->pluck('document_count')->toArray();
-        
-        return [
-            'datasets' => [
-                [
-                    'label' => 'Documentos por Departamento',
-                    'data' => $data,
-                    'backgroundColor' => [
-                        'rgba(239, 68, 68, 0.8)',
-                        'rgba(245, 158, 11, 0.8)',
-                        'rgba(34, 197, 94, 0.8)',
-                        'rgba(59, 130, 246, 0.8)',
-                        'rgba(168, 85, 247, 0.8)',
-                        'rgba(236, 72, 153, 0.8)',
-                        'rgba(14, 165, 233, 0.8)',
-                        'rgba(99, 102, 241, 0.8)',
-                    ],
-                    'borderWidth' => 2,
-                ],
-            ],
-            'labels' => $labels,
-        ];
-    }
-
-    /**
-     * Get chart options
-     */
-    protected function getOptions(): array
-    {
-        return match ($this->filter) {
-            'processing_time' => [
-                'plugins' => [
-                    'legend' => [
-                        'display' => true,
-                    ],
-                    'tooltip' => [
-                        'mode' => 'index',
-                        'intersect' => false,
-                    ],
-                ],
-                'scales' => [
-                    'y' => [
-                        'beginAtZero' => true,
-                        'title' => [
-                            'display' => true,
-                            'text' => 'Días',
-                        ],
-                    ],
-                    'x' => [
-                        'title' => [
-                            'display' => true,
-                            'text' => 'Fecha',
-                        ],
-                    ],
-                ],
-                'interaction' => [
-                    'mode' => 'nearest',
-                    'axis' => 'x',
-                    'intersect' => false,
-                ],
-            ],
-            'throughput' => [
-                'plugins' => [
-                    'legend' => [
-                        'display' => true,
-                    ],
-                ],
-                'scales' => [
-                    'y' => [
-                        'beginAtZero' => true,
-                        'title' => [
-                            'display' => true,
-                            'text' => 'Cantidad de Documentos',
-                        ],
-                    ],
-                    'x' => [
-                        'title' => [
-                            'display' => true,
-                            'text' => 'Fecha',
-                        ],
-                    ],
-                ],
-            ],
-            'efficiency' => [
-                'plugins' => [
-                    'legend' => [
-                        'display' => true,
-                    ],
-                ],
-                'scales' => [
-                    'y' => [
-                        'beginAtZero' => true,
-                        'max' => 100,
-                        'title' => [
-                            'display' => true,
-                            'text' => 'Porcentaje (%)',
-                        ],
-                    ],
-                    'x' => [
-                        'title' => [
-                            'display' => true,
-                            'text' => 'Fecha',
-                        ],
-                    ],
-                ],
-            ],
-            'user_productivity' => [
-                'plugins' => [
-                    'legend' => [
-                        'display' => true,
-                    ],
-                ],
-                'scales' => [
-                    'y' => [
-                        'beginAtZero' => true,
-                        'title' => [
-                            'display' => true,
-                            'text' => 'Documentos Creados',
-                        ],
-                    ],
-                    'x' => [
-                        'title' => [
-                            'display' => true,
-                            'text' => 'Usuario',
-                        ],
-                    ],
-                ],
-            ],
-            'department_comparison' => [
-                'plugins' => [
-                    'legend' => [
-                        'display' => true,
-                        'position' => 'right',
-                    ],
-                ],
-                'maintainAspectRatio' => false,
-            ],
-            default => [],
-        };
-    }
-
-    /**
-     * Check if user can view this widget
-     */
     public static function canView(): bool
     {
-        return auth()->user()->can('view_performance_trends') || 
-               auth()->user()->hasRole(['admin', 'manager']);
+        return Auth::user()->can('view_performance_metrics');
     }
 }

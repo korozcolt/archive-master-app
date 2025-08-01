@@ -8,6 +8,7 @@ use Filament\Actions;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Notifications\Notification;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class CreateCustomReport extends CreateRecord
 {
@@ -227,7 +228,7 @@ class CreateCustomReport extends CreateRecord
             // ReportTemplate::create([
             //     'name' => $templateName,
             //     'configuration' => json_encode($data),
-            //     'user_id' => auth()->id(),
+            //     'user_id' => Auth::id(),
             //     'created_at' => now()
             // ]);
             
@@ -265,7 +266,7 @@ class CreateCustomReport extends CreateRecord
             }
             
             // Send email with attachment
-            $recipients = $data['email_recipients'] ?? [auth()->user()->email];
+            $recipients = $data['email_recipients'] ?? [Auth::user()->email];
             $reportName = $data['report_name'] ?? 'Reporte Personalizado';
             
             // Here you would implement the email sending logic

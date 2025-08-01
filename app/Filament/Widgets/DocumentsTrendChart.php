@@ -5,6 +5,7 @@ namespace App\Filament\Widgets;
 use App\Models\Document;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Auth;
 
 class DocumentsTrendChart extends ChartWidget
 {
@@ -129,6 +130,6 @@ class DocumentsTrendChart extends ChartWidget
     
     public static function canView(): bool
     {
-        return auth()->user()->can('view_reports') || auth()->user()->hasRole(['admin', 'manager']);
+        return Auth::user()->can('view_reports') || Auth::user()->hasRole(['admin', 'manager']);
     }
 }

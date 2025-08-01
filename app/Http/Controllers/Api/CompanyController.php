@@ -7,6 +7,7 @@ use App\Http\Resources\CompanyResource;
 use App\Models\Company;
 use App\Http\Requests\Api\UpdateCompanyRequest;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * @OA\Tag(
@@ -38,8 +39,8 @@ class CompanyController extends Controller
         $query = Company::with(['branches', 'departments', 'categories', 'statuses', 'tags']);
         
         // Super admin can see all companies, others only their own
-        if (!auth()->user()->hasRole('super-admin')) {
-            $query->where('id', auth()->user()->company_id);
+        if (!Auth::user()->hasRole('super-admin')) {
+            $query->where('id', Auth::user()->company_id);
         }
 
         if ($request->has('search')) {

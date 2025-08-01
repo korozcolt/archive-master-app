@@ -16,6 +16,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class CustomReportExport implements 
     FromCollection, 
@@ -311,7 +312,7 @@ class CustomReportExport implements
         
         $sheet->setCellValue('A4', $dateRange);
         $sheet->setCellValue('F4', 'Total de registros: ' . $this->data->count());
-        $sheet->setCellValue('I4', 'Generado por: ' . (auth()->check() ? auth()->user()->name : 'Sistema'));
+        $sheet->setCellValue('I4', 'Generado por: ' . (Auth::check() ? Auth::user()->name : 'Sistema'));
     }
 
     /**

@@ -11,6 +11,7 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Auth;
 
 class PerformanceMetricsWidget extends BaseWidget
 {
@@ -32,7 +33,7 @@ class PerformanceMetricsWidget extends BaseWidget
         $reportService = app(ReportService::class);
         
         // Cache metrics for 5 minutes to improve performance
-        $cacheKey = 'performance_metrics_' . auth()->id();
+        $cacheKey = 'performance_metrics_' . Auth::id();
         
         return Cache::remember($cacheKey, 300, function () use ($reportService) {
             $now = Carbon::now();
@@ -369,7 +370,7 @@ class PerformanceMetricsWidget extends BaseWidget
      */
     public static function canView(): bool
     {
-        return auth()->user()->can('view_performance_metrics') || 
-               auth()->user()->hasRole(['admin', 'manager']);
+        return Auth::user()->can('view_performance_metrics') || 
+               Auth::user()->hasRole(['admin', 'manager']);
     }
 }
