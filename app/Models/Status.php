@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Translatable\HasTranslations;
@@ -41,6 +42,25 @@ class Status extends Model
         'active' => 'boolean',
         'settings' => 'json',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($status) {
+            if (empty($status->slug)) {
+                $name = is_array($status->name) ? reset($status->name) : $status->name;
+                $status->slug = Str::slug($name);
+            }
+        });
+
+        static::updating(function ($status) {
+            if ($status->isDirty('name') && empty($status->slug)) {
+                $name = is_array($status->name) ? reset($status->name) : $status->name;
+                $status->slug = Str::slug($name);
+            }
+        });
+    }
 
     public function getActivitylogOptions(): LogOptions
     {

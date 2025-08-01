@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Translatable\HasTranslations;
@@ -33,6 +34,25 @@ class Tag extends Model
     protected $casts = [
         'active' => 'boolean',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($tag) {
+            if (empty($tag->slug)) {
+                $name = is_array($tag->name) ? reset($tag->name) : $tag->name;
+                $tag->slug = Str::slug($name);
+            }
+        });
+
+        static::updating(function ($tag) {
+            if ($tag->isDirty('name') && empty($tag->slug)) {
+                $name = is_array($tag->name) ? reset($tag->name) : $tag->name;
+                $tag->slug = Str::slug($name);
+            }
+        });
+    }
 
     public function getActivitylogOptions(): LogOptions
     {

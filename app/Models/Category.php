@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Translatable\HasTranslations;
@@ -37,6 +38,25 @@ class Category extends Model
         'active' => 'boolean',
         'settings' => 'json',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($category) {
+            if (empty($category->slug)) {
+                $name = is_array($category->name) ? ($category->name['es'] ?? $category->name['en'] ?? reset($category->name)) : $category->name;
+                $category->slug = Str::slug($name);
+            }
+        });
+
+        static::updating(function ($category) {
+            if ($category->isDirty('name') && empty($category->slug)) {
+                $name = is_array($category->name) ? ($category->name['es'] ?? $category->name['en'] ?? reset($category->name)) : $category->name;
+                $category->slug = Str::slug($name);
+            }
+        });
+    }
 
     public function getActivitylogOptions(): LogOptions
     {

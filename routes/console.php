@@ -50,6 +50,13 @@ Schedule::command('activitylog:clean')
         return config('activitylog.delete_records_older_than_days', 0) > 0;
     });
 
+// Procesar reportes programados cada 15 minutos
+Schedule::command('reports:process-scheduled')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/scheduled-reports.log'));
+
 // Generar reportes automáticos mensualmente
 Schedule::call(function () {
     \Illuminate\Support\Facades\Log::info('Generando reportes mensuales automáticos');

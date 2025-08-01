@@ -81,6 +81,107 @@ class ReportBuilderService
         $this->dateTo = $to;
         return $this;
     }
+    
+    /**
+     * Set dynamic date range based on frequency
+     */
+    public function setDynamicDateRange(string $frequency): self
+    {
+        $now = now();
+        
+        switch ($frequency) {
+            case 'daily':
+                $this->dateFrom = $now->copy()->startOfDay();
+                $this->dateTo = $now->copy()->endOfDay();
+                break;
+            case 'weekly':
+                $this->dateFrom = $now->copy()->startOfWeek();
+                $this->dateTo = $now->copy()->endOfWeek();
+                break;
+            case 'monthly':
+                $this->dateFrom = $now->copy()->startOfMonth();
+                $this->dateTo = $now->copy()->endOfMonth();
+                break;
+            case 'quarterly':
+                $this->dateFrom = $now->copy()->startOfQuarter();
+                $this->dateTo = $now->copy()->endOfQuarter();
+                break;
+            default:
+                // Default to last 30 days
+                $this->dateFrom = $now->copy()->subDays(30);
+                $this->dateTo = $now;
+        }
+        
+        return $this;
+    }
+    
+    /**
+     * Configure report from scheduled report configuration
+     */
+    public function configureFromScheduledReport(array $config): self
+    {
+        // Set report type
+        if (isset($config['report_type'])) {
+            $this->setReportType($config['report_type']);
+        }
+        
+        // Set columns
+        if (isset($config['columns']) && is_array($config['columns'])) {
+            $this->setColumns($config['columns']);
+        }
+        
+        // Apply filters if configured
+        if (isset($config['filters']) && is_array($config['filters'])) {
+            foreach ($config['filters'] as $filter) {
+                if (isset($filter['field'], $filter['operator'], $filter['value'])) {
+                    $this->addFilter($filter['field'], $filter['operator'], $filter['value']);
+                }
+            }
+        }
+        
+        // Apply grouping if configured
+        if (isset($config['group_by']) && is_array($config['group_by'])) {
+            foreach ($config['group_by'] as $group) {
+                $this->groupBy($group);
+            }
+        }
+        
+        // Apply ordering if configured
+        if (isset($config['order_by']) && is_array($config['order_by'])) {
+            foreach ($config['order_by'] as $order) {
+                if (isset($order['field'])) {
+                    $direction = $order['direction'] ?? 'asc';
+                    $this->orderBy($order['field'], $direction);
+                }
+            }
+        }
+        
+        return $this;
+    }
+    
+    /**
+     * Get export file path
+     */
+    public function getExportPath(string $format, string $filename = null): string
+    {
+        $filename = $filename ?: 'report_' . date('Y-m-d_H-i-s');
+        $extension = $this->getFileExtension($format);
+        
+        return storage_path("app/reports/{$filename}.{$extension}");
+    }
+    
+    /**
+     * Get file extension for format
+     */
+    protected function getFileExtension(string $format): string
+    {
+        return match($format) {
+            'pdf' => 'pdf',
+            'excel', 'xlsx' => 'xlsx',
+            'csv' => 'csv',
+            default => 'pdf'
+        };
+    }
 
     /**
      * Build and execute the report query
@@ -373,7 +474,7 @@ class ReportBuilderService
     {
         // Use existing ReportService for PDF generation
         $reportService = app(ReportService::class);
-        return $reportService->generateCustomReport($data, $aggregates, 'pdf');
+        return $reportService->generateCustomReport($data->toArray(), $aggregates, 'pdf');
     }
 
     /**
@@ -383,7 +484,7 @@ class ReportBuilderService
     {
         // Use existing ReportService for Excel generation
         $reportService = app(ReportService::class);
-        return $reportService->generateCustomReport($data, $aggregates, 'excel');
+        return $reportService->generateCustomReport($data->toArray(), $aggregates, 'excel');
     }
 
     /**

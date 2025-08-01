@@ -31,25 +31,31 @@ Route::prefix('documents')->name('documents.')->middleware(['auth'])->group(func
 });
 
 // Funciones auxiliares para mejorar legibilidad
-function authorizeDocumentAccess($document): void
-{
-    if (!Auth::check() || (!Auth::user()->hasRole('super_admin') &&
-        Auth::user()->company_id != $document->company_id)) {
-        abort(403, 'No tiene permiso para acceder a este documento.');
+if (!function_exists('authorizeDocumentAccess')) {
+    function authorizeDocumentAccess($document): void
+    {
+        if (!Auth::check() || (!Auth::user()->hasRole('super_admin') &&
+            Auth::user()->company_id != $document->company_id)) {
+            abort(403, 'No tiene permiso para acceder a este documento.');
+        }
     }
 }
 
-function validateFileExists($filePath): void
-{
-    if (!$filePath || !file_exists(storage_path('app/public/' . $filePath))) {
-        abort(404, 'El archivo no existe.');
+if (!function_exists('validateFileExists')) {
+    function validateFileExists($filePath): void
+    {
+        if (!$filePath || !file_exists(storage_path('app/public/' . $filePath))) {
+            abort(404, 'El archivo no existe.');
+        }
     }
 }
 
-function downloadFile($filePath)
-{
-    return response()->download(
-        storage_path('app/public/' . $filePath),
-        basename($filePath)
-    );
+if (!function_exists('downloadFile')) {
+    function downloadFile($filePath)
+    {
+        return response()->download(
+            storage_path('app/public/' . $filePath),
+            basename($filePath)
+        );
+    }
 }
