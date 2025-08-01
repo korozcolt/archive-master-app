@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Events\DocumentUpdated;
+use App\Listeners\SendDocumentUpdateNotification;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +22,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Registrar listeners de eventos
+        Event::listen(
+            DocumentUpdated::class,
+            SendDocumentUpdateNotification::class
+        );
     }
 }

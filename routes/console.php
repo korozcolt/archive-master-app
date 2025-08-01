@@ -9,17 +9,33 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 // Verificar documentos vencidos diariamente a las 9:00 AM
-Schedule::command('documents:check-overdue --notifications')
+Schedule::command('documents:notify-overdue')
     ->dailyAt('09:00')
     ->withoutOverlapping()
     ->runInBackground()
-    ->appendOutputTo(storage_path('logs/overdue-check.log'));
+    ->appendOutputTo(storage_path('logs/overdue-notifications.log'));
 
 // Verificar documentos vencidos cada 4 horas durante horario laboral
-Schedule::command('documents:check-overdue --notifications')
+Schedule::command('documents:notify-overdue')
     ->cron('0 8,12,16,20 * * *')
     ->withoutOverlapping()
     ->runInBackground();
+
+// Indexar documentos en Scout diariamente a las 2:00 AM
+Schedule::command('search:index')
+    ->dailyAt('02:00')
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/search-index.log'));
+
+// Limpiar notificaciones antiguas semanalmente
+Schedule::command('notifications:clean --days=30')
+    ->weekly()
+    ->sundays()
+    ->at('03:00')
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/notifications-clean.log'));
 
 // Limpiar logs antiguos semanalmente
 Schedule::command('log:clear')

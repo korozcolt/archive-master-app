@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\Events\DocumentUpdated;
 use App\Models\Document;
 use App\Notifications\DocumentStatusChanged;
 use Illuminate\Support\Facades\Log;
@@ -122,6 +123,16 @@ class DocumentObserver
                     'document_number' => $document->document_number,
                 ])
                 ->log('updated');
+        }
+
+        // Disparar evento DocumentUpdated para notificaciones automáticas
+        if (!empty($importantChanges) && Auth::check()) {
+            event(new DocumentUpdated(
+                $document,
+                Auth::user(),
+                $importantChanges,
+                $document->getAttribute('_update_comment')
+            ));
         }
 
         // Manejar cambio de estado

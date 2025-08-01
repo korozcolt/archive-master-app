@@ -6,13 +6,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Laravel\Scout\Searchable;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Translatable\HasTranslations;
 
 class Company extends Model
 {
-    use HasFactory, LogsActivity, SoftDeletes, HasTranslations;
+    use HasFactory, LogsActivity, SoftDeletes, HasTranslations, Searchable;
 
     protected $fillable = [
         'name',
@@ -115,5 +116,41 @@ class Company extends Model
         }
 
         return strtoupper(substr($initials, 0, 3));
+    }
+
+    /**
+     * Get the indexable data array for the model.
+     */
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->getTranslation('name', 'es'),
+            'legal_name' => $this->legal_name,
+            'tax_id' => $this->tax_id,
+            'address' => $this->address,
+            'phone' => $this->phone,
+            'email' => $this->email,
+            'website' => $this->website,
+            'active' => $this->active,
+            'created_at' => $this->created_at?->timestamp,
+            'updated_at' => $this->updated_at?->timestamp,
+        ];
+    }
+
+    /**
+     * Get the name of the index associated with the model.
+     */
+    public function searchableAs(): string
+    {
+        return 'companies';
+    }
+
+    /**
+     * Determine if the model should be searchable.
+     */
+    public function shouldBeSearchable(): bool
+    {
+        return $this->active && !$this->trashed();
     }
 }

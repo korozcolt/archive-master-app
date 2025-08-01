@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
+use Laravel\Scout\Searchable;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -27,7 +28,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  */
 class Document extends Model
 {
-    use HasFactory, LogsActivity, SoftDeletes;
+    use HasFactory, LogsActivity, SoftDeletes, Searchable;
 
     protected $fillable = [
         'company_id',
@@ -261,10 +262,6 @@ class Document extends Model
     }
 
     // Métodos
-    public function isOverdue(): bool
-    {
-        return $this->due_at && $this->due_at < now() && !$this->completed_at;
-    }
 
     public function getDaysUntilDueAttribute(): ?int
     {
@@ -507,5 +504,137 @@ class Document extends Model
             // Crear la primera versión del documento
             $document->addVersion();
         });
+    }
+
+    /**
+     * Get the indexable data array for the model.
+     */
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'document_number' => $this->document_number,
+            'barcode' => $this->barcode,
+            'qrcode' => $this->qrcode,
+            'title' => $this->title,
+            'description' => $this->description,
+            'content' => $this->content,
+            'physical_location' => $this->physical_location,
+            'priority' => $this->priority?->value,
+            'is_confidential' => $this->is_confidential,
+            'is_archived' => $this->is_archived,
+            'company_name' => $this->company?->name,
+            'branch_name' => $this->branch?->name,
+            'department_name' => $this->department?->name,
+            'category_name' => $this->category?->name,
+            'status_name' => $this->status?->name,
+            'creator_name' => $this->creator?->name,
+            'assignee_name' => $this->assignee?->name,
+            'tags' => $this->tags->pluck('name')->toArray(),
+            'created_at' => $this->created_at?->timestamp,
+            'updated_at' => $this->updated_at?->timestamp,
+            'received_at' => $this->received_at?->timestamp,
+            'due_date' => $this->due_date?->timestamp,
+        ];
+    }
+
+    /**
+     * Get the name of the index associated with the model.
+     */
+    public function searchableAs(): string
+    {
+        return 'documents';
+    }
+
+    /**
+     * Determine if the model should be searchable.
+     */
+    public function shouldBeSearchable(): bool
+    {
+        return !$this->trashed();
+    }
+
+    /**
+     * Verificar si el documento tiene todas las firmas requeridas (para contratos)
+     */
+    public function hasRequiredSignatures(): bool
+    {
+        // Implementar lógica para verificar firmas
+        // Por ahora retorna true, pero se puede extender con un sistema de firmas
+        return true;
+    }
+
+    /**
+     * Verificar si el documento tiene comprobante de pago (para facturas)
+     */
+    public function hasPaymentProof(): bool
+    {
+        // Implementar lógica para verificar comprobante de pago
+        // Por ahora retorna true, pero se puede extender con un sistema de pagos
+        return true;
+    }
+
+    /**
+     * Verificar si el documento tiene las aprobaciones requeridas (para reportes)
+     */
+    public function hasRequiredApprovals(): bool
+    {
+        // Implementar lógica para verificar aprobaciones
+        // Por ahora retorna true, pero se puede extender con un sistema de aprobaciones
+        return true;
+    }
+
+    /**
+     * Obtener el supervisor del usuario asignado
+     */
+    public function getSupervisor(): ?User
+    {
+        if ($this->assignee && method_exists($this->assignee, 'supervisor')) {
+            return $this->assignee->supervisor;
+        }
+        return null;
+    }
+
+    /**
+     * Verificar si el documento está vencido según SLA
+     */
+    public function isOverdue(): bool
+    {
+        if (!$this->status || $this->status->is_final) {
+            return false;
+        }
+
+        $workflowDefinition = $this->status->fromWorkflows()
+            ->where('company_id', $this->company_id)
+            ->first();
+
+        if ($workflowDefinition && $workflowDefinition->sla_hours) {
+            $slaDeadline = $this->created_at->addHours($workflowDefinition->sla_hours);
+            return now()->gt($slaDeadline);
+        }
+
+        return false;
+    }
+
+    /**
+     * Obtener tiempo restante para SLA
+     */
+    public function getTimeToSLA(): ?int
+    {
+        if (!$this->status || $this->status->is_final) {
+            return null;
+        }
+
+        $workflowDefinition = $this->status->fromWorkflows()
+            ->where('company_id', $this->company_id)
+            ->first();
+
+        if ($workflowDefinition && $workflowDefinition->sla_hours) {
+            $slaDeadline = $this->created_at->addHours($workflowDefinition->sla_hours);
+            $hoursRemaining = now()->diffInHours($slaDeadline, false);
+            return $hoursRemaining > 0 ? $hoursRemaining : 0;
+        }
+
+        return null;
     }
 }

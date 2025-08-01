@@ -9,13 +9,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Laravel\Scout\Searchable;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, HasRoles, LogsActivity;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles, LogsActivity, Searchable;
 
     protected $fillable = [
         'name',
@@ -126,5 +127,34 @@ class User extends Authenticatable
         }
 
         return $this->roles->contains('name', $roles);
+    }
+
+    /**
+     * Get the indexable data array for the model.
+     */
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'email' => $this->email,
+            'position' => $this->position,
+            'phone' => $this->phone,
+            'language' => $this->language,
+            'company_name' => $this->company?->name,
+            'branch_name' => $this->branch?->name,
+            'department_name' => $this->department?->name,
+            'roles' => $this->roles->pluck('name')->toArray(),
+            'created_at' => $this->created_at?->timestamp,
+            'updated_at' => $this->updated_at?->timestamp,
+        ];
+    }
+
+    /**
+     * Get the name of the index associated with the model.
+     */
+    public function searchableAs(): string
+    {
+        return 'archivemasterusers';
     }
 }

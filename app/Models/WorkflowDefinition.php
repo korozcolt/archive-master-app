@@ -24,6 +24,14 @@ class WorkflowDefinition extends Model
         'requires_approval',
         'requires_comment',
         'sla_hours',
+        'timeout_hours',
+        'auto_escalation_hours',
+        'custom_notifications',
+        'custom_validations',
+        'auto_delegate_on_absence',
+        'custom_hooks',
+        'escalation_rules',
+        'approval_config',
         'active',
         'settings',
     ];
@@ -32,8 +40,14 @@ class WorkflowDefinition extends Model
         'roles_allowed' => 'json',
         'requires_approval' => 'boolean',
         'requires_comment' => 'boolean',
+        'auto_delegate_on_absence' => 'boolean',
         'active' => 'boolean',
         'settings' => 'json',
+        'custom_notifications' => 'json',
+        'custom_validations' => 'json',
+        'custom_hooks' => 'json',
+        'escalation_rules' => 'json',
+        'approval_config' => 'json',
     ];
 
     public function getActivitylogOptions(): LogOptions

@@ -15,9 +15,17 @@ class DocumentOverdue extends Notification implements ShouldQueue
 
     public function __construct(
         public Document $document,
-        public int $daysOverdue
+        public int $hoursOverdue
     ) {
         $this->onQueue('notifications');
+    }
+    
+    /**
+     * Get days overdue for backward compatibility
+     */
+    public function getDaysOverdue(): int
+    {
+        return (int) ceil($this->hoursOverdue / 24);
     }
 
     /**
@@ -27,8 +35,8 @@ class DocumentOverdue extends Notification implements ShouldQueue
     {
         $channels = ['database'];
         
-        // Enviar email solo si han pasado más de 3 días
-        if ($this->daysOverdue >= 3) {
+        // Enviar email solo si han pasado más de 72 horas (3 días)
+        if ($this->hoursOverdue >= 72) {
             $channels[] = 'mail';
         }
         
@@ -47,10 +55,15 @@ class DocumentOverdue extends Notification implements ShouldQueue
             $subject = "🚨 URGENTE: " . $subject;
         }
         
+        $daysOverdue = $this->getDaysOverdue();
+        $timeOverdueText = $this->hoursOverdue < 24 
+            ? "{$this->hoursOverdue} horas"
+            : "{$daysOverdue} días";
+        
         return (new MailMessage)
             ->subject($subject)
             ->greeting("Hola {$notifiable->name},")
-            ->line("El documento **{$this->document->document_number}** está vencido hace **{$this->daysOverdue} días**.")
+            ->line("El documento **{$this->document->document_number}** está vencido hace **{$timeOverdueText}**.")
             ->line("**Título:** {$this->document->title}")
             ->line("**Estado actual:** {$this->getStatusName()}")
             ->line("**Categoría:** {$this->getCategoryName()}")
@@ -68,19 +81,25 @@ class DocumentOverdue extends Notification implements ShouldQueue
      */
     public function toDatabase(object $notifiable): array
     {
+        $daysOverdue = $this->getDaysOverdue();
+        $timeOverdueText = $this->hoursOverdue < 24 
+            ? "{$this->hoursOverdue} horas"
+            : "{$daysOverdue} días";
+            
         return [
             'type' => 'document_overdue',
             'document_id' => $this->document->id,
             'document_number' => $this->document->document_number,
             'document_title' => $this->document->title,
-            'days_overdue' => $this->daysOverdue,
+            'hours_overdue' => $this->hoursOverdue,
+            'days_overdue' => $daysOverdue,
             'due_date' => $this->document->due_at->toISOString(),
             'status' => $this->getStatusName(),
             'category' => $this->getCategoryName(),
             'priority' => $this->document->priority,
             'urgency_level' => $this->getUrgencyLevel(),
             'action_url' => "/admin/documents/{$this->document->id}",
-            'message' => "El documento {$this->document->document_number} está vencido hace {$this->daysOverdue} días",
+            'message' => "El documento {$this->document->document_number} está vencido hace {$timeOverdueText}",
         ];
     }
 
@@ -93,14 +112,14 @@ class DocumentOverdue extends Notification implements ShouldQueue
     }
 
     /**
-     * Obtener el nivel de urgencia basado en días vencidos
+     * Obtener el nivel de urgencia basado en horas vencidas
      */
     private function getUrgencyLevel(): string
     {
         return match (true) {
-            $this->daysOverdue >= 15 => 'critical',
-            $this->daysOverdue >= 7 => 'high',
-            $this->daysOverdue >= 3 => 'medium',
+            $this->hoursOverdue >= 360 => 'critical', // 15 días
+            $this->hoursOverdue >= 168 => 'high',     // 7 días
+            $this->hoursOverdue >= 72 => 'medium',    // 3 días
             default => 'low',
         };
     }
@@ -160,7 +179,7 @@ class DocumentOverdue extends Notification implements ShouldQueue
      */
     public function uniqueId(): string
     {
-        return "document_overdue_{$this->document->id}_{$this->daysOverdue}";
+        return "document_overdue_{$this->document->id}_{$this->getDaysOverdue()}";
     }
 
     /**
