@@ -60,6 +60,11 @@ class AdminPanelProvider extends PanelProvider
                 \App\Filament\Widgets\OverdueDocuments::class,
                 \App\Filament\Widgets\WorkflowStatsWidget::class,
                 \App\Filament\Widgets\RecentActivity::class,
+                // Phase 3: Reports & Analytics Widgets
+                \App\Filament\Widgets\ReportsAnalyticsWidget::class,
+                \App\Filament\Widgets\DocumentsTrendChart::class,
+                \App\Filament\Widgets\DepartmentDistributionChart::class,
+                \App\Filament\Widgets\SlaComplianceChart::class,
             ])
             ->middleware([
                 EncryptCookies::class,

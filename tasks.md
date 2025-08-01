@@ -173,26 +173,26 @@ Completar el sistema de gestión documental ArchiveMaster llevándolo del 65% ac
 **Estado: 🟡 ALTA PRIORIDAD - Business Intelligence**
 
 #### **Semana 5: Motor de Reportes**
-- [ ] **Tarea 5.1**: Infraestructura de Reportes
-  - [ ] Crear `ReportService` abstracción
-  - [ ] Configurar generación de PDFs (DomPDF)
-  - [ ] Exports a Excel (Laravel Excel)
-  - [ ] Sistema de templates para reportes
-  - **Estimado**: 10 horas
+- [x] **Tarea 5.1**: Infraestructura de Reportes ✅ COMPLETADO
+  - [x] Crear `ReportService` abstracción
+  - [x] Configurar generación de PDFs (DomPDF)
+  - [x] Exports a Excel (Laravel Excel)
+  - [x] Sistema de templates para reportes
+  - **Estimado**: 10 horas ✅ COMPLETADO
 
-- [ ] **Tarea 5.2**: Reportes Básicos
-  - [ ] Reporte de documentos por estado
-  - [ ] Reporte de cumplimiento SLA
-  - [ ] Reporte de actividad por usuario
-  - [ ] Reporte de documentos por departamento
-  - **Estimado**: 12 horas
+- [x] **Tarea 5.2**: Reportes Básicos ✅ COMPLETADO
+  - [x] Reporte de documentos por estado
+  - [x] Reporte de cumplimiento SLA
+  - [x] Reporte de actividad por usuario
+  - [x] Reporte de documentos por departamento
+  - **Estimado**: 12 horas ✅ COMPLETADO
 
-- [ ] **Tarea 5.3**: Dashboard Analytics
-  - [ ] Widget de métricas SLA
-  - [ ] Gráficos de tendencias (Chart.js)
-  - [ ] Filtros de fecha en dashboard
-  - [ ] Comparativas mensuales
-  - **Estimado**: 8 horas
+- [x] **Tarea 5.3**: Dashboard Analytics ✅ COMPLETADO
+  - [x] Widget de métricas SLA
+  - [x] Gráficos de tendencias (Chart.js)
+  - [x] Filtros de fecha en dashboard
+  - [x] Comparativas mensuales
+  - **Estimado**: 8 horas ✅ COMPLETADO
 
 #### **Semana 6: Reportes Avanzados**
 - [ ] **Tarea 6.1**: Reportes Personalizables
