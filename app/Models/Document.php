@@ -59,6 +59,7 @@ class Document extends Model
     protected $casts = [
         'is_confidential' => 'boolean',
         'is_archived' => 'boolean',
+        'priority' => Priority::class,
         'received_at' => 'datetime',
         'due_at' => 'datetime',
         'completed_at' => 'datetime',
@@ -250,9 +251,9 @@ class Document extends Model
         }
 
         try {
-            return Priority::from($this->priority)->getLabel();
+            return $this->priority->getLabel();
         } catch (\ValueError $e) {
-            return ucfirst($this->priority);
+            return ucfirst($this->priority?->value ?? $this->priority);
         }
     }
 

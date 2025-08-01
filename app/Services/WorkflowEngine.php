@@ -515,7 +515,7 @@ class WorkflowEngine
             'due_date' => $document->due_date,
             'transition_timestamp' => now()->toISOString(),
             'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent()
+            'user_agent' => request()->userAgent() ?? 'Unknown'
         ]);
     }
 
@@ -577,7 +577,9 @@ class WorkflowEngine
     private function executeCustomValidations(Document $document, Status $toStatus, User $user): void
     {
         // Validaciones específicas por tipo de documento
-        switch ($document->type) {
+        $documentType = $document->type?->value ?? $document->type;
+        
+        switch ($documentType) {
             case 'contract':
                 $this->validateContractTransition($document, $toStatus, $user);
                 break;

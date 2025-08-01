@@ -65,6 +65,9 @@ class AdminPanelProvider extends PanelProvider
                 \App\Filament\Widgets\DocumentsTrendChart::class,
                 \App\Filament\Widgets\DepartmentDistributionChart::class,
                 \App\Filament\Widgets\SlaComplianceChart::class,
+                // Phase 3 Week 6: Advanced Reports & Performance Metrics
+                \App\Filament\Widgets\PerformanceMetricsWidget::class,
+                \App\Filament\Widgets\PerformanceTrendsChart::class,
             ])
             ->middleware([
                 EncryptCookies::class,

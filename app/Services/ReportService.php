@@ -241,6 +241,227 @@ class ReportService
     }
 
     /**
+     * Generate custom report based on dynamic configuration
+     */
+    public function generateCustomReport(array $config): Collection
+    {
+        $reportType = $config['report_type'] ?? 'documents';
+        $filters = $config['filters'] ?? [];
+        $columns = $config['columns'] ?? ['*'];
+        $groupBy = $config['group_by'] ?? [];
+        $orderBy = $config['order_by'] ?? [];
+        $dateFrom = $config['date_from'] ?? null;
+        $dateTo = $config['date_to'] ?? null;
+
+        // Build base query based on report type
+        $query = $this->buildBaseQuery($reportType);
+
+        // Apply date range filters
+        if ($dateFrom && $dateTo) {
+            $query->whereBetween('created_at', [$dateFrom, $dateTo]);
+        }
+
+        // Apply custom filters
+        foreach ($filters as $filter) {
+            $this->applyFilter($query, $filter);
+        }
+
+        // Apply column selection
+        if ($columns !== ['*']) {
+            $query->select($columns);
+        }
+
+        // Apply grouping
+        foreach ($groupBy as $group) {
+            $query->groupBy($group);
+        }
+
+        // Apply ordering
+        foreach ($orderBy as $order) {
+            $query->orderBy($order['field'], $order['direction'] ?? 'asc');
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * Build base query for different report types
+     */
+    private function buildBaseQuery(string $reportType)
+    {
+        return match ($reportType) {
+            'documents' => Document::with(['status', 'category', 'user', 'department']),
+            'users' => User::with(['documents', 'department']),
+            'departments' => Department::with(['documents', 'users']),
+            default => Document::with(['status', 'category', 'user', 'department'])
+        };
+    }
+
+    /**
+     * Apply individual filter to query
+     */
+    private function applyFilter($query, array $filter): void
+    {
+        $field = $filter['field'];
+        $operator = $filter['operator'];
+        $value = $filter['value'] ?? null;
+
+        switch ($operator) {
+            case 'equals':
+                $query->where($field, '=', $value);
+                break;
+            case 'not_equals':
+                $query->where($field, '!=', $value);
+                break;
+            case 'contains':
+                $query->where($field, 'LIKE', "%{$value}%");
+                break;
+            case 'starts_with':
+                $query->where($field, 'LIKE', "{$value}%");
+                break;
+            case 'ends_with':
+                $query->where($field, 'LIKE', "%{$value}");
+                break;
+            case 'greater_than':
+                $query->where($field, '>', $value);
+                break;
+            case 'less_than':
+                $query->where($field, '<', $value);
+                break;
+            case 'greater_equal':
+                $query->where($field, '>=', $value);
+                break;
+            case 'less_equal':
+                $query->where($field, '<=', $value);
+                break;
+            case 'in':
+                if (is_array($value)) {
+                    $query->whereIn($field, $value);
+                }
+                break;
+            case 'not_in':
+                if (is_array($value)) {
+                    $query->whereNotIn($field, $value);
+                }
+                break;
+            case 'null':
+                $query->whereNull($field);
+                break;
+            case 'not_null':
+                $query->whereNotNull($field);
+                break;
+        }
+    }
+
+    /**
+     * Get aggregated data for custom reports
+     */
+    public function getCustomReportAggregates(array $config): array
+    {
+        $reportType = $config['report_type'] ?? 'documents';
+        $filters = $config['filters'] ?? [];
+        $dateFrom = $config['date_from'] ?? null;
+        $dateTo = $config['date_to'] ?? null;
+
+        $query = $this->buildBaseQuery($reportType);
+
+        // Apply date range filters
+        if ($dateFrom && $dateTo) {
+            $query->whereBetween('created_at', [$dateFrom, $dateTo]);
+        }
+
+        // Apply custom filters
+        foreach ($filters as $filter) {
+            $this->applyFilter($query, $filter);
+        }
+
+        $aggregates = [];
+
+        // Calculate common aggregates based on report type
+        switch ($reportType) {
+            case 'documents':
+                $aggregates = [
+                    'total_documents' => $query->count(),
+                    'avg_processing_time' => $this->calculateAverageProcessingTime($query),
+                    'documents_by_status' => $this->getDocumentStatusDistribution($query),
+                    'documents_by_department' => $this->getDocumentDepartmentDistribution($query),
+                ];
+                break;
+            case 'users':
+                $aggregates = [
+                    'total_users' => $query->count(),
+                    'active_users' => $query->where('is_active', true)->count(),
+                    'users_by_department' => $this->getUserDepartmentDistribution($query),
+                ];
+                break;
+            case 'departments':
+                $aggregates = [
+                    'total_departments' => $query->count(),
+                    'departments_with_documents' => $query->has('documents')->count(),
+                ];
+                break;
+        }
+
+        return $aggregates;
+    }
+
+    /**
+     * Get document status distribution
+     */
+    private function getDocumentStatusDistribution($query): array
+    {
+        return $query->join('statuses', 'documents.status_id', '=', 'statuses.id')
+            ->select('statuses.name', DB::raw('count(*) as total'))
+            ->groupBy('statuses.name')
+            ->pluck('total', 'name')
+            ->toArray();
+    }
+
+    /**
+     * Get document department distribution
+     */
+    private function getDocumentDepartmentDistribution($query): array
+    {
+        return $query->join('departments', 'documents.department_id', '=', 'departments.id')
+            ->select('departments.name', DB::raw('count(*) as total'))
+            ->groupBy('departments.name')
+            ->pluck('total', 'name')
+            ->toArray();
+    }
+
+    /**
+     * Get user department distribution
+     */
+    private function getUserDepartmentDistribution($query): array
+    {
+        return $query->join('departments', 'users.department_id', '=', 'departments.id')
+            ->select('departments.name', DB::raw('count(*) as total'))
+            ->groupBy('departments.name')
+            ->pluck('total', 'name')
+            ->toArray();
+    }
+
+    /**
+     * Calculate average processing time for documents
+     */
+    private function calculateAverageProcessingTime($query): float
+    {
+        $completedDocs = $query->whereHas('status', function ($q) {
+            $q->where('name', 'Completado');
+        })->get();
+
+        if ($completedDocs->isEmpty()) {
+            return 0;
+        }
+
+        $totalDays = $completedDocs->sum(function ($doc) {
+            return $doc->created_at->diffInDays($doc->updated_at);
+        });
+
+        return round($totalDays / $completedDocs->count(), 2);
+    }
+
+    /**
      * Get report title by type
      */
     private function getReportTitle(string $reportType): string
@@ -250,6 +471,7 @@ class ReportService
             'sla-compliance' => 'Reporte de Cumplimiento SLA',
             'user-activity' => 'Reporte de Actividad por Usuario',
             'documents-by-department' => 'Reporte de Documentos por Departamento',
+            'custom' => 'Reporte Personalizado',
             default => 'Reporte del Sistema'
         };
     }
