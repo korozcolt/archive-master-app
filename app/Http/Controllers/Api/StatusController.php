@@ -2,192 +2,103 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
-use App\Http\Resources\StatusResource;
 use App\Models\Status;
 use Illuminate\Http\Request;
-use App\Http\Requests\Api\StoreStatusRequest;
-use App\Http\Requests\Api\UpdateStatusRequest;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 
-/**
- * @OA\Tag(
- *     name="Statuses",
- *     description="API Endpoints for status management"
- * )
- */
-class StatusController extends Controller
+class StatusController extends BaseApiController
 {
     /**
      * @OA\Get(
      *     path="/api/statuses",
-     *     summary="Get list of statuses",
      *     tags={"Statuses"},
-     *     security={{"sanctum":{}}},
+     *     summary="Listar estados",
+     *     description="Obtener lista de estados disponibles para la empresa",
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
-     *         description="Successful operation",
+     *         description="Lista de estados",
      *         @OA\JsonContent(
-     *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/Status"))
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Success"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     @OA\Property(property="id", type="integer", example=1),
+     *                     @OA\Property(property="name", type="string", example="En Proceso"),
+     *                     @OA\Property(property="slug", type="string", example="in_process"),
+     *                     @OA\Property(property="color", type="string", example="blue"),
+     *                     @OA\Property(property="icon", type="string", example="heroicon-o-clock"),
+     *                     @OA\Property(property="is_initial", type="boolean", example=false),
+     *                     @OA\Property(property="is_final", type="boolean", example=false),
+     *                     @OA\Property(property="active", type="boolean", example=true)
+     *                 )
+     *             ),
+     *             @OA\Property(property="timestamp", type="string", format="date-time")
      *         )
      *     )
      * )
      */
-    public function index(Request $request)
+    public function index(): JsonResponse
     {
-        $query = Status::with(['company'])
-            ->where('company_id', Auth::user()->company_id);
+        $statuses = Status::where('company_id', Auth::user()->company_id)
+            ->where('active', true)
+            ->orderBy('name')
+            ->get();
 
-        if ($request->has('search')) {
-            $search = $request->get('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
-            });
-        }
-
-        if ($request->has('is_active')) {
-            $query->where('is_active', $request->boolean('is_active'));
-        }
-
-        if ($request->has('is_final')) {
-            $query->where('is_final', $request->boolean('is_final'));
-        }
-
-        $query->orderBy('sort_order')->orderBy('name');
-        
-        $perPage = min($request->get('per_page', 15), 100);
-        $statuses = $query->paginate($perPage);
-
-        return StatusResource::collection($statuses);
-    }
-
-    /**
-     * @OA\Post(
-     *     path="/api/statuses",
-     *     summary="Create a new status",
-     *     tags={"Statuses"},
-     *     security={{"sanctum":{}}},
-     *     @OA\RequestBody(
-     *         required=true,
-     *         @OA\JsonContent(
-     *             @OA\Property(property="name", type="string", example="In Progress"),
-     *             @OA\Property(property="description", type="string", example="Document is being processed"),
-     *             @OA\Property(property="color", type="string", example="#FFA500")
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=201,
-     *         description="Status created successfully",
-     *         @OA\JsonContent(ref="#/components/schemas/Status")
-     *     )
-     * )
-     */
-    public function store(StoreStatusRequest $request)
-    {
-        $data = $request->validated();
-
-        $status = Status::create($data);
-        $status->load(['company']);
-
-        return new StatusResource($status);
+        return $this->successResponse($statuses);
     }
 
     /**
      * @OA\Get(
      *     path="/api/statuses/{id}",
-     *     summary="Get status by ID",
      *     tags={"Statuses"},
-     *     security={{"sanctum":{}}},
+     *     summary="Obtener estado",
+     *     description="Obtener detalles de un estado específico",
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
+     *         description="ID del estado",
      *         required=true,
-     *         @OA\Schema(type="integer")
+     *         @OA\Schema(type="integer", example=1)
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Successful operation",
-     *         @OA\JsonContent(ref="#/components/schemas/Status")
-     *     )
-     * )
-     */
-    public function show(Status $status)
-    {
-        $this->authorize('view', $status);
-        
-        $status->load(['company', 'documents']);
-
-        return new StatusResource($status);
-    }
-
-    /**
-     * @OA\Put(
-     *     path="/api/statuses/{id}",
-     *     summary="Update status",
-     *     tags={"Statuses"},
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="id",
-     *         in="path",
-     *         required=true,
-     *         @OA\Schema(type="integer")
-     *     ),
-     *     @OA\RequestBody(
-     *         required=true,
+     *         description="Detalles del estado",
      *         @OA\JsonContent(
-     *             @OA\Property(property="name", type="string", example="Updated Status Name"),
-     *             @OA\Property(property="description", type="string", example="Updated description")
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Success"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="id", type="integer", example=1),
+     *                 @OA\Property(property="name", type="string", example="En Proceso"),
+     *                 @OA\Property(property="slug", type="string", example="in_process"),
+     *                 @OA\Property(property="color", type="string", example="blue"),
+     *                 @OA\Property(property="icon", type="string", example="heroicon-o-clock"),
+     *                 @OA\Property(property="is_initial", type="boolean", example=false),
+     *                 @OA\Property(property="is_final", type="boolean", example=false),
+     *                 @OA\Property(property="active", type="boolean", example=true),
+     *                 @OA\Property(property="created_at", type="string", format="date-time"),
+     *                 @OA\Property(property="updated_at", type="string", format="date-time")
+     *             ),
+     *             @OA\Property(property="timestamp", type="string", format="date-time")
      *         )
-     *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="Status updated successfully",
-     *         @OA\JsonContent(ref="#/components/schemas/Status")
      *     )
      * )
      */
-    public function update(UpdateStatusRequest $request, Status $status)
+    public function show(int $id): JsonResponse
     {
-        $data = $request->validated();
+        $status = Status::where('company_id', Auth::user()->company_id)
+            ->find($id);
 
-        $status->update($data);
-        $status->load(['company']);
-
-        return new StatusResource($status);
-    }
-
-    /**
-     * @OA\Delete(
-     *     path="/api/statuses/{id}",
-     *     summary="Delete status",
-     *     tags={"Statuses"},
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="id",
-     *         in="path",
-     *         required=true,
-     *         @OA\Schema(type="integer")
-     *     ),
-     *     @OA\Response(
-     *         response=204,
-     *         description="Status deleted successfully"
-     *     )
-     * )
-     */
-    public function destroy(Status $status)
-    {
-        $this->authorize('delete', $status);
-        
-        // Check if status has documents
-        if ($status->documents()->count() > 0) {
-            return response()->json([
-                'message' => 'No se puede eliminar un estado que tiene documentos asociados.'
-            ], 422);
+        if (!$status) {
+            return $this->errorResponse('Estado no encontrado', 404);
         }
-        
-        $status->delete();
-        
-        return response()->noContent();
+
+        return $this->successResponse($status);
     }
 }

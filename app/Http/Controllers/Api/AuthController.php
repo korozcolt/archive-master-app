@@ -2,276 +2,268 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
-use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
-/**
- * @OA\Tag(
- *     name="Authentication",
- *     description="API Endpoints for authentication"
- * )
- */
-class AuthController extends Controller
+class AuthController extends BaseApiController
 {
     /**
      * @OA\Post(
      *     path="/api/auth/login",
-     *     summary="Login user",
      *     tags={"Authentication"},
+     *     summary="Iniciar sesión",
+     *     description="Autenticar usuario y obtener token de acceso",
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
-     *             @OA\Property(property="email", type="string", example="admin@example.com"),
-     *             @OA\Property(property="password", type="string", example="password"),
-     *             @OA\Property(property="device_name", type="string", example="Mobile App")
+     *             required={"email","password"},
+     *             @OA\Property(property="email", type="string", format="email", example="admin@archivemaster.com"),
+     *             @OA\Property(property="password", type="string", format="password", example="password123"),
+     *             @OA\Property(property="remember", type="boolean", example=false, description="Recordar sesión")
      *         )
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Login successful",
+     *         description="Login exitoso",
      *         @OA\JsonContent(
-     *             @OA\Property(property="user", ref="#/components/schemas/User"),
-     *             @OA\Property(property="token", type="string", example="1|abc123...")
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Login exitoso"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="token", type="string", example="1|abc123..."),
+     *                 @OA\Property(property="token_type", type="string", example="Bearer"),
+     *                 @OA\Property(property="expires_in", type="integer", example=3600),
+     *                 @OA\Property(
+     *                     property="user",
+     *                     type="object",
+     *                     @OA\Property(property="id", type="integer", example=1),
+     *                     @OA\Property(property="name", type="string", example="Admin User"),
+     *                     @OA\Property(property="email", type="string", example="admin@archivemaster.com"),
+     *                     @OA\Property(property="company_id", type="integer", example=1)
+     *                 )
+     *             ),
+     *             @OA\Property(property="timestamp", type="string", format="date-time")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Credenciales inválidas",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Credenciales inválidas"),
+     *             @OA\Property(property="timestamp", type="string", format="date-time")
      *         )
      *     ),
      *     @OA\Response(
      *         response=422,
-     *         description="Invalid credentials",
+     *         description="Errores de validación",
      *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string", example="Las credenciales proporcionadas son incorrectas.")
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Errores de validación"),
+     *             @OA\Property(
+     *                 property="errors",
+     *                 type="object",
+     *                 @OA\Property(
+     *                     property="email",
+     *                     type="array",
+     *                     @OA\Items(type="string", example="El campo email es obligatorio")
+     *                 )
+     *             ),
+     *             @OA\Property(property="timestamp", type="string", format="date-time")
      *         )
      *     )
      * )
      */
-    public function login(Request $request)
+    public function login(Request $request): JsonResponse
     {
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'email' => 'required|email',
-            'password' => 'required',
-            'device_name' => 'required|string|max:255',
-        ], [
-            'email.required' => 'El email es obligatorio.',
-            'email.email' => 'El email debe tener un formato válido.',
-            'password.required' => 'La contraseña es obligatoria.',
-            'device_name.required' => 'El nombre del dispositivo es obligatorio.',
+            'password' => 'required|string|min:6',
+            'remember' => 'boolean'
         ]);
 
-        $user = User::where('email', $request->email)->first();
-
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['Las credenciales proporcionadas son incorrectas.'],
-            ]);
+        if ($validator->fails()) {
+            return $this->errorResponse('Errores de validación', 422, $validator->errors());
         }
 
-        if (!$user->is_active) {
-            throw ValidationException::withMessages([
-                'email' => ['Tu cuenta está desactivada. Contacta al administrador.'],
-            ]);
+        $credentials = $request->only('email', 'password');
+
+        if (!Auth::attempt($credentials)) {
+            return $this->errorResponse('Credenciales inválidas', 401);
         }
 
-        // Update last login
+        $user = Auth::user();
         $user->update(['last_login_at' => now()]);
 
-        // Create token
-        $token = $user->createToken($request->device_name)->plainTextToken;
+        $token = $user->createToken('API Token')->plainTextToken;
 
-        // Load relationships
-        $user->load(['company', 'branch', 'department', 'roles', 'permissions']);
-
-        return response()->json([
-            'user' => new UserResource($user),
+        return $this->successResponse([
             'token' => $token,
-        ]);
+            'token_type' => 'Bearer',
+            'expires_in' => config('sanctum.expiration', 3600),
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'company_id' => $user->company_id,
+                'roles' => $user->roles->pluck('name'),
+                'permissions' => $user->getAllPermissions()->pluck('name'),
+            ]
+        ], 'Login exitoso');
     }
 
     /**
      * @OA\Post(
      *     path="/api/auth/logout",
-     *     summary="Logout user",
      *     tags={"Authentication"},
-     *     security={{"sanctum":{}}},
+     *     summary="Cerrar sesión",
+     *     description="Revocar token de acceso actual",
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
-     *         description="Logout successful",
+     *         description="Logout exitoso",
      *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string", example="Sesión cerrada exitosamente.")
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Logout exitoso"),
+     *             @OA\Property(property="timestamp", type="string", format="date-time")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="No autenticado",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="No autenticado"),
+     *             @OA\Property(property="timestamp", type="string", format="date-time")
      *         )
      *     )
      * )
      */
-    public function logout(Request $request)
+    public function logout(Request $request): JsonResponse
     {
-        // Revoke the token that was used to authenticate the current request
         $request->user()->currentAccessToken()->delete();
 
-        return response()->json([
-            'message' => 'Sesión cerrada exitosamente.'
-        ]);
-    }
-
-    /**
-     * @OA\Post(
-     *     path="/api/auth/logout-all",
-     *     summary="Logout from all devices",
-     *     tags={"Authentication"},
-     *     security={{"sanctum":{}}},
-     *     @OA\Response(
-     *         response=200,
-     *         description="Logout from all devices successful",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string", example="Sesión cerrada en todos los dispositivos.")
-     *         )
-     *     )
-     * )
-     */
-    public function logoutAll(Request $request)
-    {
-        // Revoke all tokens for the user
-        $request->user()->tokens()->delete();
-
-        return response()->json([
-            'message' => 'Sesión cerrada en todos los dispositivos.'
-        ]);
+        return $this->successResponse(null, 'Logout exitoso');
     }
 
     /**
      * @OA\Get(
      *     path="/api/auth/me",
-     *     summary="Get current user",
      *     tags={"Authentication"},
-     *     security={{"sanctum":{}}},
+     *     summary="Obtener información del usuario actual",
+     *     description="Retorna la información del usuario autenticado",
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
-     *         description="Current user information",
-     *         @OA\JsonContent(ref="#/components/schemas/User")
+     *         description="Información del usuario",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Success"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="id", type="integer", example=1),
+     *                 @OA\Property(property="name", type="string", example="Admin User"),
+     *                 @OA\Property(property="email", type="string", example="admin@archivemaster.com"),
+     *                 @OA\Property(property="position", type="string", example="Administrator"),
+     *                 @OA\Property(property="company_id", type="integer", example=1),
+     *                 @OA\Property(property="branch_id", type="integer", example=1),
+     *                 @OA\Property(property="department_id", type="integer", example=1),
+     *                 @OA\Property(property="roles", type="array", @OA\Items(type="string")),
+     *                 @OA\Property(property="permissions", type="array", @OA\Items(type="string")),
+     *                 @OA\Property(property="last_login_at", type="string", format="date-time")
+     *             ),
+     *             @OA\Property(property="timestamp", type="string", format="date-time")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="No autenticado",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="No autenticado"),
+     *             @OA\Property(property="timestamp", type="string", format="date-time")
+     *         )
      *     )
      * )
      */
-    public function me(Request $request)
+    public function me(Request $request): JsonResponse
     {
-        $user = $request->user();
-        $user->load(['company', 'branch', 'department', 'roles', 'permissions']);
-        
-        return new UserResource($user);
+        $user = $request->user()->load(['company', 'branch', 'department', 'roles', 'permissions']);
+
+        return $this->successResponse([
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'position' => $user->position,
+            'phone' => $user->phone,
+            'company_id' => $user->company_id,
+            'branch_id' => $user->branch_id,
+            'department_id' => $user->department_id,
+            'company' => $user->company ? [
+                'id' => $user->company->id,
+                'name' => $user->company->name,
+            ] : null,
+            'branch' => $user->branch ? [
+                'id' => $user->branch->id,
+                'name' => $user->branch->name,
+            ] : null,
+            'department' => $user->department ? [
+                'id' => $user->department->id,
+                'name' => $user->department->name,
+            ] : null,
+            'roles' => $user->roles->pluck('name'),
+            'permissions' => $user->getAllPermissions()->pluck('name'),
+            'last_login_at' => $user->last_login_at,
+            'created_at' => $user->created_at,
+        ]);
     }
 
     /**
      * @OA\Post(
      *     path="/api/auth/refresh",
-     *     summary="Refresh token",
      *     tags={"Authentication"},
-     *     security={{"sanctum":{}}},
-     *     @OA\RequestBody(
-     *         required=true,
-     *         @OA\JsonContent(
-     *             @OA\Property(property="device_name", type="string", example="Mobile App")
-     *         )
-     *     ),
+     *     summary="Renovar token de acceso",
+     *     description="Generar un nuevo token de acceso",
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
-     *         description="Token refreshed successfully",
+     *         description="Token renovado exitosamente",
      *         @OA\JsonContent(
-     *             @OA\Property(property="user", ref="#/components/schemas/User"),
-     *             @OA\Property(property="token", type="string", example="2|def456...")
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Token renovado exitosamente"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="token", type="string", example="2|def456..."),
+     *                 @OA\Property(property="token_type", type="string", example="Bearer"),
+     *                 @OA\Property(property="expires_in", type="integer", example=3600)
+     *             ),
+     *             @OA\Property(property="timestamp", type="string", format="date-time")
      *         )
      *     )
      * )
      */
-    public function refresh(Request $request)
+    public function refresh(Request $request): JsonResponse
     {
-        $request->validate([
-            'device_name' => 'required|string|max:255',
-        ], [
-            'device_name.required' => 'El nombre del dispositivo es obligatorio.',
-        ]);
-
         $user = $request->user();
-        
-        // Revoke current token
+
+        // Revocar token actual
         $request->user()->currentAccessToken()->delete();
-        
-        // Create new token
-        $token = $user->createToken($request->device_name)->plainTextToken;
-        
-        // Load relationships
-        $user->load(['company', 'branch', 'department', 'roles', 'permissions']);
 
-        return response()->json([
-            'user' => new UserResource($user),
+        // Crear nuevo token
+        $token = $user->createToken('API Token')->plainTextToken;
+
+        return $this->successResponse([
             'token' => $token,
-        ]);
-    }
-
-    /**
-     * @OA\Get(
-     *     path="/api/auth/tokens",
-     *     summary="Get user's active tokens",
-     *     tags={"Authentication"},
-     *     security={{"sanctum":{}}},
-     *     @OA\Response(
-     *         response=200,
-     *         description="List of active tokens",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="tokens", type="array", @OA\Items(
-     *                 @OA\Property(property="id", type="integer"),
-     *                 @OA\Property(property="name", type="string"),
-     *                 @OA\Property(property="last_used_at", type="string"),
-     *                 @OA\Property(property="created_at", type="string")
-     *             ))
-     *         )
-     *     )
-     * )
-     */
-    public function tokens(Request $request)
-    {
-        $tokens = $request->user()->tokens()->select('id', 'name', 'last_used_at', 'created_at')->get();
-
-        return response()->json([
-            'tokens' => $tokens
-        ]);
-    }
-
-    /**
-     * @OA\Delete(
-     *     path="/api/auth/tokens/{tokenId}",
-     *     summary="Revoke specific token",
-     *     tags={"Authentication"},
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="tokenId",
-     *         in="path",
-     *         required=true,
-     *         @OA\Schema(type="integer")
-     *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="Token revoked successfully",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string", example="Token revocado exitosamente.")
-     *         )
-     *     )
-     * )
-     */
-    public function revokeToken(Request $request, $tokenId)
-    {
-        $token = $request->user()->tokens()->where('id', $tokenId)->first();
-        
-        if (!$token) {
-            return response()->json([
-                'message' => 'Token no encontrado.'
-            ], 404);
-        }
-        
-        $token->delete();
-        
-        return response()->json([
-            'message' => 'Token revocado exitosamente.'
-        ]);
+            'token_type' => 'Bearer',
+            'expires_in' => config('sanctum.expiration', 3600),
+        ], 'Token renovado exitosamente');
     }
 }

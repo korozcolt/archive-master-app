@@ -2,200 +2,112 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
-use App\Http\Resources\CategoryResource;
 use App\Models\Category;
+use App\Services\CacheService;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Requests\Api\StoreCategoryRequest;
-use App\Http\Requests\Api\UpdateCategoryRequest;
 
-/**
- * @OA\Tag(
- *     name="Categories",
- *     description="API Endpoints for category management"
- * )
- */
-class CategoryController extends Controller
+class CategoryController extends BaseApiController
 {
     /**
      * @OA\Get(
      *     path="/api/categories",
-     *     summary="Get list of categories",
      *     tags={"Categories"},
-     *     security={{"sanctum":{}}},
+     *     summary="Listar categorías",
+     *     description="Obtener lista jerárquica de categorías disponibles para la empresa",
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
-     *         description="Successful operation",
+     *         description="Lista de categorías",
      *         @OA\JsonContent(
-     *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/Category"))
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Success"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     @OA\Property(property="id", type="integer", example=1),
+     *                     @OA\Property(property="name", type="string", example="Contratos"),
+     *                     @OA\Property(property="slug", type="string", example="contratos"),
+     *                     @OA\Property(property="description", type="string", example="Documentos contractuales"),
+     *                     @OA\Property(property="parent_id", type="integer", example=null),
+     *                     @OA\Property(property="color", type="string", example="blue"),
+     *                     @OA\Property(property="icon", type="string", example="heroicon-o-document-text"),
+     *                     @OA\Property(property="active", type="boolean", example=true),
+     *                     @OA\Property(
+     *                         property="children",
+     *                         type="array",
+     *                         @OA\Items(type="object")
+     *                     )
+     *                 )
+     *             ),
+     *             @OA\Property(property="timestamp", type="string", format="date-time")
      *         )
      *     )
      * )
      */
-    public function index(Request $request)
+    public function index(): JsonResponse
     {
-        $query = Category::with(['company', 'parent', 'children'])
-            ->where('company_id', Auth::user()->company_id);
+        // Usar cache para categorías (30 minutos)
+        $categories = CacheService::getActiveCategories();
 
-        if ($request->has('search')) {
-            $search = $request->get('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
-            });
-        }
-
-        if ($request->has('is_active')) {
-            $query->where('is_active', $request->boolean('is_active'));
-        }
-
-        if ($request->has('parent_id')) {
-            $query->where('parent_id', $request->get('parent_id'));
-        }
-
-        $query->orderBy('sort_order')->orderBy('name');
-        
-        $perPage = min($request->get('per_page', 15), 100);
-        $categories = $query->paginate($perPage);
-
-        return CategoryResource::collection($categories);
-    }
-
-    /**
-     * @OA\Post(
-     *     path="/api/categories",
-     *     summary="Create a new category",
-     *     tags={"Categories"},
-     *     security={{"sanctum":{}}},
-     *     @OA\RequestBody(
-     *         required=true,
-     *         @OA\JsonContent(
-     *             @OA\Property(property="name", type="string", example="Category Name"),
-     *             @OA\Property(property="description", type="string", example="Category description"),
-     *             @OA\Property(property="color", type="string", example="#FF5733")
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=201,
-     *         description="Category created successfully",
-     *         @OA\JsonContent(ref="#/components/schemas/Category")
-     *     )
-     * )
-     */
-    public function store(StoreCategoryRequest $request)
-    {
-        $data = $request->validated();
-
-        $category = Category::create($data);
-        $category->load(['company', 'parent', 'children']);
-
-        return new CategoryResource($category);
+        return $this->successResponse($categories);
     }
 
     /**
      * @OA\Get(
      *     path="/api/categories/{id}",
-     *     summary="Get category by ID",
      *     tags={"Categories"},
-     *     security={{"sanctum":{}}},
+     *     summary="Obtener categoría",
+     *     description="Obtener detalles de una categoría específica",
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
+     *         description="ID de la categoría",
      *         required=true,
-     *         @OA\Schema(type="integer")
+     *         @OA\Schema(type="integer", example=1)
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Successful operation",
-     *         @OA\JsonContent(ref="#/components/schemas/Category")
-     *     )
-     * )
-     */
-    public function show(Category $category)
-    {
-        $this->authorize('view', $category);
-        
-        $category->load(['company', 'parent', 'children', 'documents']);
-
-        return new CategoryResource($category);
-    }
-
-    /**
-     * @OA\Put(
-     *     path="/api/categories/{id}",
-     *     summary="Update category",
-     *     tags={"Categories"},
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="id",
-     *         in="path",
-     *         required=true,
-     *         @OA\Schema(type="integer")
-     *     ),
-     *     @OA\RequestBody(
-     *         required=true,
+     *         description="Detalles de la categoría",
      *         @OA\JsonContent(
-     *             @OA\Property(property="name", type="string", example="Updated Category Name"),
-     *             @OA\Property(property="description", type="string", example="Updated description")
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Success"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="id", type="integer", example=1),
+     *                 @OA\Property(property="name", type="string", example="Contratos"),
+     *                 @OA\Property(property="slug", type="string", example="contratos"),
+     *                 @OA\Property(property="description", type="string", example="Documentos contractuales"),
+     *                 @OA\Property(property="parent_id", type="integer", example=null),
+     *                 @OA\Property(property="color", type="string", example="blue"),
+     *                 @OA\Property(property="icon", type="string", example="heroicon-o-document-text"),
+     *                 @OA\Property(property="active", type="boolean", example=true),
+     *                 @OA\Property(property="parent", type="object"),
+     *                 @OA\Property(property="children", type="array", @OA\Items(type="object")),
+     *                 @OA\Property(property="documents_count", type="integer", example=25),
+     *                 @OA\Property(property="created_at", type="string", format="date-time"),
+     *                 @OA\Property(property="updated_at", type="string", format="date-time")
+     *             ),
+     *             @OA\Property(property="timestamp", type="string", format="date-time")
      *         )
-     *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="Category updated successfully",
-     *         @OA\JsonContent(ref="#/components/schemas/Category")
      *     )
      * )
      */
-    public function update(UpdateCategoryRequest $request, Category $category)
+    public function show(int $id): JsonResponse
     {
-        $data = $request->validated();
+        $category = Category::where('company_id', Auth::user()->company_id)
+            ->with(['parent', 'children', 'documents'])
+            ->withCount('documents')
+            ->find($id);
 
-        $category->update($data);
-        $category->load(['company', 'parent', 'children']);
-
-        return new CategoryResource($category);
-    }
-
-    /**
-     * @OA\Delete(
-     *     path="/api/categories/{id}",
-     *     summary="Delete category",
-     *     tags={"Categories"},
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="id",
-     *         in="path",
-     *         required=true,
-     *         @OA\Schema(type="integer")
-     *     ),
-     *     @OA\Response(
-     *         response=204,
-     *         description="Category deleted successfully"
-     *     )
-     * )
-     */
-    public function destroy(Category $category)
-    {
-        $this->authorize('delete', $category);
-        
-        // Check if category has documents
-        if ($category->documents()->count() > 0) {
-            return response()->json([
-                'message' => 'No se puede eliminar una categoría que tiene documentos asociados.'
-            ], 422);
+        if (!$category) {
+            return $this->errorResponse('Categoría no encontrada', 404);
         }
-        
-        // Check if category has children
-        if ($category->children()->count() > 0) {
-            return response()->json([
-                'message' => 'No se puede eliminar una categoría que tiene subcategorías.'
-            ], 422);
-        }
-        
-        $category->delete();
-        
-        return response()->noContent();
+
+        return $this->successResponse($category);
     }
 }

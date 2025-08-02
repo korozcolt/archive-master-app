@@ -8,6 +8,7 @@
     "require": {
         "php": "^8.2",
         "barryvdh/laravel-dompdf": "*",
+        "darkaonline/l5-swagger": "^9.0",
         "filament/actions": "^3.3",
         "filament/filament": "^3.3",
         "filament/forms": "^3.3",
@@ -23,6 +24,7 @@
         "maatwebsite/excel": "*",
         "meilisearch/meilisearch-php": "^1.15",
         "opcodesio/log-viewer": "^3.15",
+        "predis/predis": "^3.1",
         "spatie/laravel-activitylog": "^4.10",
         "spatie/laravel-permission": "^6.17",
         "spatie/laravel-translatable": "^6.11"

@@ -2,496 +2,461 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use App\Models\Document;
 use App\Models\User;
 use App\Models\Company;
-use App\Http\Resources\DocumentResource;
-use App\Http\Resources\UserResource;
-use App\Http\Resources\CompanyResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Auth;
+use Laravel\Scout\Builder;
 
-class SearchController extends Controller
+class SearchController extends BaseApiController
 {
     /**
-     * Search documents using Scout with advanced filtering
-     * 
      * @OA\Get(
      *     path="/api/search/documents",
-     *     summary="Search documents",
      *     tags={"Search"},
-     *     @OA\Parameter(name="query", in="query", required=true, @OA\Schema(type="string")),
-     *     @OA\Parameter(name="page", in="query", @OA\Schema(type="integer")),
-     *     @OA\Parameter(name="per_page", in="query", @OA\Schema(type="integer")),
-     *     @OA\Response(response=200, description="Search results")
+     *     summary="Búsqueda avanzada de documentos",
+     *     description="Realizar búsqueda full-text y filtrada de documentos",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="q",
+     *         in="query",
+     *         description="Término de búsqueda (full-text)",
+     *         required=false,
+     *         @OA\Schema(type="string", example="contrato servicios")
+     *     ),
+     *     @OA\Parameter(
+     *         name="status_id",
+     *         in="query",
+     *         description="Filtrar por estado",
+     *         required=false,
+     *         @OA\Schema(type="integer", example=1)
+     *     ),
+     *     @OA\Parameter(
+     *         name="category_id",
+     *         in="query",
+     *         description="Filtrar por categoría",
+     *         required=false,
+     *         @OA\Schema(type="integer", example=1)
+     *     ),
+     *     @OA\Parameter(
+     *         name="created_by",
+     *         in="query",
+     *         description="Filtrar por creador",
+     *         required=false,
+     *         @OA\Schema(type="integer", example=1)
+     *     ),
+     *     @OA\Parameter(
+     *         name="assigned_to",
+     *         in="query",
+     *         description="Filtrar por asignado",
+     *         required=false,
+     *         @OA\Schema(type="integer", example=1)
+     *     ),
+     *     @OA\Parameter(
+     *         name="date_from",
+     *         in="query",
+     *         description="Fecha desde (YYYY-MM-DD)",
+     *         required=false,
+     *         @OA\Schema(type="string", format="date", example="2025-01-01")
+     *     ),
+     *     @OA\Parameter(
+     *         name="date_to",
+     *         in="query",
+     *         description="Fecha hasta (YYYY-MM-DD)",
+     *         required=false,
+     *         @OA\Schema(type="string", format="date", example="2025-12-31")
+     *     ),
+     *     @OA\Parameter(
+     *         name="is_confidential",
+     *         in="query",
+     *         description="Filtrar por confidencialidad",
+     *         required=false,
+     *         @OA\Schema(type="boolean", example=false)
+     *     ),
+     *     @OA\Parameter(
+     *         name="priority",
+     *         in="query",
+     *         description="Filtrar por prioridad",
+     *         required=false,
+     *         @OA\Schema(type="string", enum={"low","medium","high"}, example="high")
+     *     ),
+     *     @OA\Parameter(
+     *         name="tags",
+     *         in="query",
+     *         description="Filtrar por tags (IDs separados por coma)",
+     *         required=false,
+     *         @OA\Schema(type="string", example="1,2,3")
+     *     ),
+     *     @OA\Parameter(
+     *         name="page",
+     *         in="query",
+     *         description="Número de página",
+     *         required=false,
+     *         @OA\Schema(type="integer", example=1)
+     *     ),
+     *     @OA\Parameter(
+     *         name="per_page",
+     *         in="query",
+     *         description="Elementos por página (máximo 100)",
+     *         required=false,
+     *         @OA\Schema(type="integer", example=15)
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Resultados de búsqueda",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Success"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(
+     *                     property="documents",
+     *                     type="array",
+     *                     @OA\Items(
+     *                         @OA\Property(property="id", type="integer", example=1),
+     *                         @OA\Property(property="document_number", type="string", example="DOC-ABC-20250101120000-A1B2"),
+     *                         @OA\Property(property="title", type="string", example="Contrato de Servicios"),
+     *                         @OA\Property(property="description", type="string", example="Contrato de servicios profesionales"),
+     *                         @OA\Property(property="status", type="object"),
+     *                         @OA\Property(property="category", type="object"),
+     *                         @OA\Property(property="relevance_score", type="number", format="float", example=0.95)
+     *                     )
+     *                 ),
+     *                 @OA\Property(property="total_results", type="integer", example=25),
+     *                 @OA\Property(property="search_time_ms", type="integer", example=45),
+     *                 @OA\Property(property="filters_applied", type="object")
+     *             ),
+     *             @OA\Property(property="timestamp", type="string", format="date-time")
+     *         )
+     *     )
      * )
      */
-    public function documents(Request $request): JsonResponse|AnonymousResourceCollection
+    public function searchDocuments(Request $request): JsonResponse
     {
-        // Rate limiting
-        $key = 'search_documents:' . $request->ip();
-        if (RateLimiter::tooManyAttempts($key, 60)) {
-            return response()->json([
-                'error' => 'Too many search attempts. Please try again later.',
-                'retry_after' => RateLimiter::availableIn($key)
-            ], 429);
+        $startTime = microtime(true);
+        $perPage = min($request->get('per_page', 15), 100);
+        $companyId = Auth::user()->company_id;
+
+        // Si hay término de búsqueda, usar Scout
+        if ($request->has('q') && !empty($request->q)) {
+            $query = Document::search($request->q)
+                ->where('company_id', $companyId);
+
+            // Aplicar filtros adicionales
+            $this->applySearchFilters($query, $request);
+
+            $results = $query->paginate($perPage);
+            $documents = $results->load(['status', 'category', 'creator', 'assignee']);
+        } else {
+            // Búsqueda por filtros sin término de búsqueda
+            $query = Document::with(['status', 'category', 'creator', 'assignee'])
+                ->where('company_id', $companyId);
+
+            $this->applyDatabaseFilters($query, $request);
+
+            $results = $query->latest()->paginate($perPage);
+            $documents = $results;
         }
-        
-        RateLimiter::hit($key, 60);
-        
-        try {
-            $request->validate([
-                'query' => 'required|string|min:2|max:255',
-                'per_page' => 'nullable|integer|min:1|max:100',
-                'page' => 'nullable|integer|min:1',
-                'company_id' => 'nullable|array',
-                'company_id.*' => 'integer|exists:companies,id',
-                'category_id' => 'nullable|array', 
-                'category_id.*' => 'integer|exists:categories,id',
-                'status' => 'nullable|array',
-                'created_from' => 'nullable|date',
-                'created_to' => 'nullable|date|after_or_equal:created_from',
-                'sort_by' => 'nullable|string|in:created_at,updated_at,title,due_date',
-                'sort_direction' => 'nullable|string|in:asc,desc'
-            ]);
 
-            $query = $request->input('query');
-            $perPage = $request->input('per_page', 15);
-            $sortBy = $request->input('sort_by', 'created_at');
-            $sortDirection = $request->input('sort_direction', 'desc');
+        $searchTime = round((microtime(true) - $startTime) * 1000);
 
-            // Cache key for search results
-            $cacheKey = 'search_documents:' . md5(serialize($request->all()));
-            
-            $results = Cache::remember($cacheKey, 300, function () use ($request, $perPage, $sortBy, $sortDirection, $query) {
-                $queryBuilder = Document::query()->with(['category', 'creator', 'company', 'tags']);
-                
-                // Full-text search using Scout
-                $searchResults = Document::search($query)->get();
-                $documentIds = $searchResults->pluck('id')->toArray();
-                
-                if (!empty($documentIds)) {
-                    $queryBuilder->whereIn('id', $documentIds);
-                } else {
-                    // Fallback to traditional search
-                    $queryBuilder->where(function ($q) use ($query) {
-                        $q->where('title', 'like', "%{$query}%")
-                          ->orWhere('description', 'like', "%{$query}%")
-                          ->orWhere('content', 'like', "%{$query}%")
-                          ->orWhere('document_number', 'like', "%{$query}%");
-                    });
-                }
-                
-                // Apply filters
-                if ($companyIds = $request->input('company_id')) {
-                    $queryBuilder->whereIn('company_id', $companyIds);
-                }
-                
-                if ($categoryIds = $request->input('category_id')) {
-                    $queryBuilder->whereIn('category_id', $categoryIds);
-                }
-                
-                if ($statuses = $request->input('status')) {
-                    $queryBuilder->whereIn('status', $statuses);
-                }
-                
-                if ($createdFrom = $request->input('created_from')) {
-                    $queryBuilder->whereDate('created_at', '>=', $createdFrom);
-                }
-                
-                if ($createdTo = $request->input('created_to')) {
-                    $queryBuilder->whereDate('created_at', '<=', $createdTo);
-                }
-                
-                // Apply sorting
-                $queryBuilder->orderBy($sortBy, $sortDirection);
-                
-                return $queryBuilder->paginate($perPage);
-            });
-            
-            return DocumentResource::collection($results)->additional([
-                'meta' => [
-                    'search_query' => $query,
-                    'total_results' => $results->total(),
-                    'search_time' => microtime(true) - LARAVEL_START,
-                    'cached' => Cache::has($cacheKey)
-                ]
-            ]);
-
-        } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $e->errors(),
-            ], 422);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Search failed',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
+        return $this->successResponse([
+            'documents' => $documents->items(),
+            'total_results' => $documents->total(),
+            'search_time_ms' => $searchTime,
+            'filters_applied' => $this->getAppliedFilters($request),
+            'pagination' => [
+                'current_page' => $documents->currentPage(),
+                'last_page' => $documents->lastPage(),
+                'per_page' => $documents->perPage(),
+                'total' => $documents->total(),
+            ]
+        ]);
     }
 
     /**
-     * Search users using Scout
-     * 
      * @OA\Get(
      *     path="/api/search/users",
-     *     summary="Search users",
      *     tags={"Search"},
-     *     @OA\Parameter(name="query", in="query", required=true, @OA\Schema(type="string")),
-     *     @OA\Response(response=200, description="User search results")
+     *     summary="Búsqueda de usuarios",
+     *     description="Buscar usuarios por nombre, email o posición",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="q",
+     *         in="query",
+     *         description="Término de búsqueda",
+     *         required=true,
+     *         @OA\Schema(type="string", example="juan perez")
+     *     ),
+     *     @OA\Parameter(
+     *         name="department_id",
+     *         in="query",
+     *         description="Filtrar por departamento",
+     *         required=false,
+     *         @OA\Schema(type="integer", example=1)
+     *     ),
+     *     @OA\Parameter(
+     *         name="branch_id",
+     *         in="query",
+     *         description="Filtrar por sucursal",
+     *         required=false,
+     *         @OA\Schema(type="integer", example=1)
+     *     ),
+     *     @OA\Parameter(
+     *         name="limit",
+     *         in="query",
+     *         description="Límite de resultados (máximo 50)",
+     *         required=false,
+     *         @OA\Schema(type="integer", example=10)
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Resultados de búsqueda de usuarios",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Success"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="array",
+     *                 @OA\Items(
+     *                     @OA\Property(property="id", type="integer", example=1),
+     *                     @OA\Property(property="name", type="string", example="Juan Pérez"),
+     *                     @OA\Property(property="email", type="string", example="juan.perez@empresa.com"),
+     *                     @OA\Property(property="position", type="string", example="Analista"),
+     *                     @OA\Property(property="department", type="object"),
+     *                     @OA\Property(property="branch", type="object")
+     *                 )
+     *             ),
+     *             @OA\Property(property="timestamp", type="string", format="date-time")
+     *         )
+     *     )
      * )
      */
-    public function users(Request $request): JsonResponse|AnonymousResourceCollection
+    public function searchUsers(Request $request): JsonResponse
     {
-        $key = 'search_users:' . $request->ip();
-        if (RateLimiter::tooManyAttempts($key, 30)) {
-            return response()->json([
-                'error' => 'Too many search attempts. Please try again later.',
-                'retry_after' => RateLimiter::availableIn($key)
-            ], 429);
-        }
-        
-        RateLimiter::hit($key, 60);
-        
-        try {
-            $request->validate([
-                'query' => 'required|string|min:2|max:255',
-                'per_page' => 'nullable|integer|min:1|max:50',
-                'company_id' => 'nullable|integer|exists:companies,id',
-                'is_active' => 'nullable|boolean'
-            ]);
+        $query = $request->get('q');
+        $limit = min($request->get('limit', 10), 50);
+        $companyId = Auth::user()->company_id;
 
-            $query = $request->input('query');
-            $perPage = $request->input('per_page', 10);
-            
-            $cacheKey = 'search_users:' . md5(serialize($request->all()));
-            
-            $results = Cache::remember($cacheKey, 300, function () use ($request, $perPage, $query) {
-                $searchResults = User::search($query)->get();
-                $userIds = $searchResults->pluck('id')->toArray();
-                
-                $queryBuilder = User::query()->with(['company', 'department']);
-                
-                if (!empty($userIds)) {
-                    $queryBuilder->whereIn('id', $userIds);
-                } else {
-                    $queryBuilder->where(function ($q) use ($query) {
-                        $q->where('name', 'like', "%{$query}%")
-                          ->orWhere('email', 'like', "%{$query}%")
-                          ->orWhere('position', 'like', "%{$query}%");
-                    });
-                }
-                
-                if ($companyId = $request->input('company_id')) {
-                    $queryBuilder->where('company_id', $companyId);
-                }
-                
-                if ($request->has('is_active')) {
-                    $queryBuilder->where('is_active', $request->input('is_active'));
-                }
-                
-                return $queryBuilder->paginate($perPage);
-            });
-            
-            return UserResource::collection($results);
-
-        } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $e->errors(),
-            ], 422);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Search failed',
-                'error' => $e->getMessage(),
-            ], 500);
+        if (empty($query)) {
+            return $this->errorResponse('Parámetro de búsqueda requerido', 400);
         }
+
+        $searchQuery = User::search($query)
+            ->where('company_id', $companyId);
+
+        if ($request->has('department_id')) {
+            $searchQuery->where('department_id', $request->department_id);
+        }
+
+        if ($request->has('branch_id')) {
+            $searchQuery->where('branch_id', $request->branch_id);
+        }
+
+        $users = $searchQuery->take($limit)->get()
+            ->load(['department', 'branch', 'roles']);
+
+        return $this->successResponse($users);
     }
 
     /**
-     * Search companies using Scout
-     */
-    public function companies(Request $request): JsonResponse
-    {
-        try {
-            $request->validate([
-                'query' => 'required|string|min:2|max:255',
-                'limit' => 'nullable|integer|min:1|max:50',
-            ]);
-
-            $query = $request->input('query');
-            $limit = $request->input('limit', 20);
-
-            $companies = Company::search($query)->take($limit)->get();
-
-            // Si no hay resultados con Scout, usar búsqueda tradicional
-            if ($companies->isEmpty()) {
-                $companies = Company::where('name', 'like', "%{$query}%")
-                    ->orWhere('description', 'like', "%{$query}%")
-                    ->limit($limit)
-                    ->get();
-            }
-
-            return response()->json([
-                'success' => true,
-                'data' => $companies,
-                'total' => $companies->count(),
-                'query' => $query,
-            ]);
-
-        } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $e->errors(),
-            ], 422);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Search failed',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Global search across all models
-     * 
-     * @OA\Get(
-     *     path="/api/search/global",
-     *     summary="Global search across all models",
-     *     tags={"Search"},
-     *     @OA\Parameter(name="query", in="query", required=true, @OA\Schema(type="string")),
-     *     @OA\Response(response=200, description="Global search results")
-     * )
-     */
-    public function global(Request $request): JsonResponse
-    {
-        $key = 'search_global:' . $request->ip();
-        if (RateLimiter::tooManyAttempts($key, 30)) {
-            return response()->json([
-                'error' => 'Too many search attempts. Please try again later.',
-                'retry_after' => RateLimiter::availableIn($key)
-            ], 429);
-        }
-        
-        RateLimiter::hit($key, 60);
-        
-        try {
-            $request->validate([
-                'query' => 'required|string|min:2|max:255',
-                'limit' => 'nullable|integer|min:1|max:50',
-            ]);
-
-            $query = $request->input('query');
-            $limit = $request->input('limit', 10);
-            
-            $cacheKey = 'search_global:' . md5($query . $limit);
-            
-            $results = Cache::remember($cacheKey, 300, function () use ($query, $limit) {
-                $documents = Document::search($query)->take($limit)->get();
-                $users = User::search($query)->take($limit)->get();
-                $companies = Company::search($query)->take($limit)->get();
-                
-                return [
-                    'documents' => $documents,
-                    'users' => $users,
-                    'companies' => $companies,
-                ];
-            });
-
-            return response()->json([
-                'success' => true,
-                'data' => $results,
-                'totals' => [
-                    'documents' => $results['documents']->count(),
-                    'users' => $results['users']->count(),
-                    'companies' => $results['companies']->count(),
-                ],
-                'query' => $query,
-                'cached' => Cache::has($cacheKey)
-            ]);
-
-        } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $e->errors(),
-            ], 422);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Search failed',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-    
-    /**
-     * Get search suggestions
-     * 
      * @OA\Get(
      *     path="/api/search/suggestions",
-     *     summary="Get search suggestions",
      *     tags={"Search"},
-     *     @OA\Parameter(name="query", in="query", required=true, @OA\Schema(type="string")),
-     *     @OA\Parameter(name="type", in="query", @OA\Schema(type="string", enum={"documents", "users", "companies", "all"})),
-     *     @OA\Response(response=200, description="Search suggestions")
+     *     summary="Sugerencias de búsqueda",
+     *     description="Obtener sugerencias de búsqueda basadas en términos populares",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="q",
+     *         in="query",
+     *         description="Término parcial para sugerencias",
+     *         required=false,
+     *         @OA\Schema(type="string", example="cont")
+     *     ),
+     *     @OA\Parameter(
+     *         name="limit",
+     *         in="query",
+     *         description="Límite de sugerencias (máximo 20)",
+     *         required=false,
+     *         @OA\Schema(type="integer", example=5)
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Sugerencias de búsqueda",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Success"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(
+     *                     property="suggestions",
+     *                     type="array",
+     *                     @OA\Items(
+     *                         @OA\Property(property="term", type="string", example="contrato"),
+     *                         @OA\Property(property="count", type="integer", example=15),
+     *                         @OA\Property(property="type", type="string", example="title")
+     *                     )
+     *                 ),
+     *                 @OA\Property(
+     *                     property="popular_searches",
+     *                     type="array",
+     *                     @OA\Items(type="string", example="contrato servicios")
+     *                 )
+     *             ),
+     *             @OA\Property(property="timestamp", type="string", format="date-time")
+     *         )
+     *     )
      * )
      */
     public function suggestions(Request $request): JsonResponse
     {
-        try {
-            $request->validate([
-                'query' => 'required|string|min:2|max:100',
-                'type' => 'nullable|string|in:documents,users,companies,all'
-            ]);
-            
-            $query = $request->input('query');
-            $type = $request->input('type', 'all');
-            
-            $cacheKey = 'search_suggestions:' . md5($query . $type);
-            
-            $suggestions = Cache::remember($cacheKey, 600, function () use ($query, $type) {
-                $results = [];
-                
-                if ($type === 'documents' || $type === 'all') {
-                    $documents = Document::search($query)
-                        ->take(5)
-                        ->get(['id', 'title', 'document_number'])
-                        ->map(function ($doc) {
-                            return [
-                                'id' => $doc->id,
-                                'text' => $doc->title,
-                                'type' => 'document',
-                                'subtitle' => $doc->document_number
-                            ];
-                        });
-                    
-                    $results = array_merge($results, $documents->toArray());
-                }
-                
-                if ($type === 'users' || $type === 'all') {
-                    $users = User::search($query)
-                        ->take(5)
-                        ->get(['id', 'name', 'email'])
-                        ->map(function ($user) {
-                            return [
-                                'id' => $user->id,
-                                'text' => $user->name,
-                                'type' => 'user',
-                                'subtitle' => $user->email
-                            ];
-                        });
-                    
-                    $results = array_merge($results, $users->toArray());
-                }
-                
-                if ($type === 'companies' || $type === 'all') {
-                    $companies = Company::search($query)
-                        ->take(5)
-                        ->get(['id', 'name', 'tax_id'])
-                        ->map(function ($company) {
-                            return [
-                                'id' => $company->id,
-                                'text' => $company->name,
-                                'type' => 'company',
-                                'subtitle' => $company->tax_id
-                            ];
-                        });
-                    
-                    $results = array_merge($results, $companies->toArray());
-                }
-                
-                return $results;
-            });
-            
-            return response()->json([
-                'success' => true,
-                'suggestions' => $suggestions,
-                'query' => $query,
-                'total' => count($suggestions)
-            ]);
-            
-        } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $e->errors(),
-            ], 422);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Suggestions failed',
-                'error' => $e->getMessage(),
-            ], 500);
+        $query = $request->get('q', '');
+        $limit = min($request->get('limit', 5), 20);
+        $companyId = Auth::user()->company_id;
+
+        $suggestions = [];
+        $popularSearches = [];
+
+        if (!empty($query)) {
+            // Buscar en títulos de documentos
+            $titleSuggestions = Document::where('company_id', $companyId)
+                ->where('title', 'LIKE', "%{$query}%")
+                ->select('title')
+                ->distinct()
+                ->limit($limit)
+                ->pluck('title')
+                ->map(function ($title) {
+                    return [
+                        'term' => $title,
+                        'type' => 'title',
+                        'count' => 1
+                    ];
+                });
+
+            $suggestions = array_merge($suggestions, $titleSuggestions->toArray());
+        }
+
+        // Búsquedas populares (simuladas - en producción se guardarían en cache/DB)
+        $popularSearches = [
+            'contrato servicios',
+            'factura',
+            'reporte mensual',
+            'acta reunion',
+            'propuesta comercial'
+        ];
+
+        return $this->successResponse([
+            'suggestions' => array_slice($suggestions, 0, $limit),
+            'popular_searches' => array_slice($popularSearches, 0, $limit)
+        ]);
+    }
+
+    /**
+     * Aplicar filtros a la búsqueda Scout
+     */
+    private function applySearchFilters(Builder $query, Request $request): void
+    {
+        if ($request->has('status_id')) {
+            $query->where('status_id', $request->status_id);
+        }
+
+        if ($request->has('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        if ($request->has('created_by')) {
+            $query->where('created_by', $request->created_by);
+        }
+
+        if ($request->has('assigned_to')) {
+            $query->where('assigned_to', $request->assigned_to);
+        }
+
+        if ($request->has('is_confidential')) {
+            $query->where('is_confidential', $request->boolean('is_confidential'));
+        }
+
+        if ($request->has('priority')) {
+            $query->where('priority', $request->priority);
         }
     }
-    
+
     /**
-     * Get search statistics
-     * 
-     * @OA\Get(
-     *     path="/api/search/statistics",
-     *     summary="Get search statistics",
-     *     tags={"Search"},
-     *     @OA\Response(response=200, description="Search statistics")
-     * )
+     * Aplicar filtros a la consulta de base de datos
      */
-    public function statistics(): JsonResponse
+    private function applyDatabaseFilters($query, Request $request): void
     {
-        try {
-            $cacheKey = 'search_statistics';
-            
-            $stats = Cache::remember($cacheKey, 3600, function () {
-                return [
-                    'total_documents' => Document::count(),
-                    'total_users' => User::count(),
-                    'total_companies' => Company::count(),
-                    'indexed_documents' => Document::count(),
-                    'search_performance' => [
-                        'avg_response_time' => '45ms',
-                        'cache_hit_rate' => '85%',
-                        'index_size' => '2.3MB'
-                    ],
-                    'popular_searches' => [
-                        'contract',
-                        'invoice',
-                        'report',
-                        'agreement',
-                        'policy'
-                    ],
-                    'recent_searches' => [
-                        'document management',
-                        'user permissions',
-                        'company reports',
-                        'workflow status',
-                        'archive system'
-                    ]
-                ];
-            });
-            
-            return response()->json([
-                'success' => true,
-                'data' => $stats
-            ]);
-            
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Statistics failed',
-                'error' => $e->getMessage(),
-            ], 500);
+        if ($request->has('status_id')) {
+            $query->where('status_id', $request->status_id);
         }
+
+        if ($request->has('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        if ($request->has('created_by')) {
+            $query->where('created_by', $request->created_by);
+        }
+
+        if ($request->has('assigned_to')) {
+            $query->where('assigned_to', $request->assigned_to);
+        }
+
+        if ($request->has('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->has('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        if ($request->has('is_confidential')) {
+            $query->where('is_confidential', $request->boolean('is_confidential'));
+        }
+
+        if ($request->has('priority')) {
+            $query->where('priority', $request->priority);
+        }
+
+        if ($request->has('tags')) {
+            $tagIds = explode(',', $request->tags);
+            $query->whereHas('tags', function ($q) use ($tagIds) {
+                $q->whereIn('tags.id', $tagIds);
+            });
+        }
+    }
+
+    /**
+     * Obtener filtros aplicados para la respuesta
+     */
+    private function getAppliedFilters(Request $request): array
+    {
+        $filters = [];
+
+        if ($request->has('q')) {
+            $filters['search_term'] = $request->q;
+        }
+
+        if ($request->has('status_id')) {
+            $filters['status_id'] = $request->status_id;
+        }
+
+        if ($request->has('category_id')) {
+            $filters['category_id'] = $request->category_id;
+        }
+
+        if ($request->has('date_from')) {
+            $filters['date_from'] = $request->date_from;
+        }
+
+        if ($request->has('date_to')) {
+            $filters['date_to'] = $request->date_to;
+        }
+
+        return $filters;
     }
 }

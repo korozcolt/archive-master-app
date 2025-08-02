@@ -15,6 +15,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->api([
             \App\Http\Middleware\ApiResponseMiddleware::class,
         ]);
+
+        // Middleware de cache para APIs
+        $middleware->alias([
+            'api.cache' => \App\Http\Middleware\ApiCacheMiddleware::class,
+        ]);
+
+        // Middleware de monitoreo de performance
+        $middleware->append(\App\Http\Middleware\PerformanceMonitor::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
