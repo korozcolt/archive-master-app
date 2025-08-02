@@ -62,32 +62,58 @@ function WelcomePage() {
             <section className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-green-900 pt-20 pb-32 overflow-hidden text-white">
                 <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-                    <div className="text-center">
-                        <div className="inline-flex items-center bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-medium mb-8">
+                    {/* Badge */}
+                    <div className="text-center mb-12">
+                        <div className="inline-flex items-center bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-medium">
                             <CheckCircle className="w-4 h-4 mr-2" />
                             100% Completo • Listo para Producción
                         </div>
-                        <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
-                            La Gestión Documental
-                            <span className="block bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">del Futuro</span>
-                        </h1>
-                        <p className="text-xl md:text-2xl text-gray-300 mb-12 max-w-4xl mx-auto leading-relaxed">
-                            Sistema empresarial completo desarrollado en <strong>Laravel 12 + Filament 3</strong> que revoluciona la gestión documental con workflows inteligentes, búsqueda avanzada y seguridad empresarial.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-                            <button
-                                onClick={() => window.location.href = isAuthenticated ? adminUrl : loginUrl}
-                                className="bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-xl hover:shadow-2xl transform hover:-translate-y-1 flex items-center"
-                            >
-                                {isAuthenticated ? 'Ir al Dashboard' : 'Acceder al Sistema'}
-                                <ArrowRight className="w-5 h-5 ml-2" />
-                            </button>
-                            <button className="border-2 border-gray-400 text-gray-300 px-8 py-4 rounded-xl text-lg font-semibold hover:border-green-400 hover:text-green-400 transition-all duration-200 flex items-center">
-                                Ver Documentación
-                                <FileText className="w-5 h-5 ml-2" />
-                            </button>
+                    </div>
+
+                    {/* Hero Grid */}
+                    <div className="grid lg:grid-cols-2 gap-12 items-center">
+                        {/* Logo Side */}
+                        <div className="flex justify-center lg:justify-end order-2 lg:order-1">
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full blur-3xl opacity-20 animate-pulse"></div>
+                                <img
+                                    src="/images/logo_archive_master.png"
+                                    alt="ArchiveMaster Logo"
+                                    className="relative w-64 h-64 md:w-80 md:h-80 lg:w-96 lg:h-96 rounded-3xl shadow-2xl transform hover:scale-105 transition-transform duration-300"
+                                />
+                                <div className="absolute -bottom-4 -right-4 bg-green-500 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg">
+                                    v2.0
+                                </div>
+                            </div>
                         </div>
-                        {/* Metrics */}
+
+                        {/* Content Side */}
+                        <div className="text-center lg:text-left order-1 lg:order-2">
+                            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
+                                La Gestión Documental
+                                <span className="block bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">del Futuro</span>
+                            </h1>
+                            <p className="text-lg md:text-xl text-gray-300 mb-8 leading-relaxed">
+                                Sistema empresarial completo desarrollado en <strong>Laravel 12 + Filament 3</strong> que revoluciona la gestión documental con workflows inteligentes, búsqueda avanzada y seguridad empresarial.
+                            </p>
+                            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-12">
+                                <button
+                                    onClick={() => window.location.href = isAuthenticated ? adminUrl : loginUrl}
+                                    className="bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-xl hover:shadow-2xl transform hover:-translate-y-1 flex items-center justify-center"
+                                >
+                                    {isAuthenticated ? 'Ir al Dashboard' : 'Acceder al Sistema'}
+                                    <ArrowRight className="w-5 h-5 ml-2" />
+                                </button>
+                                <button className="border-2 border-gray-400 text-gray-300 px-8 py-4 rounded-xl text-lg font-semibold hover:border-green-400 hover:text-green-400 transition-all duration-200 flex items-center justify-center">
+                                    Ver Documentación
+                                    <FileText className="w-5 h-5 ml-2" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Metrics */}
+                    <div className="mt-20">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
                             <div className="text-center">
                                 <div className="text-3xl font-bold text-green-400 mb-2">{stats?.resources || 14}</div>
