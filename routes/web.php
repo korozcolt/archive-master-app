@@ -5,6 +5,11 @@ use Illuminate\Support\Facades\Route;
 use App\Models\Document;
 use App\Models\DocumentVersion;
 
+// Ruta principal - Página de bienvenida con React
+Route::get('/', function () {
+    return view('welcome');
+})->name('welcome');
+
 // Grupo de rutas para documentos
 Route::prefix('documents')->name('documents.')->middleware(['auth'])->group(function () {
 

@@ -1,10 +1,16 @@
 import { defineConfig } from 'vite'
 import laravel, { refreshPaths } from 'laravel-vite-plugin'
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
     plugins: [
         laravel({
-            input: ['resources/css/app.css', 'resources/js/app.js'],
+            input: [
+                'resources/css/app.css',
+                'resources/js/app.js',
+                'resources/js/welcome.jsx' // Nuevo archivo React
+            ],
             refresh: [
                 ...refreshPaths,
                 'app/Filament/**',
@@ -15,5 +21,7 @@ export default defineConfig({
                 'app/Tables/Columns/**',
             ],
         }),
+        react(), // Plugin de React
+        tailwindcss(),
     ],
 })
