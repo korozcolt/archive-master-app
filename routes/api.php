@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\StatusController;
+use App\Http\Controllers\Api\TagController;
 
 /*
 |--------------------------------------------------------------------------
@@ -53,10 +54,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('categories', [CategoryController::class, 'index']);
     });
     Route::get('categories/{id}', [CategoryController::class, 'show']);
-
-    // Gestión de estados
-    Route::get('statuses', [StatusController::class, 'index']);
-    Route::get('statuses/{id}', [StatusController::class, 'show']);
 
     // Gestión de estados
     Route::get('statuses', [StatusController::class, 'index']);

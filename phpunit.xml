@@ -29,5 +29,7 @@
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="SCOUT_DRIVER" value="meilisearch"/>
+        <env name="SCOUT_QUEUE" value="false"/>
     </php>
 </phpunit>

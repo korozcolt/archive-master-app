@@ -1,5 +1,11 @@
-@import "tailwindcss/preflight";
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Configuración de Tailwind v4 */
+@source "resources/views/**/*.blade.php";
+@source "resources/**/*.js";
+@source "resources/**/*.jsx";
+@source "app/Filament/**/*.php";
+@source "vendor/filament/**/*.blade.php";
 
 /* Custom UX Enhancements */
 .smooth-transition {
@@ -137,7 +143,7 @@
     .card-enhanced:hover {
         transform: none;
     }
-    
+
     .btn-primary-enhanced:hover {
         transform: none;
     }
@@ -148,7 +154,7 @@
     .card-enhanced {
         background-color: rgba(31, 41, 55, 0.8);
     }
-    
+
     .form-enhanced:focus {
         box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
     }

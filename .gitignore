@@ -24,3 +24,9 @@ yarn-error.log
 package-lock.json
 yarn.lock
 composer.lock
+
+# Claude Code
+/.claude
+
+# Meilisearch data
+/meili_data
