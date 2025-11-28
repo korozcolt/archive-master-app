@@ -1,0 +1,10 @@
+[
+  {
+    "route": "/",
+    "name": "welcome"
+  },
+  {
+    "route": "/admin/login",
+    "name": "admin-login"
+  }
+]
