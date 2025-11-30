@@ -425,7 +425,7 @@ class Document extends Model
             'id' => $this->id,
             'document_number' => $this->document_number,
             'company' => $companyName,
-            'created_at' => $this->created_at->toDateTimeString()
+            'created_at' => $this->created_at?->toDateTimeString() ?? now()->toDateTimeString()
         ];
 
         return json_encode($data);

@@ -10,7 +10,39 @@ Route::get('/', function () {
     return view('welcome');
 })->name('welcome');
 
-// Grupo de rutas para documentos
+// Dashboard - Redirige automáticamente según el rol del usuario
+Route::get('/dashboard', [App\Http\Controllers\DashboardController::class, 'index'])
+    ->middleware(['auth'])
+    ->name('dashboard');
+
+// Debug route for testing
+Route::get('/debug-user', function() {
+    $user = Auth::user();
+    return response()->json([
+        'id' => $user->id,
+        'email' => $user->email,
+        'roles' => $user->roles->pluck('name'),
+        'has_admin' => $user->hasRole('admin'),
+        'has_regular_user' => $user->hasRole('regular_user'),
+        'has_any_admin' => $user->hasAnyRole(['admin', 'super_admin', 'branch_admin', 'office_manager']),
+    ]);
+})->middleware(['auth']);
+
+// Ruta de logout
+Route::post('/logout', function() {
+    Auth::logout();
+    request()->session()->invalidate();
+    request()->session()->regenerateToken();
+    return redirect('/');
+})->name('logout');
+
+// Grupo de rutas para documentos de usuarios
+Route::middleware(['auth'])->group(function () {
+    // Rutas CRUD de documentos
+    Route::resource('documents', App\Http\Controllers\UserDocumentController::class);
+});
+
+// Grupo de rutas adicionales para documentos
 Route::prefix('documents')->name('documents.')->middleware(['auth'])->group(function () {
 
     // Descarga de documento principal
