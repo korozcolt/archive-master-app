@@ -14,21 +14,83 @@ class UserDocumentController extends Controller
     /**
      * Display a listing of user's documents.
      */
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
 
-        // Obtener documentos del usuario (asignados o creados por él)
-        $documents = Document::where('company_id', $user->company_id)
-            ->where(function($query) use ($user) {
-                $query->where('assigned_to', $user->id)
-                      ->orWhere('created_by', $user->id);
-            })
-            ->with(['status', 'category', 'creator', 'assignee'])
-            ->latest()
-            ->paginate(15);
+        // Query base de documentos del usuario
+        $query = Document::where('company_id', $user->company_id)
+            ->where(function($q) use ($user) {
+                $q->where('assigned_to', $user->id)
+                  ->orWhere('created_by', $user->id);
+            });
 
-        return view('documents.index', compact('documents'));
+        // Búsqueda por texto (título, descripción, número de documento)
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhere('document_number', 'like', "%{$search}%");
+            });
+        }
+
+        // Filtro por categoría
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        // Filtro por estado
+        if ($request->filled('status_id')) {
+            $query->where('status_id', $request->status_id);
+        }
+
+        // Filtro por prioridad
+        if ($request->filled('priority')) {
+            $query->where('priority', $request->priority);
+        }
+
+        // Filtro por confidencialidad
+        if ($request->filled('is_confidential')) {
+            $query->where('is_confidential', $request->is_confidential === '1');
+        }
+
+        // Filtro por rango de fechas
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // Ordenamiento
+        $sortField = $request->get('sort', 'created_at');
+        $sortDirection = $request->get('direction', 'desc');
+
+        // Validar campos de ordenamiento permitidos
+        $allowedSorts = ['created_at', 'title', 'priority', 'updated_at'];
+        if (in_array($sortField, $allowedSorts)) {
+            $query->orderBy($sortField, $sortDirection);
+        } else {
+            $query->latest();
+        }
+
+        // Obtener documentos con relaciones
+        $documents = $query->with(['status', 'category', 'creator', 'assignee'])
+            ->paginate(15)
+            ->withQueryString(); // Mantener parámetros de búsqueda en paginación
+
+        // Obtener listas para filtros
+        $categories = Category::where('company_id', $user->company_id)
+            ->orderBy('name')
+            ->get();
+
+        $statuses = Status::where('company_id', $user->company_id)
+            ->orderBy('name')
+            ->get();
+
+        return view('documents.index', compact('documents', 'categories', 'statuses'));
     }
 
     /**
@@ -211,5 +273,112 @@ class UserDocumentController extends Controller
 
         return $document->created_by === $user->id
             || $document->assigned_to === $user->id;
+    }
+
+    /**
+     * Exportar documentos a CSV
+     */
+    public function export(Request $request)
+    {
+        $user = Auth::user();
+
+        // Aplicar los mismos filtros que en index()
+        $query = Document::where('company_id', $user->company_id)
+            ->where(function($q) use ($user) {
+                $q->where('assigned_to', $user->id)
+                  ->orWhere('created_by', $user->id);
+            });
+
+        // Aplicar filtros de búsqueda
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhere('document_number', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        if ($request->filled('status_id')) {
+            $query->where('status_id', $request->status_id);
+        }
+
+        if ($request->filled('priority')) {
+            $query->where('priority', $request->priority);
+        }
+
+        if ($request->filled('is_confidential')) {
+            $query->where('is_confidential', $request->is_confidential === '1');
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // Obtener documentos para exportar
+        $documents = $query->with(['status', 'category', 'creator', 'assignee'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Generar CSV
+        $filename = 'documentos_' . date('Y-m-d_His') . '.csv';
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0'
+        ];
+
+        $callback = function() use ($documents) {
+            $file = fopen('php://output', 'w');
+
+            // BOM para UTF-8
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+
+            // Encabezados
+            fputcsv($file, [
+                'Número',
+                'Título',
+                'Descripción',
+                'Categoría',
+                'Estado',
+                'Prioridad',
+                'Confidencial',
+                'Creado por',
+                'Asignado a',
+                'Fecha creación',
+                'Última actualización'
+            ]);
+
+            // Datos
+            foreach ($documents as $doc) {
+                fputcsv($file, [
+                    $doc->document_number,
+                    $doc->title,
+                    $doc->description,
+                    $doc->category->name ?? '',
+                    $doc->status->name ?? '',
+                    $doc->priority->getLabel(),
+                    $doc->is_confidential ? 'Sí' : 'No',
+                    $doc->creator->name ?? '',
+                    $doc->assignee->name ?? '',
+                    $doc->created_at->format('d/m/Y H:i'),
+                    $doc->updated_at->format('d/m/Y H:i')
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }

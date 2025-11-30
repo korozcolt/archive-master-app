@@ -38,6 +38,9 @@ Route::post('/logout', function() {
 
 // Grupo de rutas para documentos de usuarios
 Route::middleware(['auth'])->group(function () {
+    // Ruta de exportación (debe estar antes del resource)
+    Route::get('/documents/export/csv', [App\Http\Controllers\UserDocumentController::class, 'export'])->name('documents.export');
+
     // Rutas CRUD de documentos
     Route::resource('documents', App\Http\Controllers\UserDocumentController::class);
 });
