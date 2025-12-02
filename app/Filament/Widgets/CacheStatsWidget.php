@@ -5,6 +5,7 @@ namespace App\Filament\Widgets;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use App\Services\CacheService;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 
 class CacheStatsWidget extends BaseWidget
@@ -42,6 +43,6 @@ class CacheStatsWidget extends BaseWidget
 
     public static function canView(): bool
     {
-        return auth()->user()?->hasRole(['super_admin', 'admin']);
+        return Auth::check() && Auth::user()->hasRole(['super_admin', 'admin']);
     }
 }

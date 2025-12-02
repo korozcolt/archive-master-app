@@ -15,6 +15,13 @@ Schedule::command('documents:notify-overdue')
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/overdue-notifications.log'));
 
+// Verificar documentos próximos a vencer diariamente a las 8:00 AM
+Schedule::command('documents:check-due')
+    ->dailyAt('08:00')
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/due-notifications.log'));
+
 // Verificar documentos vencidos cada 4 horas durante horario laboral
 Schedule::command('documents:notify-overdue')
     ->cron('0 8,12,16,20 * * *')

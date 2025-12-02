@@ -44,7 +44,7 @@ class WorkflowTest extends DuskTestCase
             'company_id' => $company->id,
             'from_status_id' => $status1->id,
             'to_status_id' => $status2->id,
-            'allowed_roles' => ['admin'],
+            'roles_allowed' => ['admin'],
         ]);
 
         $this->browse(function (Browser $browser) use ($user) {

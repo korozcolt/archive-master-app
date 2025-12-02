@@ -36,6 +36,25 @@ Route::post('/logout', function() {
     return redirect('/');
 })->name('logout');
 
+// Rutas de notificaciones
+Route::middleware(['auth'])->prefix('notifications')->name('notifications.')->group(function () {
+    Route::get('/', [App\Http\Controllers\NotificationController::class, 'index'])->name('index');
+    Route::get('/unread', [App\Http\Controllers\NotificationController::class, 'unread'])->name('unread');
+    Route::post('/{id}/read', [App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('markAsRead');
+    Route::post('/read-all', [App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('markAllAsRead');
+    Route::delete('/{id}', [App\Http\Controllers\NotificationController::class, 'destroy'])->name('destroy');
+    Route::delete('/clear/read', [App\Http\Controllers\NotificationController::class, 'clearRead'])->name('clearRead');
+});
+
+// Rutas de aprobaciones
+Route::middleware(['auth'])->prefix('approvals')->name('approvals.')->group(function () {
+    Route::get('/', [App\Http\Controllers\ApprovalController::class, 'index'])->name('index');
+    Route::get('/document/{document}', [App\Http\Controllers\ApprovalController::class, 'show'])->name('show');
+    Route::get('/document/{document}/history', [App\Http\Controllers\ApprovalController::class, 'history'])->name('history');
+    Route::post('/{approval}/approve', [App\Http\Controllers\ApprovalController::class, 'approve'])->name('approve');
+    Route::post('/{approval}/reject', [App\Http\Controllers\ApprovalController::class, 'reject'])->name('reject');
+});
+
 // Grupo de rutas para documentos de usuarios
 Route::middleware(['auth'])->group(function () {
     // Ruta de exportación (debe estar antes del resource)

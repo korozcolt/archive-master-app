@@ -63,8 +63,7 @@ class ViewDocument extends ViewRecord
                                             ->color(fn ($record) => $record->status ? $record->status->color : 'gray'),
                                         Infolists\Components\TextEntry::make('priority')
                                             ->label('Prioridad')
-                                            ->badge()
-                                            ->formatStateUsing(fn (string $state): string => Priority::from($state)->getLabel()),
+                                            ->badge(),
                                         Infolists\Components\TextEntry::make('creator.name')
                                             ->label('Creado por'),
                                         Infolists\Components\TextEntry::make('assignee.name')

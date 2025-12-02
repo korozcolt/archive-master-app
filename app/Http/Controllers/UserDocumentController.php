@@ -116,6 +116,7 @@ class UserDocumentController extends Controller
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
+            'document_number' => 'nullable|string|max:50|unique:documents,document_number,NULL,id,company_id,' . $user->company_id,
             'description' => 'nullable|string',
             'category_id' => 'required|exists:categories,id',
             'status_id' => 'required|exists:statuses,id',
@@ -138,6 +139,7 @@ class UserDocumentController extends Controller
             'created_by' => $user->id,
             'assigned_to' => $user->id, // Auto-asignar al creador
             'title' => $validated['title'],
+            'document_number' => $validated['document_number'] ?? null,
             'description' => $validated['description'],
             'category_id' => $validated['category_id'],
             'status_id' => $validated['status_id'],
@@ -198,6 +200,7 @@ class UserDocumentController extends Controller
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
+            'document_number' => 'nullable|string|max:50|unique:documents,document_number,' . $document->id . ',id,company_id,' . $user->company_id,
             'description' => 'nullable|string',
             'category_id' => 'required|exists:categories,id',
             'status_id' => 'required|exists:statuses,id',

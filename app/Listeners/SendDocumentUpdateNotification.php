@@ -110,22 +110,30 @@ class SendDocumentUpdateNotification implements ShouldQueue
         
         // Notificar a supervisores del departamento
         if ($document->department_id) {
-            $supervisorIds = User::role('supervisor')
-                ->where('company_id', $document->company_id)
-                ->where('department_id', $document->department_id)
-                ->where('id', '!=', $updatedBy->id)
-                ->pluck('id');
-                
-            $userIds = $userIds->merge($supervisorIds);
+            try {
+                $supervisorIds = User::role('supervisor')
+                    ->where('company_id', $document->company_id)
+                    ->where('department_id', $document->department_id)
+                    ->where('id', '!=', $updatedBy->id)
+                    ->pluck('id');
+                    
+                $userIds = $userIds->merge($supervisorIds);
+            } catch (\Exception $e) {
+                // Rol supervisor no existe, continuar sin error
+            }
         }
         
         // Notificar a administradores de la empresa
-        $adminIds = User::role('admin')
-            ->where('company_id', $document->company_id)
-            ->where('id', '!=', $updatedBy->id)
-            ->pluck('id');
-            
-        $userIds = $userIds->merge($adminIds);
+        try {
+            $adminIds = User::role('admin')
+                ->where('company_id', $document->company_id)
+                ->where('id', '!=', $updatedBy->id)
+                ->pluck('id');
+                
+            $userIds = $userIds->merge($adminIds);
+        } catch (\Exception $e) {
+            // Rol admin no existe, continuar sin error
+        }
         
         // Remover duplicados y obtener usuarios
         return User::whereIn('id', $userIds->unique())

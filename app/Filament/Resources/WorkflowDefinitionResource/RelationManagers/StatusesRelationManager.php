@@ -91,14 +91,25 @@ class StatusesRelationManager extends RelationManager
             ]);
     }
 
-    protected function getTableQuery(): Builder
+    protected function getTableQuery(): Builder|null
     {
-        // Personalizar la consulta para mostrar solo los estados relacionados con esta definición de flujo
-        // Esto incluye el estado origen y destino
-        return parent::getTableQuery()
-            ->where(function (Builder $query) {
-                $query->where('id', $this->ownerRecord->from_status_id)
-                      ->orWhere('id', $this->ownerRecord->to_status_id);
+        $query = parent::getTableQuery();
+        
+        if (!$query) {
+            return null;
+        }
+        
+        if ($this->ownerRecord && ($this->ownerRecord->from_status_id || $this->ownerRecord->to_status_id)) {
+            $query->where(function (Builder $q) {
+                if ($this->ownerRecord->from_status_id) {
+                    $q->where('id', $this->ownerRecord->from_status_id);
+                }
+                if ($this->ownerRecord->to_status_id) {
+                    $q->orWhere('id', $this->ownerRecord->to_status_id);
+                }
             });
+        }
+        
+        return $query;
     }
 }

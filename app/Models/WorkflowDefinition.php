@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -71,6 +72,11 @@ class WorkflowDefinition extends Model
     public function toStatus(): BelongsTo
     {
         return $this->belongsTo(Status::class, 'to_status_id');
+    }
+
+    public function documentApprovals(): HasMany
+    {
+        return $this->hasMany(DocumentApproval::class);
     }
 
     /**

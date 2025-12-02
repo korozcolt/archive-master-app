@@ -1,10 +1,10 @@
 # Archive Master - Sistema de Gestión Documental
 
 ![Estado](https://img.shields.io/badge/estado-en%20desarrollo-yellow)
-![Versión](https://img.shields.io/badge/versión-2.0.0-blue)
-![Laravel](https://img.shields.io/badge/Laravel-v12.x-FF2D20?logo=laravel)
+![Versión](https://img.shields.io/badge/versión-2.1.0-blue)
+![Laravel](https://img.shields.io/badge/Laravel-v12.40-FF2D20?logo=laravel)
 ![PHP](https://img.shields.io/badge/PHP-v8.2+-777BB4?logo=php)
-![Filament](https://img.shields.io/badge/Filament-v3.x-41a6b3?logo=filament)
+![Filament](https://img.shields.io/badge/Filament-v3.3.45-41a6b3?logo=filament)
 ![React](https://img.shields.io/badge/React-v19.x-61DAFB?logo=react)
 
 ## Descripción
@@ -23,8 +23,9 @@ Archive Master es un sistema avanzado de gestión documental empresarial constru
 
 ### Flujos de Trabajo
 - **Definiciones de Workflow**: Creación de flujos personalizados por tipo de documento
+- **Sistema de Aprobaciones**: Gestión completa de aprobaciones con múltiples aprobadores
 - **Historial de Flujo**: Trazabilidad completa de todas las transiciones de estado
-- **Notificaciones Automáticas**: Alertas cuando los documentos cambian de estado
+- **Notificaciones Automáticas**: Alertas cuando los documentos cambian de estado o requieren aprobación
 - **Asignación de Responsables**: Sistema de asignación de documentos a usuarios
 - **Seguimiento de SLA**: Monitoreo de tiempos de respuesta configurables
 
@@ -59,9 +60,9 @@ Archive Master es un sistema avanzado de gestión documental empresarial constru
 ## Tecnologías Utilizadas
 
 ### Backend
-- **Laravel 12**: Framework PHP moderno y robusto
+- **Laravel 12.40**: Framework PHP moderno y robusto
 - **PHP 8.2+**: Última versión de PHP con tipado estricto
-- **Filament 3.3**: Panel de administración elegante y potente
+- **Filament 3.3.45**: Panel de administración elegante y potente
 - **SQLite/MySQL**: Base de datos flexible
 - **Meilisearch**: Motor de búsqueda ultra-rápido
 - **Redis**: Sistema de caché y colas

@@ -7,6 +7,132 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2025-12-02
+
+- **Correcciones Críticas de Filament**
+  - `ViewDocument.php`: Eliminado formatStateUsing innecesario en campo priority - Filament 3 maneja enums automáticamente
+  - `StatusRelationManager.php`: Añadida validación null en getTableQuery() para evitar errores cuando parent::getTableQuery() retorna null
+  - `WorkflowDefinitionResource StatusesRelationManager.php`: Añadida validación null en getTableQuery()
+  - `AdvancedSearchResource.php`: 
+    - Corregida columna 'status' para usar relación 'status.name' en lugar de campo directo
+    - Corregida columna 'document_type' a 'category.name' para usar relación correcta
+    - Corregidos filtros para usar relaciones en lugar de enums inexistentes
+    - Formularios actualizados para usar category_id y status_id con relaciones
+
+- **Correcciones de Autenticación**
+  - `WorkflowService.php`: Cambiado auth()->user()?->id a Auth::user()->id con use correcto
+  - `CacheStatsWidget.php`: Cambiado auth()->user()?->hasRole a Auth::check() && Auth::user()->hasRole
+
+- **Correcciones de Tests**
+  - `SearchAndFilterTest.php` (Dusk): 
+    - Corregidos nombres de modelos: DocumentStatus → Status, DocumentType → Category
+    - Corregidos nombres de columnas: code → document_number, document_type_id → category_id
+    - Corregido current_status_id → status_id
+    - Corregido expiration_date → due_at
+  - `WorkflowTest.php` (Dusk): Corregido allowed_roles → roles_allowed en workflow_definitions
+
+- **Actualización de Dependencias**
+  - Laravel Framework: 12.21.0 → 12.40.2
+  - Filament: 3.3.34 → 3.3.45 (última versión estable v3)
+  - Livewire: 3.6.4 → 3.7.0
+  - Laravel Scout: 10.17.0 → 10.22.1
+  - Meilisearch PHP: 1.15.0 → 1.16.1
+  - Spatie Laravel Permission: 6.21.0 → 6.23.0
+  - Doctrine DBAL: 4.3.1 → 4.4.0
+  - Symfony Components: 7.3.x → 7.4.0 / 8.0.0
+  - PHPUnit: 11.5.15 → 11.5.33
+  - Pest: 3.8.2 → 3.8.4
+  - Log Viewer: 3.19.0 → 3.21.1
+  - Más de 100 paquetes actualizados
+
+### Added - 2025-12-01
+
+- **Sistema de Aprobaciones Simplificado (integrado con WorkflowDefinition)**
+  - Modelo `DocumentApproval` - Sistema simplificado vinculado a WorkflowDefinition existente
+  - Integración con `WorkflowDefinition` existente (usa `approval_config` JSON)
+  - Tabla `document_approvals` con campos esenciales:
+    - document_id, workflow_definition_id, workflow_history_id
+    - approver_id, status (pending/approved/rejected)
+    - comments, responded_at
+  - `ApprovalController` simplificado con 4 endpoints:
+    - Índice de aprobaciones pendientes (paginación)
+    - Detalle de documento para aprobación
+    - Aprobar con comentarios opcionales
+    - Rechazar con comentarios obligatorios
+    - Historial de aprobaciones por documento
+  - `WorkflowService` refactorizado para usar WorkflowDefinition:
+    - createApprovals() - Crear aprobaciones para transición
+    - getPendingApprovalsForUser() - Obtener pendientes por usuario
+    - hasPendingApprovals() - Verificar si documento tiene aprobaciones pendientes
+    - getApprovalStats() - Estadísticas de aprobaciones
+    - resolveApprovers() - Resolver aprobadores desde approval_config
+  - Vistas Blade optimizadas:
+    - approvals/index.blade.php - Lista de pendientes con paginación
+    - approvals/show.blade.php - Detalle con botones aprobar/rechazar
+    - approvals/history.blade.php - Historial completo de aprobaciones
+  - Scopes en modelo: pending(), approved(), rejected(), forApprover()
+  - Métodos helper: isPending(), approve(), reject()
+  - Lógica de negocio:
+    - Al aprobar todos los aprobadores, cambia estado del documento
+    - Al rechazar, cancela todas las aprobaciones pendientes
+    - Crea registros en WorkflowHistory automáticamente
+
+- **Sistema de Notificaciones y Alertas Completo**
+  - `DocumentAssigned` - Notificación al asignar documentos a usuarios
+  - `DocumentStatusChanged` - Notificación al cambiar estados de documentos
+  - `DocumentDueSoon` - Alertas de vencimiento (hoy, mañana, 3 días, 7 días)
+  - `NotificationController` - 6 endpoints REST para gestión de notificaciones
+  - `CheckDueDocuments` - Comando programado para verificación diaria de vencimientos
+  - Campana de notificaciones en header con badge contador
+  - Vista de índice completa con paginación y filtros
+  - Actualización automática cada 30 segundos
+  - Scheduler configurado para ejecución diaria a las 8:00 AM
+  - Sistema de colores por urgencia (rojo=urgente, naranja=medio, amarillo=bajo)
+  
+- **Búsqueda y Filtros Avanzados**
+  - Búsqueda simultánea en título, descripción y número de documento
+  - Filtros por categoría, estado, prioridad y confidencialidad
+  - Filtro por rango de fechas (desde/hasta)
+  - Exportación a CSV con todos los metadatos
+  - Persistencia de filtros en paginación
+  - Panel de filtros organizado y responsivo
+
+### Changed - 2025-12-01
+
+- **Simplificación del Sistema de Aprobaciones**
+  - ❌ Eliminado modelo `Workflow` duplicado (se usa WorkflowDefinition existente)
+  - ❌ Eliminada tabla `workflows` (duplicada)
+  - ❌ Eliminada primera versión de tabla `approvals` (compleja)
+  - ✅ Renombrado `Approval` a `DocumentApproval` (más claro)
+  - ✅ Modelo `Document` actualizado con relaciones a `DocumentApproval`
+  - ✅ Modelo `WorkflowDefinition` con relación a `DocumentApproval`
+  - `DocumentObserver` actualizado para enviar notificaciones automáticas
+
+### Removed - 2025-12-01
+
+- Modelo `Workflow` (duplicado de WorkflowDefinition)
+- Migración `create_workflows_table` (rollback + eliminada)
+- Primera migración `create_approvals_table` (compleja, rollback + eliminada)
+- Layout principal con componente Alpine.js para notificaciones
+- Rutas web actualizadas con 11 nuevos endpoints (6 notificaciones + 5 aprobaciones)
+
+### Performance - 2025-12-01
+- Prevención de notificaciones duplicadas (máximo 1 por día por documento)
+- Eager loading en consultas de documentos próximos a vencer
+- Query builder optimizado para búsquedas
+- Índices en tabla approvals para consultas frecuentes (document_id, approver_id, status, level)
+- Soft deletes en workflows para mantener historial
+
+### Gap Analysis - 2025-12-01
+- Búsqueda y Filtros: 60% → 15% (reducción de 45 puntos)
+- UX por Rol: 70% → 20% (reducción de 50 puntos)
+- Notificaciones y Alertas: 80% → 20% (reducción de 60 puntos)
+- **Workflows y Aprobaciones: 80% → 25% (reducción de 55 puntos)** ⭐ NUEVO
+
+### Database - 2025-12-01
+- Migración `create_workflows_table` - Configuración de workflows por empresa/categoría
+- Migración `create_approvals_table` - Tracking de aprobaciones con metadatos
+
 ## [2.0.0] - 2025-08-02
 
 ### Added

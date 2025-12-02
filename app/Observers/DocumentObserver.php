@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Events\DocumentUpdated;
 use App\Models\Document;
 use App\Notifications\DocumentStatusChanged;
+use App\Notifications\DocumentAssigned;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Auth;
@@ -103,15 +104,21 @@ class DocumentObserver
         }
         
         // Almacenar cambios para usar en el evento updated
-        $document->setAttribute('_important_changes', $importantChanges);
+        // Usamos una propiedad estática temporal para evitar persistirlo en DB
+        static::$pendingChanges[$document->id ?? 'new'] = $importantChanges;
     }
+    
+    /**
+     * Temporary storage for important changes
+     */
+    protected static $pendingChanges = [];
 
     /**
      * Handle the Document "updated" event.
      */
     public function updated(Document $document): void
     {
-        $importantChanges = $document->getAttribute('_important_changes') ?? [];
+        $importantChanges = static::$pendingChanges[$document->id] ?? [];
         
         // Log de actividad para cambios importantes
         if (!empty($importantChanges)) {
@@ -161,6 +168,9 @@ class DocumentObserver
             'changes' => $importantChanges,
             'updated_by' => Auth::id(),
         ]);
+        
+        // Limpiar cambios temporales
+        unset(static::$pendingChanges[$document->id]);
     }
 
     /**
@@ -256,7 +266,7 @@ class DocumentObserver
         }
         
         // Enviar notificación de cambio de estado solo si tenemos ambos estados
-        if ($document->assigned_to && $oldStatus) {
+        if ($document->assigned_to && $oldStatus && Auth::check()) {
             $assignee = \App\Models\User::find($document->assigned_to);
             if ($assignee) {
                 $assignee->notify(new DocumentStatusChanged(
@@ -290,11 +300,13 @@ class DocumentObserver
         
         // Notificar al nuevo asignado
         if ($newAssignee) {
-            // Aquí se puede crear una notificación específica para asignación
-            Log::info('Documento asignado', [
+            $newAssignee->notify(new DocumentAssigned($document, Auth::user()));
+            
+            Log::info('Documento asignado - Notificación enviada', [
                 'document_id' => $document->id,
                 'old_assignee' => $oldAssignee?->name,
                 'new_assignee' => $newAssignee->name,
+                'assigned_by' => Auth::user()?->name,
             ]);
         }
         

@@ -146,11 +146,18 @@ class StatusRelationManager extends RelationManager
         return false;
     }
 
-    protected function getTableQuery(): Builder
+    protected function getTableQuery(): Builder|null
     {
-        // We're modifying the query to only show the current status
-        return parent::getTableQuery()
-            ->where('id', $this->ownerRecord->status_id)
-            ->withCount('documents');
+        $query = parent::getTableQuery();
+        
+        if (!$query) {
+            return null;
+        }
+        
+        if ($this->ownerRecord && $this->ownerRecord->status_id) {
+            $query->where('id', $this->ownerRecord->status_id);
+        }
+        
+        return $query->withCount('documents');
     }
 }

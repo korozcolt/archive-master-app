@@ -68,6 +68,16 @@ class Document extends Model
         'metadata' => 'json',
     ];
 
+    /**
+     * Attributes that should not be persisted to the database
+     */
+    protected $hidden = [];
+    
+    /**
+     * Temporary attributes used by observers
+     */
+    protected $attributes = [];
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
@@ -125,6 +135,16 @@ class Document extends Model
     public function workflowHistory(): HasMany
     {
         return $this->hasMany(WorkflowHistory::class);
+    }
+
+    public function approvals(): HasMany
+    {
+        return $this->hasMany(DocumentApproval::class);
+    }
+
+    public function pendingApprovals(): HasMany
+    {
+        return $this->hasMany(DocumentApproval::class)->where('status', 'pending');
     }
 
     public function tags(): BelongsToMany

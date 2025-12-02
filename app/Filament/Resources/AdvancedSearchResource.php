@@ -53,15 +53,15 @@ class AdvancedSearchResource extends Resource
                             
                         Forms\Components\Grid::make(2)
                             ->schema([
-                                Forms\Components\Select::make('document_type')
+                                Forms\Components\Select::make('category_id')
                                     ->label('Tipo de Documento')
-                                    ->options(DocumentType::class)
+                                    ->relationship('category', 'name')
                                     ->searchable()
                                     ->multiple(),
                                     
-                                Forms\Components\Select::make('status')
+                                Forms\Components\Select::make('status_id')
                                     ->label('Estado')
-                                    ->options(DocumentStatus::class)
+                                    ->relationship('status', 'name')
                                     ->searchable()
                                     ->multiple(),
                                     
@@ -138,22 +138,14 @@ class AdvancedSearchResource extends Resource
                         return $record->title;
                     }),
                     
-                Tables\Columns\TextColumn::make('document_type')
+                Tables\Columns\TextColumn::make('category.name')
                     ->label('Tipo')
                     ->badge()
                     ->sortable(),
                     
-                Tables\Columns\TextColumn::make('status')
+                Tables\Columns\TextColumn::make('status.name')
                     ->label('Estado')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'draft' => 'gray',
-                        'in_review' => 'warning',
-                        'approved' => 'success',
-                        'rejected' => 'danger',
-                        'archived' => 'info',
-                        default => 'gray',
-                    })
                     ->sortable(),
                     
                 Tables\Columns\TextColumn::make('category.name')
@@ -192,14 +184,14 @@ class AdvancedSearchResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                SelectFilter::make('document_type')
+                SelectFilter::make('category')
                     ->label('Tipo de Documento')
-                    ->options(DocumentType::class)
+                    ->relationship('category', 'name')
                     ->multiple(),
                     
                 SelectFilter::make('status')
                     ->label('Estado')
-                    ->options(DocumentStatus::class)
+                    ->relationship('status', 'name')
                     ->multiple(),
                     
                 SelectFilter::make('category')

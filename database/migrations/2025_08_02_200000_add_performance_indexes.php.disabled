@@ -13,30 +13,33 @@ return new class extends Migration
     {
         // Índices para la tabla documents (más crítica)
         Schema::table('documents', function (Blueprint $table) {
+            // Laravel 12 no requiere verificar índices existentes antes de crearlos
+            // Si el índice ya existe, la migración simplemente lo saltará
+            
             // Índice compuesto para búsquedas por empresa y estado
             $table->index(['company_id', 'status_id'], 'idx_documents_company_status');
-
+            
             // Índice compuesto para búsquedas por empresa y categoría
             $table->index(['company_id', 'category_id'], 'idx_documents_company_category');
-
+            
             // Índice compuesto para búsquedas por empresa y usuario asignado
             $table->index(['company_id', 'assigned_to'], 'idx_documents_company_assigned');
-
+            
             // Índice compuesto para búsquedas por empresa y creador
             $table->index(['company_id', 'created_by'], 'idx_documents_company_creator');
-
+            
             // Índice para documentos vencidos
             $table->index(['due_at', 'status_id'], 'idx_documents_due_status');
-
+            
             // Índice para búsquedas por fecha de creación
             $table->index(['company_id', 'created_at'], 'idx_documents_company_created');
-
+            
             // Índice para documentos confidenciales
             $table->index(['company_id', 'is_confidential'], 'idx_documents_company_confidential');
-
+            
             // Índice para documentos archivados
             $table->index(['company_id', 'is_archived'], 'idx_documents_company_archived');
-
+            
             // Índice para prioridad
             $table->index(['company_id', 'priority'], 'idx_documents_company_priority');
         });
