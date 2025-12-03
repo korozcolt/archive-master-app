@@ -11,149 +11,155 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Helper function to safely add index
+        $addIndexSafely = function ($table, $columns, $indexName) {
+            try {
+                $table->index($columns, $indexName);
+            } catch (\Exception $e) {
+                // Index already exists, skip
+            }
+        };
+
         // Índices para la tabla documents (más crítica)
-        Schema::table('documents', function (Blueprint $table) {
-            // Laravel 12 no requiere verificar índices existentes antes de crearlos
-            // Si el índice ya existe, la migración simplemente lo saltará
-            
+        Schema::table('documents', function (Blueprint $table) use ($addIndexSafely) {
             // Índice compuesto para búsquedas por empresa y estado
-            $table->index(['company_id', 'status_id'], 'idx_documents_company_status');
+            $addIndexSafely($table, ['company_id', 'status_id'], 'idx_documents_company_status');
             
             // Índice compuesto para búsquedas por empresa y categoría
-            $table->index(['company_id', 'category_id'], 'idx_documents_company_category');
-            
+            $addIndexSafely($table, ['company_id', 'category_id'], 'idx_documents_company_category');
+
             // Índice compuesto para búsquedas por empresa y usuario asignado
-            $table->index(['company_id', 'assigned_to'], 'idx_documents_company_assigned');
-            
+            $addIndexSafely($table, ['company_id', 'assigned_to'], 'idx_documents_company_assigned');
+
             // Índice compuesto para búsquedas por empresa y creador
-            $table->index(['company_id', 'created_by'], 'idx_documents_company_creator');
-            
+            $addIndexSafely($table, ['company_id', 'created_by'], 'idx_documents_company_creator');
+
             // Índice para documentos vencidos
-            $table->index(['due_at', 'status_id'], 'idx_documents_due_status');
-            
+            $addIndexSafely($table, ['due_at', 'status_id'], 'idx_documents_due_status');
+
             // Índice para búsquedas por fecha de creación
-            $table->index(['company_id', 'created_at'], 'idx_documents_company_created');
-            
+            $addIndexSafely($table, ['company_id', 'created_at'], 'idx_documents_company_created');
+
             // Índice para documentos confidenciales
-            $table->index(['company_id', 'is_confidential'], 'idx_documents_company_confidential');
-            
+            $addIndexSafely($table, ['company_id', 'is_confidential'], 'idx_documents_company_confidential');
+
             // Índice para documentos archivados
-            $table->index(['company_id', 'is_archived'], 'idx_documents_company_archived');
-            
+            $addIndexSafely($table, ['company_id', 'is_archived'], 'idx_documents_company_archived');
+
             // Índice para prioridad
-            $table->index(['company_id', 'priority'], 'idx_documents_company_priority');
+            $addIndexSafely($table, ['company_id', 'priority'], 'idx_documents_company_priority');
         });
 
         // Índices para la tabla users
-        Schema::table('users', function (Blueprint $table) {
+        Schema::table('users', function (Blueprint $table) use ($addIndexSafely) {
             // Índice compuesto para usuarios por empresa y departamento
-            $table->index(['company_id', 'department_id'], 'idx_users_company_department');
+            $addIndexSafely($table, ['company_id', 'department_id'], 'idx_users_company_department');
 
             // Índice compuesto para usuarios por empresa y sucursal
-            $table->index(['company_id', 'branch_id'], 'idx_users_company_branch');
+            $addIndexSafely($table, ['company_id', 'branch_id'], 'idx_users_company_branch');
 
             // Índice para usuarios activos
-            $table->index(['company_id', 'is_active'], 'idx_users_company_active');
+            $addIndexSafely($table, ['company_id', 'is_active'], 'idx_users_company_active');
 
             // Índice para último login
-            $table->index(['last_login_at'], 'idx_users_last_login');
+            $addIndexSafely($table, ['last_login_at'], 'idx_users_last_login');
         });
 
         // Índices para la tabla workflow_histories
-        Schema::table('workflow_histories', function (Blueprint $table) {
+        Schema::table('workflow_histories', function (Blueprint $table) use ($addIndexSafely) {
             // Índice compuesto para historial por documento
-            $table->index(['document_id', 'created_at'], 'idx_workflow_document_date');
+            $addIndexSafely($table, ['document_id', 'created_at'], 'idx_workflow_document_date');
 
             // Índice para búsquedas por usuario que realizó la acción
-            $table->index(['performed_by', 'created_at'], 'idx_workflow_user_date');
+            $addIndexSafely($table, ['performed_by', 'created_at'], 'idx_workflow_user_date');
 
             // Índice para transiciones por estado origen
-            $table->index(['from_status_id', 'created_at'], 'idx_workflow_from_status');
+            $addIndexSafely($table, ['from_status_id', 'created_at'], 'idx_workflow_from_status');
 
             // Índice para transiciones por estado destino
-            $table->index(['to_status_id', 'created_at'], 'idx_workflow_to_status');
+            $addIndexSafely($table, ['to_status_id', 'created_at'], 'idx_workflow_to_status');
         });
 
         // Índices para la tabla categories
-        Schema::table('categories', function (Blueprint $table) {
+        Schema::table('categories', function (Blueprint $table) use ($addIndexSafely) {
             // Índice compuesto para categorías por empresa y padre
-            $table->index(['company_id', 'parent_id'], 'idx_categories_company_parent');
+            $addIndexSafely($table, ['company_id', 'parent_id'], 'idx_categories_company_parent');
 
             // Índice para categorías activas
-            $table->index(['company_id', 'active'], 'idx_categories_company_active');
+            $addIndexSafely($table, ['company_id', 'active'], 'idx_categories_company_active');
         });
 
         // Índices para la tabla tags
-        Schema::table('tags', function (Blueprint $table) {
+        Schema::table('tags', function (Blueprint $table) use ($addIndexSafely) {
             // Índice para tags por empresa
-            $table->index(['company_id', 'active'], 'idx_tags_company_active');
+            $addIndexSafely($table, ['company_id', 'active'], 'idx_tags_company_active');
 
             // Índice para búsqueda por nombre
-            $table->index(['company_id', 'name'], 'idx_tags_company_name');
+            $addIndexSafely($table, ['company_id', 'name'], 'idx_tags_company_name');
         });
 
         // Índices para la tabla document_tags (tabla pivot)
-        Schema::table('document_tags', function (Blueprint $table) {
+        Schema::table('document_tags', function (Blueprint $table) use ($addIndexSafely) {
             // Índice para búsquedas por documento
-            $table->index(['document_id'], 'idx_document_tags_document');
+            $addIndexSafely($table, ['document_id'], 'idx_document_tags_document');
 
             // Índice para búsquedas por tag
-            $table->index(['tag_id'], 'idx_document_tags_tag');
+            $addIndexSafely($table, ['tag_id'], 'idx_document_tags_tag');
 
             // Índice compuesto para la relación
-            $table->index(['document_id', 'tag_id'], 'idx_document_tags_relation');
+            $addIndexSafely($table, ['document_id', 'tag_id'], 'idx_document_tags_relation');
         });
 
         // Índices para la tabla statuses
-        Schema::table('statuses', function (Blueprint $table) {
+        Schema::table('statuses', function (Blueprint $table) use ($addIndexSafely) {
             // Índice para estados por empresa
-            $table->index(['company_id', 'active'], 'idx_statuses_company_active');
+            $addIndexSafely($table, ['company_id', 'active'], 'idx_statuses_company_active');
 
             // Índice para estados iniciales
-            $table->index(['company_id', 'is_initial'], 'idx_statuses_company_initial');
+            $addIndexSafely($table, ['company_id', 'is_initial'], 'idx_statuses_company_initial');
 
             // Índice para estados finales
-            $table->index(['company_id', 'is_final'], 'idx_statuses_company_final');
+            $addIndexSafely($table, ['company_id', 'is_final'], 'idx_statuses_company_final');
         });
 
         // Índices para la tabla branches
-        Schema::table('branches', function (Blueprint $table) {
+        Schema::table('branches', function (Blueprint $table) use ($addIndexSafely) {
             // Índice para sucursales por empresa
-            $table->index(['company_id', 'active'], 'idx_branches_company_active');
+            $addIndexSafely($table, ['company_id', 'active'], 'idx_branches_company_active');
         });
 
         // Índices para la tabla departments
-        Schema::table('departments', function (Blueprint $table) {
+        Schema::table('departments', function (Blueprint $table) use ($addIndexSafely) {
             // Índice compuesto para departamentos por empresa y sucursal
-            $table->index(['company_id', 'branch_id'], 'idx_departments_company_branch');
+            $addIndexSafely($table, ['company_id', 'branch_id'], 'idx_departments_company_branch');
 
             // Índice para departamentos activos
-            $table->index(['company_id', 'active'], 'idx_departments_company_active');
+            $addIndexSafely($table, ['company_id', 'active'], 'idx_departments_company_active');
         });
 
         // Índices para la tabla document_versions
-        Schema::table('document_versions', function (Blueprint $table) {
+        Schema::table('document_versions', function (Blueprint $table) use ($addIndexSafely) {
             // Índice para versiones por documento
-            $table->index(['document_id', 'version_number'], 'idx_versions_document_number');
+            $addIndexSafely($table, ['document_id', 'version_number'], 'idx_versions_document_number');
 
             // Índice para versión actual
-            $table->index(['document_id', 'is_current'], 'idx_versions_document_current');
+            $addIndexSafely($table, ['document_id', 'is_current'], 'idx_versions_document_current');
 
             // Índice para versiones por creador
-            $table->index(['created_by', 'created_at'], 'idx_versions_creator_date');
+            $addIndexSafely($table, ['created_by', 'created_at'], 'idx_versions_creator_date');
         });
 
         // Índices para la tabla notifications (si existe)
         if (Schema::hasTable('notifications')) {
-            Schema::table('notifications', function (Blueprint $table) {
+            Schema::table('notifications', function (Blueprint $table) use ($addIndexSafely) {
                 // Índice para notificaciones por usuario
-                $table->index(['notifiable_id', 'notifiable_type'], 'idx_notifications_notifiable');
+                $addIndexSafely($table, ['notifiable_id', 'notifiable_type'], 'idx_notifications_notifiable');
 
                 // Índice para notificaciones no leídas
-                $table->index(['notifiable_id', 'read_at'], 'idx_notifications_unread');
+                $addIndexSafely($table, ['notifiable_id', 'read_at'], 'idx_notifications_unread');
 
                 // Índice para notificaciones por fecha
-                $table->index(['created_at'], 'idx_notifications_created');
+                $addIndexSafely($table, ['created_at'], 'idx_notifications_created');
             });
         }
     }

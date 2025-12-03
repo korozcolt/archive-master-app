@@ -6,6 +6,7 @@ use App\Models\DocumentApproval;
 use App\Models\Document;
 use App\Models\User;
 use App\Models\WorkflowDefinition;
+use App\Notifications\ApprovalRequested;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -56,11 +57,11 @@ class WorkflowService
 
                 $approvals[] = $approval;
 
-                // TODO: Enviar notificación al aprobador
-                // $approver = User::find($approverId);
-                // if ($approver) {
-                //     $approver->notify(new ApprovalRequested($document, $workflowDefinition));
-                // }
+                // Enviar notificación al aprobador
+                $approver = User::find($approverId);
+                if ($approver) {
+                    $approver->notify(new ApprovalRequested($document, $workflowDefinition));
+                }
             }
 
             DB::commit();

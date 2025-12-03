@@ -3,7 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Document;
-use App\Models\Workflow;
+use App\Models\WorkflowDefinition;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -14,13 +14,13 @@ class ApprovalRequested extends Notification implements ShouldQueue
     use Queueable;
 
     protected $document;
-    protected $workflow;
+    protected $workflowDefinition;
     protected $level;
 
-    public function __construct(Document $document, Workflow $workflow, int $level)
+    public function __construct(Document $document, WorkflowDefinition $workflowDefinition, int $level = 1)
     {
         $this->document = $document;
-        $this->workflow = $workflow;
+        $this->workflowDefinition = $workflowDefinition;
         $this->level = $level;
     }
 
@@ -38,7 +38,7 @@ class ApprovalRequested extends Notification implements ShouldQueue
             'document_id' => $this->document->id,
             'document_title' => $this->document->title,
             'document_number' => $this->document->document_number,
-            'workflow_name' => $this->workflow->name,
+            'workflow_name' => $this->workflowDefinition->name ?? 'Workflow',
             'approval_level' => $this->level,
             'priority' => $this->document->priority->value ?? 'medium',
             'action_url' => route('approvals.show', $this->document->id),
@@ -53,7 +53,7 @@ class ApprovalRequested extends Notification implements ShouldQueue
             ->subject('Aprobación requerida - Nivel ' . $this->level)
             ->line('Se requiere tu aprobación para el siguiente documento:')
             ->line('Documento: ' . $this->document->title)
-            ->line('Workflow: ' . $this->workflow->name)
+            ->line('Workflow: ' . ($this->workflowDefinition->name ?? 'Workflow'))
             ->line('Nivel de aprobación: ' . $this->level)
             ->action('Revisar y Aprobar', route('approvals.show', $this->document->id))
             ->line('Por favor, revisa el documento a la brevedad.');
