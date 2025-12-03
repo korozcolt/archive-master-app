@@ -98,11 +98,22 @@ class OCRService
     {
         $fullPath = Storage::path($filePath);
 
-        // Simular procesamiento OCR de PDF
-        // En producción, aquí se usaría Tesseract o una API de OCR
-        $simulatedText = $this->simulatePDFOCR($fullPath);
+        // Para PDFs, primero necesitamos convertir a imágenes usando Imagick o similar
+        // Por ahora, si el PDF tiene texto nativo, usamos pdftotext
+        // Si está escaneado, necesitaríamos convertir las páginas a imágenes primero
 
-        return $simulatedText;
+        // Intentar extraer texto nativo del PDF primero
+        $textOutput = shell_exec("pdftotext " . escapeshellarg($fullPath) . " - 2>/dev/null");
+
+        if (!empty(trim($textOutput))) {
+            // PDF tiene texto nativo, no necesita OCR
+            return trim($textOutput);
+        }
+
+        // Si no tiene texto nativo, aplicar OCR usando Tesseract
+        // Nota: esto requiere convertir el PDF a imágenes primero
+        // Para simplificar, procesaremos como imagen si es un archivo escaneado
+        return $this->processPDFWithTesseract($fullPath, $language);
     }
 
     /**
@@ -112,52 +123,71 @@ class OCRService
     {
         $fullPath = Storage::path($filePath);
 
-        // Simular procesamiento OCR de imagen
-        // En producción, aquí se usaría Tesseract: tesseract image.jpg output -l spa
-        $simulatedText = $this->simulateImageOCR($fullPath);
+        // Mapear código de idioma a código de Tesseract
+        $tesseractLang = $this->mapLanguageToTesseract($language);
 
-        return $simulatedText;
-    }
+        // Ejecutar Tesseract
+        $outputFile = tempnam(sys_get_temp_dir(), 'ocr');
+        $command = sprintf(
+            'tesseract %s %s -l %s 2>&1',
+            escapeshellarg($fullPath),
+            escapeshellarg($outputFile),
+            escapeshellarg($tesseractLang)
+        );
 
-    /**
-     * Simular OCR de PDF (para demostración)
-     */
-    private function simulatePDFOCR(string $filePath): string
-    {
-        // Simular diferentes tipos de documentos
-        $documentTypes = [
-            'contrato' => "CONTRATO DE SERVICIOS PROFESIONALES\n\nEntre la empresa ACME S.A., representada por su Gerente General, Sr. Juan Pérez, y el proveedor de servicios XYZ Ltda., representado por la Sra. María García, se establece el presente contrato bajo los siguientes términos:\n\n1. OBJETO: Prestación de servicios de consultoría técnica.\n2. PLAZO: 12 meses a partir de la fecha de firma.\n3. VALOR: $50,000 USD pagaderos en cuotas mensuales.\n4. CONDICIONES: El proveedor se compromete a entregar informes mensuales de avance.",
+        exec($command, $output, $returnCode);
 
-            'factura' => "FACTURA ELECTRÓNICA\n\nNúmero: FAC-2025-001\nFecha: 15 de Enero de 2025\nCliente: Empresa ABC S.A.\nRUT: 12.345.678-9\n\nDETALLE:\n- Servicios de consultoría: $25,000\n- IVA (19%): $4,750\n- TOTAL: $29,750\n\nForma de pago: Transferencia bancaria\nVencimiento: 30 días",
+        // Leer el archivo de salida
+        $textFile = $outputFile . '.txt';
+        $extractedText = '';
 
-            'reporte' => "REPORTE MENSUAL DE ACTIVIDADES\n\nPeríodo: Enero 2025\nDepartamento: Recursos Humanos\n\nRESUMEN EJECUTIVO:\nDurante el mes de enero se procesaron 45 nuevas contrataciones, se realizaron 12 capacitaciones y se gestionaron 8 procesos disciplinarios.\n\nINDICADORES:\n- Rotación de personal: 3.2%\n- Satisfacción laboral: 87%\n- Cumplimiento de objetivos: 94%",
-
-            'acta' => "ACTA DE REUNIÓN\n\nFecha: 20 de Enero de 2025\nHora: 14:00 hrs\nLugar: Sala de Juntas Principal\n\nASISTENTES:\n- Juan Pérez (Gerente General)\n- María García (Jefe de Ventas)\n- Carlos López (Jefe de Operaciones)\n\nTEMAS TRATADOS:\n1. Revisión de resultados del trimestre\n2. Planificación estratégica 2025\n3. Presupuesto para nuevos proyectos\n\nACUERDOS:\n- Incrementar presupuesto de marketing en 15%\n- Contratar 3 nuevos vendedores\n- Implementar sistema CRM antes de marzo",
-        ];
-
-        // Seleccionar tipo de documento basado en el nombre del archivo
-        $fileName = strtolower(basename($filePath));
-
-        if (str_contains($fileName, 'contrato')) {
-            return $documentTypes['contrato'];
-        } elseif (str_contains($fileName, 'factura')) {
-            return $documentTypes['factura'];
-        } elseif (str_contains($fileName, 'reporte')) {
-            return $documentTypes['reporte'];
-        } elseif (str_contains($fileName, 'acta')) {
-            return $documentTypes['acta'];
+        if (file_exists($textFile)) {
+            $extractedText = file_get_contents($textFile);
+            unlink($textFile);
         }
 
-        // Documento genérico
-        return "DOCUMENTO PROCESADO CON OCR\n\nEste es un texto de ejemplo extraído mediante procesamiento OCR. El contenido real dependería del documento original procesado.\n\nFecha de procesamiento: " . now()->format('d/m/Y H:i:s') . "\nArchivo: " . basename($filePath);
+        // Limpiar archivo temporal
+        if (file_exists($outputFile)) {
+            unlink($outputFile);
+        }
+
+        if ($returnCode !== 0) {
+            throw new \Exception('Error al procesar imagen con Tesseract: ' . implode("\n", $output));
+        }
+
+        return trim($extractedText);
     }
 
     /**
-     * Simular OCR de imagen (para demostración)
+     * Procesar PDF escaneado con Tesseract
      */
-    private function simulateImageOCR(string $filePath): string
+    private function processPDFWithTesseract(string $fullPath, string $language): string
     {
-        return "TEXTO EXTRAÍDO DE IMAGEN\n\nEste texto fue extraído de una imagen mediante tecnología OCR. La calidad del reconocimiento depende de la resolución y claridad de la imagen original.\n\nArchivo procesado: " . basename($filePath) . "\nFecha: " . now()->format('d/m/Y H:i:s');
+        // Para PDFs escaneados, idealmente convertiríamos cada página a imagen
+        // Por simplicidad, informamos que se requiere preprocesamiento
+        // En producción, usaríamos Imagick o GhostScript para convertir PDF a imágenes
+
+        return "NOTA: Este PDF parece estar escaneado y no contiene texto nativo.\n" .
+               "Para procesar PDFs escaneados, es necesario convertirlos a imágenes primero.\n" .
+               "Considere usar herramientas como ImageMagick o subir imágenes directamente.\n\n" .
+               "Archivo: " . basename($fullPath);
+    }
+
+    /**
+     * Mapear código de idioma a código de Tesseract
+     */
+    private function mapLanguageToTesseract(string $language): string
+    {
+        $languageMap = [
+            'es' => 'spa',      // Español
+            'en' => 'eng',      // Inglés
+            'fr' => 'fra',      // Francés
+            'de' => 'deu',      // Alemán
+            'it' => 'ita',      // Italiano
+            'pt' => 'por',      // Portugués
+        ];
+
+        return $languageMap[$language] ?? 'eng';
     }
 
     /**
