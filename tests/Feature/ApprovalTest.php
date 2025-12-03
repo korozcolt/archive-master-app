@@ -28,12 +28,12 @@ class ApprovalTest extends TestCase
 
         // Crear empresa y estados
         $this->company = Company::factory()->create();
-        
+
         $this->statusPending = Status::factory()->create([
             'company_id' => $this->company->id,
             'name' => ['es' => 'Pendiente'],
         ]);
-        
+
         $this->statusApproved = Status::factory()->create([
             'company_id' => $this->company->id,
             'name' => ['es' => 'Aprobado'],
@@ -93,15 +93,15 @@ class ApprovalTest extends TestCase
     {
         // Simular el proceso sin transacciones para evitar conflictos con RefreshDatabase
         $this->actingAs($this->approver);
-        
+
         // Llamar al método approve directamente
         $result = $this->approval->approve('Aprobado correctamente');
-        
+
         $this->assertTrue($result);
         $this->assertEquals('approved', $this->approval->status);
         $this->assertEquals('Aprobado correctamente', $this->approval->comments);
         $this->assertNotNull($this->approval->responded_at);
-        
+
         // Verificar que se guardó en la base de datos
         $this->assertDatabaseHas('document_approvals', [
             'id' => $this->approval->id,
@@ -120,7 +120,7 @@ class ApprovalTest extends TestCase
             ]);
 
         $response->assertRedirect();
-        
+
         $this->assertDatabaseHas('document_approvals', [
             'id' => $this->approval->id,
             'status' => 'rejected',
@@ -138,7 +138,7 @@ class ApprovalTest extends TestCase
             ]);
 
         $response->assertSessionHasErrors('comments');
-        
+
         $this->assertDatabaseHas('document_approvals', [
             'id' => $this->approval->id,
             'status' => 'pending',
@@ -160,7 +160,7 @@ class ApprovalTest extends TestCase
             ]);
 
         $response->assertStatus(403);
-        
+
         $this->assertDatabaseHas('document_approvals', [
             'id' => $this->approval->id,
             'status' => 'pending',
@@ -221,7 +221,7 @@ class ApprovalTest extends TestCase
             ->get('/approvals');
 
         $response->assertStatus(200);
-        
+
         // Verificar que solo se obtiene la aprobación de su empresa
         $approvals = $response->viewData('approvals');
         $this->assertCount(1, $approvals);

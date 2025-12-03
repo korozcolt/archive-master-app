@@ -94,11 +94,11 @@ class StatusesRelationManager extends RelationManager
     protected function getTableQuery(): Builder|null
     {
         $query = parent::getTableQuery();
-        
+
         if (!$query) {
             return null;
         }
-        
+
         if ($this->ownerRecord && ($this->ownerRecord->from_status_id || $this->ownerRecord->to_status_id)) {
             $query->where(function (Builder $q) {
                 if ($this->ownerRecord->from_status_id) {
@@ -109,7 +109,7 @@ class StatusesRelationManager extends RelationManager
                 }
             });
         }
-        
+
         return $query;
     }
 }

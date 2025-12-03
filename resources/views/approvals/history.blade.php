@@ -57,9 +57,9 @@
 
                                             @if($approval->workflowDefinition)
                                                 <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                                                    <strong>Transición:</strong> 
-                                                    {{ $approval->workflowDefinition->fromStatus->name ?? '' }} 
-                                                    → 
+                                                    <strong>Transición:</strong>
+                                                    {{ $approval->workflowDefinition->fromStatus->name ?? '' }}
+                                                    →
                                                     {{ $approval->workflowDefinition->toStatus->name ?? '' }}
                                                 </p>
                                             @endif

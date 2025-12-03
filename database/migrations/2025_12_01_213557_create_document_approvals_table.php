@@ -21,7 +21,7 @@ return new class extends Migration
             $table->text('comments')->nullable();
             $table->timestamp('responded_at')->nullable();
             $table->timestamps();
-            
+
             // Índices
             $table->index(['document_id', 'status']);
             $table->index(['approver_id', 'status']);

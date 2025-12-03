@@ -149,15 +149,15 @@ class StatusRelationManager extends RelationManager
     protected function getTableQuery(): Builder|null
     {
         $query = parent::getTableQuery();
-        
+
         if (!$query) {
             return null;
         }
-        
+
         if ($this->ownerRecord && $this->ownerRecord->status_id) {
             $query->where('id', $this->ownerRecord->status_id);
         }
-        
+
         return $query->withCount('documents');
     }
 }

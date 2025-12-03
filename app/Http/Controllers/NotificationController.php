@@ -15,7 +15,7 @@ class NotificationController extends Controller
         $user = Auth::user();
 
         $query = $user->notifications();
-        
+
         // Aplicar filtros
         if ($request->filled('filter')) {
             if ($request->filter === 'unread') {

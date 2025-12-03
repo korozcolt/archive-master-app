@@ -21,15 +21,15 @@ class DocumentObserver
         if (!$document->document_number) {
             $document->document_number = $this->generateDocumentNumber($document);
         }
-        
+
         if (!$document->created_by && Auth::check()) {
             $document->created_by = Auth::id();
         }
-        
+
         if (!$document->company_id && Auth::check()) {
             $document->company_id = Auth::user()->company_id;
         }
-        
+
         // Establecer prioridad por defecto
         if (!$document->priority) {
             $document->priority = 'medium';
@@ -74,40 +74,40 @@ class DocumentObserver
     {
         // Verificar cambios importantes
         $importantChanges = [];
-        
+
         if ($document->isDirty('status_id')) {
             $importantChanges['status'] = [
                 'old' => $document->getOriginal('status_id'),
                 'new' => $document->status_id
             ];
         }
-        
+
         if ($document->isDirty('assigned_to')) {
             $importantChanges['assignee'] = [
                 'old' => $document->getOriginal('assigned_to'),
                 'new' => $document->assigned_to
             ];
         }
-        
+
         if ($document->isDirty('priority')) {
             $importantChanges['priority'] = [
                 'old' => $document->getOriginal('priority'),
                 'new' => $document->priority
             ];
         }
-        
+
         if ($document->isDirty('due_at')) {
             $importantChanges['due_date'] = [
                 'old' => $document->getOriginal('due_at'),
                 'new' => $document->due_at
             ];
         }
-        
+
         // Almacenar cambios para usar en el evento updated
         // Usamos una propiedad estática temporal para evitar persistirlo en DB
         static::$pendingChanges[$document->id ?? 'new'] = $importantChanges;
     }
-    
+
     /**
      * Temporary storage for important changes
      */
@@ -119,7 +119,7 @@ class DocumentObserver
     public function updated(Document $document): void
     {
         $importantChanges = static::$pendingChanges[$document->id] ?? [];
-        
+
         // Log de actividad para cambios importantes
         if (!empty($importantChanges)) {
             activity()
@@ -146,17 +146,17 @@ class DocumentObserver
         if (isset($importantChanges['status'])) {
             $this->handleStatusChange($document, $importantChanges['status']);
         }
-        
+
         // Manejar cambio de asignación
         if (isset($importantChanges['assignee'])) {
             $this->handleAssigneeChange($document, $importantChanges['assignee']);
         }
-        
+
         // Manejar cambio de prioridad
         if (isset($importantChanges['priority'])) {
             $this->handlePriorityChange($document, $importantChanges['priority']);
         }
-        
+
         // Manejar cambio de fecha límite
         if (isset($importantChanges['due_date'])) {
             $this->handleDueDateChange($document, $importantChanges['due_date']);
@@ -168,7 +168,7 @@ class DocumentObserver
             'changes' => $importantChanges,
             'updated_by' => Auth::id(),
         ]);
-        
+
         // Limpiar cambios temporales
         unset(static::$pendingChanges[$document->id]);
     }
@@ -227,14 +227,14 @@ class DocumentObserver
         $prefix = 'DOC';
         $year = date('Y');
         $month = date('m');
-        
+
         // Obtener el siguiente número secuencial para este mes
         $lastDocument = Document::where('company_id', $document->company_id)
             ->whereYear('created_at', $year)
             ->whereMonth('created_at', $month)
             ->orderBy('id', 'desc')
             ->first();
-        
+
         $sequence = 1;
         if ($lastDocument && $lastDocument->document_number) {
             // Extraer el número secuencial del último documento
@@ -243,7 +243,7 @@ class DocumentObserver
                 $sequence = intval($matches[1]) + 1;
             }
         }
-        
+
         return sprintf('%s-%s%s-%04d', $prefix, $year, $month, $sequence);
     }
 
@@ -254,7 +254,7 @@ class DocumentObserver
     {
         $oldStatus = \App\Models\Status::find($statusChange['old']);
         $newStatus = \App\Models\Status::find($statusChange['new']);
-        
+
         // Verificar que ambos estados existan antes de proceder
         if (!$newStatus) {
             \Illuminate\Support\Facades\Log::warning('Status not found for document status change', [
@@ -264,7 +264,7 @@ class DocumentObserver
             ]);
             return;
         }
-        
+
         // Enviar notificación de cambio de estado solo si tenemos ambos estados
         if ($document->assigned_to && $oldStatus && Auth::check()) {
             $assignee = \App\Models\User::find($document->assigned_to);
@@ -277,7 +277,7 @@ class DocumentObserver
                 ));
             }
         }
-        
+
         // Log específico para cambio de estado
         activity()
             ->performedOn($document)
@@ -297,11 +297,11 @@ class DocumentObserver
     {
         $oldAssignee = $assigneeChange['old'] ? \App\Models\User::find($assigneeChange['old']) : null;
         $newAssignee = $assigneeChange['new'] ? \App\Models\User::find($assigneeChange['new']) : null;
-        
+
         // Notificar al nuevo asignado
         if ($newAssignee) {
             $newAssignee->notify(new DocumentAssigned($document, Auth::user()));
-            
+
             Log::info('Documento asignado - Notificación enviada', [
                 'document_id' => $document->id,
                 'old_assignee' => $oldAssignee?->name,
@@ -309,7 +309,7 @@ class DocumentObserver
                 'assigned_by' => Auth::user()?->name,
             ]);
         }
-        
+
         // Log específico para cambio de asignación
         activity()
             ->performedOn($document)
@@ -350,7 +350,7 @@ class DocumentObserver
         if ($dueDateChange['new']) {
             $dueDate = \Carbon\Carbon::parse($dueDateChange['new']);
             $now = \Carbon\Carbon::now();
-            
+
             // Si la fecha límite es en menos de 24 horas, notificar
             if ($dueDate->diffInHours($now) < 24 && $dueDate->isFuture()) {
                 if ($document->assigned_to) {

@@ -72,7 +72,7 @@ class Document extends Model
      * Attributes that should not be persisted to the database
      */
     protected $hidden = [];
-    
+
     /**
      * Temporary attributes used by observers
      */
@@ -440,7 +440,7 @@ class Document extends Model
         if (is_array($companyName)) {
             $companyName = $this->company->getTranslation('name', app()->getLocale());
         }
-        
+
         $data = [
             'id' => $this->id,
             'document_number' => $this->document_number,
@@ -474,7 +474,7 @@ class Document extends Model
         if (!$user) {
             return [];
         }
-        
+
         $workflowEngine = app(WorkflowEngine::class);
         return $workflowEngine->getAvailableTransitions($this, $user);
     }
@@ -488,7 +488,7 @@ class Document extends Model
         if (!$user) {
             return false;
         }
-        
+
         $workflowEngine = app(WorkflowEngine::class);
         return $workflowEngine->canTransition($this, $newStatus, $user);
     }

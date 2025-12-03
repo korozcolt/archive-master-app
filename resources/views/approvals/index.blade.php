@@ -96,7 +96,7 @@
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
                                                     </svg>
                                                     <span class="text-sm text-gray-600 dark:text-gray-400">
-                                                        Transición: 
+                                                        Transición:
                                                         <span class="font-medium">{{ $approval->workflowDefinition->fromStatus->name ?? '' }}</span>
                                                         →
                                                         <span class="font-medium">{{ $approval->workflowDefinition->toStatus->name ?? '' }}</span>
@@ -110,7 +110,7 @@
                                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $priorityColor }}">
                                                     {{ ucfirst($document->priority->getLabel()) }}
                                                 </span>
-                                                
+
                                                 @if($document->is_confidential)
                                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">
                                                         <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -128,7 +128,7 @@
 
                                         <!-- Acciones -->
                                         <div class="ml-6 flex flex-col gap-2">
-                                            <a href="{{ route('approvals.show', $document->id) }}" 
+                                            <a href="{{ route('approvals.show', $document->id) }}"
                                                class="inline-flex items-center justify-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 active:bg-blue-900 focus:outline-none focus:border-blue-900 focus:ring ring-blue-300 disabled:opacity-25 transition ease-in-out duration-150">
                                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>

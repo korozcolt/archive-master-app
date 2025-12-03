@@ -177,7 +177,7 @@ class SearchAndFilterTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertViewHas('documents');
-        
+
         $documents = $response->viewData('documents');
         $this->assertInstanceOf(\Illuminate\Pagination\LengthAwarePaginator::class, $documents);
     }
@@ -214,7 +214,7 @@ class SearchAndFilterTest extends TestCase
             ->get('/documents?sort=title&order=asc');
 
         $response->assertStatus(200);
-        
+
         // Verificar que la respuesta tiene documentos
         if ($response->viewData('documents')) {
             $documents = $response->viewData('documents');

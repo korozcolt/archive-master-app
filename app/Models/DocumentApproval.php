@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class DocumentApproval extends Model
 {
     use HasFactory;
-    
+
     protected $table = 'document_approvals';
 
     protected $fillable = [

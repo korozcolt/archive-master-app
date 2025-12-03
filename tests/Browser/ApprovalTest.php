@@ -27,12 +27,12 @@ class ApprovalTest extends DuskTestCase
 
         // Crear empresa y estados
         $this->company = Company::factory()->create();
-        
+
         $statusPending = Status::factory()->create([
             'company_id' => $this->company->id,
             'name' => 'Pendiente',
         ]);
-        
+
         $statusApproved = Status::factory()->create([
             'company_id' => $this->company->id,
             'name' => 'Aprobado',
@@ -82,7 +82,7 @@ class ApprovalTest extends DuskTestCase
             $browser->loginAs($this->approver)
                     ->visit('/approvals')
                     ->assertStatus(200);
-                    
+
             // Verificar en la base de datos
             $this->assertDatabaseHas('document_approvals', [
                 'document_id' => $this->document->id,

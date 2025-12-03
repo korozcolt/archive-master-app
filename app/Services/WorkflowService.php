@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * WorkflowService - Sistema simplificado de aprobaciones
- * 
+ *
  * Este servicio se integra con WorkflowDefinition existente
  * para manejar aprobaciones de transiciones de estado
  */
@@ -20,7 +20,7 @@ class WorkflowService
 {
     /**
      * Crear aprobaciones para una transición de workflow
-     * 
+     *
      * @param Document $document
      * @param WorkflowDefinition $workflowDefinition
      * @param array $approverIds IDs de usuarios que deben aprobar
@@ -79,7 +79,7 @@ class WorkflowService
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             Log::error('Error al crear aprobaciones', [
                 'document_id' => $document->id ?? null,
                 'workflow_definition_id' => $workflowDefinition->id ?? null,
@@ -95,7 +95,7 @@ class WorkflowService
 
     /**
      * Obtener aprobaciones pendientes para un usuario
-     * 
+     *
      * @param User $user
      * @return \Illuminate\Database\Eloquent\Collection
      */
@@ -115,7 +115,7 @@ class WorkflowService
 
     /**
      * Verificar si un documento tiene aprobaciones pendientes
-     * 
+     *
      * @param Document $document
      * @return bool
      */
@@ -126,7 +126,7 @@ class WorkflowService
 
     /**
      * Obtener estadísticas de aprobaciones para un documento
-     * 
+     *
      * @param Document $document
      * @return array
      */
@@ -144,7 +144,7 @@ class WorkflowService
 
     /**
      * Resolver aprobadores basándose en la configuración del workflow
-     * 
+     *
      * @param WorkflowDefinition $workflowDefinition
      * @param Document $document
      * @return array
@@ -152,7 +152,7 @@ class WorkflowService
     public function resolveApprovers(WorkflowDefinition $workflowDefinition, Document $document): array
     {
         $approvalConfig = $workflowDefinition->approval_config;
-        
+
         if (empty($approvalConfig)) {
             return [];
         }

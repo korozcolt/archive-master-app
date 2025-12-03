@@ -69,7 +69,7 @@ class DocumentTest extends TestCase
             ]);
 
         $response->assertRedirect();
-        
+
         $this->assertDatabaseHas('documents', [
             'title' => 'Test Document',
             'document_number' => 'TEST-001',
@@ -118,7 +118,7 @@ class DocumentTest extends TestCase
             ]);
 
         $response->assertRedirect();
-        
+
         $this->assertDatabaseHas('documents', [
             'id' => $document->id,
             'title' => 'Updated Title',
@@ -141,7 +141,7 @@ class DocumentTest extends TestCase
             ->delete("/documents/{$document->id}");
 
         $response->assertRedirect();
-        
+
         $this->assertSoftDeleted('documents', [
             'id' => $document->id,
         ]);
@@ -155,7 +155,7 @@ class DocumentTest extends TestCase
         $otherCompany = Company::factory()->create();
         $otherStatus = Status::factory()->create(['company_id' => $otherCompany->id]);
         $otherUser = User::factory()->create(['company_id' => $otherCompany->id]);
-        
+
         $document = Document::factory()->create([
             'company_id' => $otherCompany->id,
             'status_id' => $otherStatus->id,

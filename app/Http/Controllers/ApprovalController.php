@@ -16,7 +16,7 @@ class ApprovalController extends Controller
     public function index()
     {
         $user = Auth::user();
-        
+
         $approvals = DocumentApproval::with([
             'document.status',
             'document.creator',
@@ -79,12 +79,12 @@ class ApprovalController extends Controller
 
             // Verificar si todas las aprobaciones del documento están aprobadas
             $pendingApprovals = $approval->document->pendingApprovals()->count();
-            
+
             if ($pendingApprovals === 0) {
                 // Todas las aprobaciones completadas, cambiar estado del documento
                 $workflowDefinition = $approval->workflowDefinition;
                 $document = $approval->document;
-                
+
                 $document->update([
                     'status_id' => $workflowDefinition->to_status_id,
                 ]);
@@ -141,7 +141,7 @@ class ApprovalController extends Controller
             // Al rechazar, el documento puede volver a estado anterior o mantenerse
             // Esto depende de la lógica de negocio
             $document = $approval->document;
-            
+
             // Crear registro en historial
             $document->workflowHistory()->create([
                 'from_status_id' => $document->status_id,

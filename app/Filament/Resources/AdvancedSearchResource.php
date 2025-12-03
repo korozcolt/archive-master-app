@@ -28,15 +28,15 @@ class AdvancedSearchResource extends Resource
     protected static ?string $model = Document::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-magnifying-glass';
-    
+
     protected static ?string $navigationLabel = 'Búsqueda Avanzada';
-    
+
     protected static ?string $modelLabel = 'Búsqueda Avanzada';
-    
+
     protected static ?string $pluralModelLabel = 'Búsqueda Avanzada';
-    
+
     protected static ?int $navigationSort = 2;
-    
+
     protected static ?string $navigationGroup = 'Documentos';
 
     public static function form(Form $form): Form
@@ -50,7 +50,7 @@ class AdvancedSearchResource extends Resource
                             ->placeholder('Ingrese términos de búsqueda...')
                             ->helperText('Busca en título, descripción y contenido de documentos usando Meilisearch')
                             ->columnSpanFull(),
-                            
+
                         Forms\Components\Grid::make(2)
                             ->schema([
                                 Forms\Components\Select::make('category_id')
@@ -58,65 +58,65 @@ class AdvancedSearchResource extends Resource
                                     ->relationship('category', 'name')
                                     ->searchable()
                                     ->multiple(),
-                                    
+
                                 Forms\Components\Select::make('status_id')
                                     ->label('Estado')
                                     ->relationship('status', 'name')
                                     ->searchable()
                                     ->multiple(),
-                                    
+
                                 Forms\Components\Select::make('category_id')
                                     ->label('Categoría')
                                     ->relationship('category', 'name')
                                     ->searchable()
                                     ->multiple(),
-                                    
+
                                 Forms\Components\Select::make('tags')
                                     ->label('Etiquetas')
                                     ->relationship('tags', 'name')
                                     ->searchable()
                                     ->multiple(),
-                                    
+
                                 Forms\Components\Select::make('created_by')
                                     ->label('Creado por')
                                     ->relationship('creator', 'name')
                                     ->searchable()
                                     ->multiple(),
-                                    
+
                                 Forms\Components\Select::make('company_id')
                                     ->label('Empresa')
                                     ->relationship('company', 'name')
                                     ->searchable()
                                     ->multiple(),
                             ]),
-                            
+
                         Forms\Components\Grid::make(2)
                             ->schema([
                                 Forms\Components\DatePicker::make('created_from')
                                     ->label('Creado desde')
                                     ->native(false),
-                                    
+
                                 Forms\Components\DatePicker::make('created_to')
                                     ->label('Creado hasta')
                                     ->native(false),
-                                    
+
                                 Forms\Components\DatePicker::make('due_from')
                                     ->label('Vence desde')
                                     ->native(false),
-                                    
+
                                 Forms\Components\DatePicker::make('due_to')
                                     ->label('Vence hasta')
                                     ->native(false),
                             ]),
-                            
+
                         Forms\Components\Grid::make(3)
                             ->schema([
                                 Forms\Components\Toggle::make('has_attachments')
                                     ->label('Con archivos adjuntos'),
-                                    
+
                                 Forms\Components\Toggle::make('is_overdue')
                                     ->label('Documentos vencidos'),
-                                    
+
                                 Forms\Components\Toggle::make('recent_activity')
                                     ->label('Actividad reciente (7 días)'),
                             ]),
@@ -137,46 +137,46 @@ class AdvancedSearchResource extends Resource
                     ->tooltip(function (Document $record): ?string {
                         return $record->title;
                     }),
-                    
+
                 Tables\Columns\TextColumn::make('category.name')
                     ->label('Tipo')
                     ->badge()
                     ->sortable(),
-                    
+
                 Tables\Columns\TextColumn::make('status.name')
                     ->label('Estado')
                     ->badge()
                     ->sortable(),
-                    
+
                 Tables\Columns\TextColumn::make('category.name')
                     ->label('Categoría')
                     ->sortable()
                     ->toggleable(),
-                    
+
                 Tables\Columns\TextColumn::make('creator.name')
                     ->label('Creado por')
                     ->sortable()
                     ->toggleable(),
-                    
+
                 Tables\Columns\TextColumn::make('company.name')
                     ->label('Empresa')
                     ->sortable()
                     ->toggleable(),
-                    
+
                 Tables\Columns\TextColumn::make('due_date')
                     ->label('Fecha límite')
                     ->date()
                     ->sortable()
-                    ->color(fn (Document $record): string => 
+                    ->color(fn (Document $record): string =>
                         $record->due_date && $record->due_date->isPast() ? 'danger' : 'gray'
                     ),
-                    
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Creado')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                    
+
                 Tables\Columns\TextColumn::make('updated_at')
                     ->label('Actualizado')
                     ->dateTime()
@@ -188,36 +188,36 @@ class AdvancedSearchResource extends Resource
                     ->label('Tipo de Documento')
                     ->relationship('category', 'name')
                     ->multiple(),
-                    
+
                 SelectFilter::make('status')
                     ->label('Estado')
                     ->relationship('status', 'name')
                     ->multiple(),
-                    
+
                 SelectFilter::make('category')
                     ->label('Categoría')
                     ->relationship('category', 'name')
                     ->multiple(),
-                    
+
                 SelectFilter::make('company')
                     ->label('Empresa')
                     ->relationship('company', 'name')
                     ->multiple(),
-                    
+
                 Filter::make('overdue')
                     ->label('Documentos vencidos')
-                    ->query(fn (Builder $query): Builder => 
+                    ->query(fn (Builder $query): Builder =>
                         $query->where('due_date', '<', now())
                     )
                     ->toggle(),
-                    
+
                 Filter::make('recent')
                     ->label('Actividad reciente')
-                    ->query(fn (Builder $query): Builder => 
+                    ->query(fn (Builder $query): Builder =>
                         $query->where('updated_at', '>=', now()->subDays(7))
                     )
                     ->toggle(),
-                    
+
                 Filter::make('created_at')
                     ->form([
                         Forms\Components\DatePicker::make('created_from')
@@ -264,34 +264,34 @@ class AdvancedSearchResource extends Resource
             'index' => Pages\ListAdvancedSearches::route('/'),
         ];
     }
-    
+
     public static function canCreate(): bool
     {
         return false;
     }
-    
+
     public static function getNavigationBadge(): ?string
     {
         return static::getModel()::count();
     }
-    
+
     public static function getNavigationBadgeColor(): string|array|null
     {
         return 'primary';
     }
-    
+
     protected static function getSearchQuery(): Builder
     {
         $query = Document::query()->with(['category', 'creator', 'company', 'tags']);
-        
+
         // Obtener parámetros de búsqueda de la URL o sesión
         $searchQuery = request('search_query') ?? session('advanced_search.search_query');
-        
+
         if ($searchQuery) {
             // Usar Scout para búsqueda full-text si hay términos de búsqueda
             $searchResults = Document::search($searchQuery)->get();
             $documentIds = $searchResults->pluck('id')->toArray();
-            
+
             if (!empty($documentIds)) {
                 $query->whereIn('id', $documentIds);
             } else {
@@ -303,7 +303,7 @@ class AdvancedSearchResource extends Resource
                 });
             }
         }
-        
+
         return $query;
     }
 }

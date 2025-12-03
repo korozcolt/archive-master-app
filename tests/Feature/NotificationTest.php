@@ -73,7 +73,7 @@ class NotificationTest extends TestCase
             ->post("/notifications/{$notification->id}/read");
 
         $response->assertRedirect();
-        
+
         $notification->refresh();
         $this->assertNotNull($notification->read_at);
     }
@@ -87,7 +87,7 @@ class NotificationTest extends TestCase
             ->post('/notifications/read-all');
 
         $response->assertRedirect();
-        
+
         $this->assertEquals(0, $this->user->unreadNotifications()->count());
     }
 
@@ -102,7 +102,7 @@ class NotificationTest extends TestCase
             ->delete("/notifications/{$notification->id}");
 
         $response->assertRedirect();
-        
+
         $this->assertNull(DatabaseNotification::find($notification->id));
     }
 
@@ -116,7 +116,7 @@ class NotificationTest extends TestCase
 
         $response->assertStatus(200);
         $notifications = $response->viewData('notifications');
-        
+
         $this->assertGreaterThanOrEqual(1, $notifications->count());
         $this->assertNull($notifications->first()->read_at);
     }
@@ -131,7 +131,7 @@ class NotificationTest extends TestCase
 
         $response->assertStatus(200);
         $notifications = $response->viewData('notifications');
-        
+
         $this->assertGreaterThanOrEqual(1, $notifications->count());
         $this->assertNotNull($notifications->first()->read_at);
     }
@@ -159,7 +159,7 @@ class NotificationTest extends TestCase
 
         $response->assertStatus(200);
         $notifications = $response->viewData('notifications');
-        
+
         $this->assertInstanceOf(\Illuminate\Pagination\LengthAwarePaginator::class, $notifications);
     }
 
@@ -171,7 +171,7 @@ class NotificationTest extends TestCase
         $otherUser = User::factory()->create([
             'company_id' => $this->company->id,
         ]);
-        
+
         $otherNotification = $otherUser->notifications()->create([
             'id' => Str::uuid(),
             'type' => 'App\Notifications\DocumentAssigned',
@@ -200,7 +200,7 @@ class NotificationTest extends TestCase
             ->delete('/notifications/clear/read');
 
         $response->assertRedirect();
-        
+
         $this->assertEquals(0, $this->user->notifications()->whereNotNull('read_at')->count());
     }
 
@@ -210,7 +210,7 @@ class NotificationTest extends TestCase
     public function test_unread_notifications_count()
     {
         $count = $this->user->unreadNotifications()->count();
-        
+
         $this->assertEquals(1, $count);
     }
 }
