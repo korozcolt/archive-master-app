@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `tests/Feature/Filament/CompanyResourceTest.php`: 13 tests Livewire funcionando al 100%
   - `tests/Feature/Filament/UserResourceTest.php`: 17 tests Livewire funcionando al 100%
   - `tests/Feature/Filament/CategoryResourceTest.php`: 16 tests Livewire funcionando al 100% (incluye campos translatable)
+  - `tests/Feature/Filament/DocumentResourceTest.php`: 18 tests Livewire funcionando al 100%
+  - **Total: 64 tests Livewire (100% passing)**
   - **IMPORTANTE - Bug de Filament v3.2.77+**: `fillForm()` no funciona en versiones v3.2.77+
     - **Workaround**: Usar `fill(['data' => $formData])` en lugar de `fillForm($formData)`
     - **Referencias**:
