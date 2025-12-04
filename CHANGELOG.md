@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Migración de Dusk a Livewire Testing para Filament**
   - Creado nuevo enfoque de testing para recursos de Filament usando Livewire helpers
   - `tests/Feature/Filament/CompanyResourceTest.php`: 13 tests Livewire funcionando al 100%
+  - `tests/Feature/Filament/UserResourceTest.php`: 17 tests Livewire funcionando al 100%
+  - `tests/Feature/Filament/CategoryResourceTest.php`: 16 tests Livewire funcionando al 100% (incluye campos translatable)
   - **IMPORTANTE - Bug de Filament v3.2.77+**: `fillForm()` no funciona en versiones v3.2.77+
     - **Workaround**: Usar `fill(['data' => $formData])` en lugar de `fillForm($formData)`
     - **Referencias**:
@@ -38,9 +40,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
         ->assertHasFormErrors(['name']); // Sin prefijo 'data.'
     ```
   - **Notas**:
-    - Los campos translatable (Spatie) se manejan automáticamente con strings simples
     - Configurar `app()->setLocale('es')` en setUp() para campos translatable
     - Usar `assertHasFormErrors(['field'])` sin el prefijo 'data.' en el nombre del campo
+  - **Campos Translatable (Spatie)**:
+    - Los recursos con `use Translatable;` almacenan campos como JSON: `{"en":"Valor"}`
+    - Por defecto Filament guarda en locale 'en' aunque la app esté en 'es'
+    - **Solución para assertions**: Usar `getTranslation('field', 'en')` en lugar de `$model->field`
+    - Ejemplo:
+      ```php
+      // ❌ NO funciona (locale mismatch):
+      $this->assertEquals('Nombre', $category->name);
+
+      // ✅ SÍ funciona:
+      $this->assertEquals('Nombre', $category->getTranslation('name', 'en'));
+      ```
+    - Tests afectados: CategoryResourceTest (usa Translatable)
+    - Tests NO afectados: CompanyResourceTest, UserResourceTest (no usan Translatable)
 
 ### Fixed - 2025-12-02
 
