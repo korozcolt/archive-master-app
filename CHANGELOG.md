@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - 2025-12-04
+
+- **Migración de Dusk a Livewire Testing para Filament**
+  - Creado nuevo enfoque de testing para recursos de Filament usando Livewire helpers
+  - `tests/Feature/Filament/CompanyResourceTest.php`: 13 tests Livewire funcionando al 100%
+  - **IMPORTANTE - Bug de Filament v3.2.77+**: `fillForm()` no funciona en versiones v3.2.77+
+    - **Workaround**: Usar `fill(['data' => $formData])` en lugar de `fillForm($formData)`
+    - **Referencias**:
+      - GitHub Issue: https://github.com/filamentphp/filament/issues/15557
+      - Testing Docs: https://filamentphp.com/docs/4.x/testing/testing-resources
+  - **Patrón de Testing Correcto**:
+    ```php
+    // Crear registro:
+    Livewire::test(CreateCompany::class)
+        ->fill(['data' => ['name' => 'Test', 'email' => 'test@example.com']])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    // Editar registro:
+    Livewire::test(EditCompany::class, ['record' => $company->id])
+        ->set('data.name', 'Nuevo Nombre')
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    // Validación:
+    Livewire::test(CreateCompany::class)
+        ->set('data.name', null)
+        ->call('create')
+        ->assertHasFormErrors(['name']); // Sin prefijo 'data.'
+    ```
+  - **Notas**:
+    - Los campos translatable (Spatie) se manejan automáticamente con strings simples
+    - Configurar `app()->setLocale('es')` en setUp() para campos translatable
+    - Usar `assertHasFormErrors(['field'])` sin el prefijo 'data.' en el nombre del campo
+
 ### Fixed - 2025-12-02
 
 - **Correcciones Críticas de Filament**
