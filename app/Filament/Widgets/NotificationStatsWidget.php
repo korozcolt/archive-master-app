@@ -19,26 +19,26 @@ class NotificationStatsWidget extends BaseWidget
         $companyId = $user->company_id;
         
         return [
-            Stat::make('Unread Notifications', $this->getUnreadNotificationsCount())
-                ->description('Your unread notifications')
+            Stat::make('Notificaciones Sin Leer', $this->getUnreadNotificationsCount())
+                ->description('Tus notificaciones pendientes')
                 ->descriptionIcon('heroicon-m-bell')
                 ->color('warning')
                 ->chart($this->getNotificationsTrend()),
                 
-            Stat::make('Overdue Documents', $this->getOverdueDocumentsCount($companyId))
-                ->description('Documents past due date')
+            Stat::make('Documentos Vencidos', $this->getOverdueDocumentsCount($companyId))
+                ->description('Documentos fuera de fecha límite')
                 ->descriptionIcon('heroicon-m-exclamation-triangle')
                 ->color('danger')
                 ->chart($this->getOverdueTrend($companyId)),
                 
-            Stat::make('Recent Updates', $this->getRecentUpdatesCount($companyId))
-                ->description('Documents updated today')
+            Stat::make('Actualizaciones Recientes', $this->getRecentUpdatesCount($companyId))
+                ->description('Documentos actualizados hoy')
                 ->descriptionIcon('heroicon-m-arrow-path')
                 ->color('success')
                 ->chart($this->getUpdatesTrend($companyId)),
                 
-            Stat::make('Pending Assignments', $this->getPendingAssignmentsCount($user->id))
-                ->description('Documents assigned to you')
+            Stat::make('Asignaciones Pendientes', $this->getPendingAssignmentsCount($user->id))
+                ->description('Documentos asignados a ti')
                 ->descriptionIcon('heroicon-m-user')
                 ->color('info')
                 ->chart($this->getAssignmentsTrend($user->id)),
@@ -53,9 +53,11 @@ class NotificationStatsWidget extends BaseWidget
     private function getOverdueDocumentsCount(int $companyId): int
     {
         return Document::where('company_id', $companyId)
-            ->whereNotNull('due_date')
-            ->where('due_date', '<', now())
-            ->whereNotIn('status', ['completed', 'cancelled'])
+            ->whereNotNull('due_at')
+            ->where('due_at', '<', now())
+            ->whereHas('status', function ($query) {
+                $query->where('is_final', false);
+            })
             ->count();
     }
     
@@ -69,7 +71,9 @@ class NotificationStatsWidget extends BaseWidget
     private function getPendingAssignmentsCount(int $userId): int
     {
         return Document::where('assigned_to', $userId)
-            ->whereNotIn('status', ['completed', 'cancelled'])
+            ->whereHas('status', function ($query) {
+                $query->where('is_final', false);
+            })
             ->count();
     }
     
@@ -97,9 +101,11 @@ class NotificationStatsWidget extends BaseWidget
         for ($i = 6; $i >= 0; $i--) {
             $date = Carbon::now()->subDays($i);
             $count = Document::where('company_id', $companyId)
-                ->whereNotNull('due_date')
-                ->where('due_date', '<', $date)
-                ->whereNotIn('status', ['completed', 'cancelled'])
+                ->whereNotNull('due_at')
+                ->where('due_at', '<', $date)
+                ->whereHas('status', function ($query) {
+                    $query->where('is_final', false);
+                })
                 ->count();
             $data[] = $count;
         }
@@ -130,7 +136,9 @@ class NotificationStatsWidget extends BaseWidget
             $date = Carbon::now()->subDays($i);
             $count = Document::where('assigned_to', $userId)
                 ->whereDate('created_at', '<=', $date)
-                ->whereNotIn('status', ['completed', 'cancelled'])
+                ->whereHas('status', function ($query) {
+                    $query->where('is_final', false);
+                })
                 ->count();
             $data[] = $count;
         }

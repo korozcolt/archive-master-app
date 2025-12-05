@@ -60,6 +60,13 @@ class ProductivityStatsWidget extends BaseWidget
     
     private function getAverageProcessingTime(int $companyId): Stat
     {
+        $driver = DB::connection()->getDriverName();
+        
+        // Construct query based on database driver
+        $timeCalculation = $driver === 'sqlite' 
+            ? '(julianday(wh2.created_at) - julianday(wh1.created_at)) * 24'
+            : 'TIMESTAMPDIFF(HOUR, wh1.created_at, wh2.created_at)';
+        
         $avgTime = DB::table('workflow_histories as wh1')
             ->join('workflow_histories as wh2', function ($join) {
                 $join->on('wh1.document_id', '=', 'wh2.document_id')
@@ -68,7 +75,7 @@ class ProductivityStatsWidget extends BaseWidget
             ->join('documents', 'wh1.document_id', '=', 'documents.id')
             ->where('documents.company_id', $companyId)
             ->whereDate('wh1.created_at', '>=', Carbon::now()->subDays(30))
-            ->selectRaw('AVG((julianday(wh2.created_at) - julianday(wh1.created_at)) * 24) as avg_hours')
+            ->selectRaw("AVG({$timeCalculation}) as avg_hours")
             ->value('avg_hours');
             
         $avgTime = round($avgTime ?? 0, 1);
@@ -176,11 +183,11 @@ class ProductivityStatsWidget extends BaseWidget
     
     private function getUserActivityScore(User $user): Stat
     {
-        $userTransitions = WorkflowHistory::where('user_id', $user->id)
+        $userTransitions = WorkflowHistory::where('performed_by', $user->id)
             ->whereDate('created_at', '>=', Carbon::now()->subDays(7))
             ->count();
             
-        $userDocuments = Document::where('assignee_id', $user->id)
+        $userDocuments = Document::where('assigned_to', $user->id)
             ->whereDate('updated_at', '>=', Carbon::now()->subDays(7))
             ->count();
             

@@ -140,7 +140,7 @@ class CompanyManagementTest extends DuskTestCase
     {
         $company = Company::factory()->create([
             'name' => 'Empresa a Desactivar',
-            'is_active' => true,
+            'active' => true,
         ]);
 
         $superAdmin = User::factory()->create([
@@ -153,13 +153,13 @@ class CompanyManagementTest extends DuskTestCase
         $this->browse(function (Browser $browser) use ($superAdmin, $company) {
             $browser->loginAs($superAdmin)
                     ->visit('/admin/companies/' . $company->id . '/edit')
-                    ->uncheck('input[name="is_active"]')
+                    ->uncheck('input[name="active"]')
                     ->press('Guardar cambios')
                     ->pause(1000);
 
             // Verificar en base de datos
             $company->refresh();
-            $this->assertFalse($company->is_active);
+            $this->assertFalse($company->active);
         });
     }
 

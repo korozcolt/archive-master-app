@@ -94,8 +94,10 @@ return new class extends Migration
             // Índice para tags por empresa
             $addIndexSafely($table, ['company_id', 'active'], 'idx_tags_company_active');
 
-            // Índice para búsqueda por nombre
-            $addIndexSafely($table, ['company_id', 'name'], 'idx_tags_company_name');
+            // Generated column for JSON indexing on 'name'
+            $table->string('name_en')->virtualAs('JSON_UNQUOTE(JSON_EXTRACT(name, "$.en"))')->nullable();
+            // Índice para búsqueda por nombre (usando la columna generada)
+            $addIndexSafely($table, ['company_id', 'name_en'], 'idx_tags_company_name_en');
         });
 
         // Índices para la tabla document_tags (tabla pivot)
@@ -207,7 +209,8 @@ return new class extends Migration
         // Eliminar índices de tags
         Schema::table('tags', function (Blueprint $table) {
             $table->dropIndex('idx_tags_company_active');
-            $table->dropIndex('idx_tags_company_name');
+            $table->dropIndex('idx_tags_company_name_en');
+            $table->dropColumn('name_en');
         });
 
         // Eliminar índices de document_tags

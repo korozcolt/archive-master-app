@@ -18,53 +18,45 @@ class ListWorkflowDefinitions extends ListRecords
             Actions\CreateAction::make(),
             Actions\Action::make('createCompleteWorkflow')
                 ->label('Crear Flujo Completo')
-                ->action(function (): void {
-                    // Modal para seleccionar empresa y tipo de flujo
-                    $this->mountAction('selectCompanyAndType');
-                })
                 ->icon('heroicon-o-bolt')
-                ->color('success'),
-        ];
-    }
+                ->color('success')
+                ->form([
+                    \Filament\Forms\Components\Select::make('company_id')
+                        ->label('Empresa')
+                        ->relationship('company', 'name')
+                        ->searchable()
+                        ->preload()
+                        ->required(),
+                    \Filament\Forms\Components\Select::make('workflow_type')
+                        ->label('Tipo de Flujo')
+                        ->options([
+                            'basic' => 'Flujo Básico (Recibido → Procesando → Revisión → Aprobado/Rechazado)',
+                            'extended' => 'Flujo Extendido (incluye Correcciones, Firma y más estados)',
+                        ])
+                        ->required()
+                        ->default('basic'),
+                ])
+                ->action(function (array $data): void {
+                    $companyId = $data['company_id'];
+                    $workflowType = $data['workflow_type'];
 
-    // Acción para seleccionar empresa y tipo de flujo
-    public function selectCompanyAndType(): array
-    {
-        return [
-            'title' => 'Crear Flujo de Trabajo Completo',
-            'description' => 'Seleccione la empresa y el tipo de flujo que desea crear.',
-            'form' => [
-                \Filament\Forms\Components\Select::make('company_id')
-                    ->label('Empresa')
-                    ->relationship('company', 'name')
-                    ->searchable()
-                    ->preload()
-                    ->required()
-                    ->live(),
-                \Filament\Forms\Components\Select::make('workflow_type')
-                    ->label('Tipo de Flujo')
-                    ->options([
-                        'basic' => 'Flujo Básico (Recibido → Procesando → Revisión → Aprobado/Rechazado)',
-                        'extended' => 'Flujo Extendido (incluye Correcciones, Firma y más estados)',
-                    ])
-                    ->required(),
-            ],
-            'action' => function (array $data): void {
-                $companyId = $data['company_id'];
-                $workflowType = $data['workflow_type'];
+                    // Determinar qué tipo de flujo crear
+                    if ($workflowType === 'basic') {
+                        $this->createBasicWorkflow($companyId);
+                    } else {
+                        $this->createExtendedWorkflow($companyId);
+                    }
 
-                // Determinar qué tipo de flujo crear
-                if ($workflowType === 'basic') {
-                    $this->createBasicWorkflow($companyId);
-                } else {
-                    $this->createExtendedWorkflow($companyId);
-                }
-
-                $this->notification()->success(
-                    title: 'Flujo de trabajo creado',
-                    body: 'El flujo de trabajo ha sido creado exitosamente.',
-                );
-            },
+                    \Filament\Notifications\Notification::make()
+                        ->success()
+                        ->title('Flujo de trabajo creado')
+                        ->body('El flujo de trabajo ha sido creado exitosamente.')
+                        ->send();
+                })
+                ->modalHeading('Crear Flujo de Trabajo Completo')
+                ->modalDescription('Seleccione la empresa y el tipo de flujo que desea crear.')
+                ->modalSubmitActionLabel('Crear Flujo')
+                ->modalWidth('lg'),
         ];
     }
 

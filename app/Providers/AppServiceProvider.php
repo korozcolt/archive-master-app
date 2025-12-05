@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Events\DocumentUpdated;
 use App\Listeners\SendDocumentUpdateNotification;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -22,6 +23,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if ($this->app->environment('production')) {
+            URL::forceScheme('https');
+        }
         // Registrar listeners de eventos
         Event::listen(
             DocumentUpdated::class,

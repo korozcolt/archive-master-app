@@ -34,7 +34,7 @@ class NotificationsWidget extends Widget
         $notifications = collect();
         
         // Documentos asignados recientemente
-        $recentAssignments = Document::where('assignee_id', $user->id)
+        $recentAssignments = Document::where('assigned_to', $user->id)
             ->where('updated_at', '>=', Carbon::now()->subHours(24))
             ->with(['status', 'category', 'creator'])
             ->orderBy('updated_at', 'desc')
@@ -57,8 +57,8 @@ class NotificationsWidget extends Widget
         
         // Cambios de estado en documentos del usuario
         $statusChanges = WorkflowHistory::whereHas('document', function ($query) use ($user) {
-                $query->where('assignee_id', $user->id)
-                    ->orWhere('creator_id', $user->id);
+                $query->where('assigned_to', $user->id)
+                    ->orWhere('created_by', $user->id);
             })
             ->where('created_at', '>=', Carbon::now()->subHours(24))
             ->with(['document', 'fromStatus', 'toStatus', 'user'])
@@ -66,8 +66,8 @@ class NotificationsWidget extends Widget
             ->limit(5)
             ->get()
             ->map(function ($history) {
-                $isOwner = $history->document->creator_id === Auth::id();
-                $isAssignee = $history->document->assignee_id === Auth::id();
+                $isOwner = $history->document->created_by === Auth::id();
+                $isAssignee = $history->document->assigned_to === Auth::id();
                 
                 return [
                     'id' => 'status_' . $history->id,
@@ -96,7 +96,7 @@ class NotificationsWidget extends Widget
         $alerts = collect();
         
         // Documentos vencidos
-        $overdueCount = Document::where('assignee_id', $user->id)
+        $overdueCount = Document::where('assigned_to', $user->id)
             ->whereHas('status', function ($query) {
                 $query->where('is_final', false);
             })
@@ -112,12 +112,12 @@ class NotificationsWidget extends Widget
                 'message' => "Tienes {$overdueCount} documento(s) vencido(s) que requieren atención",
                 'priority' => 'high',
                 'action_text' => 'Ver documentos',
-                'action_url' => route('filament.admin.resources.documents.index', ['tableFilters[assignee_id][value]' => $user->id]),
+                'action_url' => route('filament.admin.resources.documents.index', ['tableFilters[assigned_to][value]' => $user->id]),
             ]);
         }
         
         // Documentos próximos a vencer
-        $soonDueCount = Document::where('assignee_id', $user->id)
+        $soonDueCount = Document::where('assigned_to', $user->id)
             ->whereHas('status', function ($query) {
                 $query->where('is_final', false);
             })
@@ -133,14 +133,14 @@ class NotificationsWidget extends Widget
                 'message' => "Tienes {$soonDueCount} documento(s) que vencerán pronto",
                 'priority' => 'medium',
                 'action_text' => 'Revisar',
-                'action_url' => route('filament.admin.resources.documents.index', ['tableFilters[assignee_id][value]' => $user->id]),
+                'action_url' => route('filament.admin.resources.documents.index', ['tableFilters[assigned_to][value]' => $user->id]),
             ]);
         }
         
         // Documentos sin asignar en la empresa
         if ($user->hasRole(['admin', 'manager'])) {
             $unassignedCount = Document::where('company_id', $user->company_id)
-                ->whereNull('assignee_id')
+                ->whereNull('assigned_to')
                 ->whereHas('status', function ($query) {
                     $query->where('is_final', false);
                 })
@@ -155,7 +155,7 @@ class NotificationsWidget extends Widget
                     'message' => "Hay {$unassignedCount} documento(s) sin asignar en la empresa",
                     'priority' => 'medium',
                     'action_text' => 'Asignar',
-                    'action_url' => route('filament.admin.resources.documents.index', ['tableFilters[assignee_id][value]' => null]),
+                    'action_url' => route('filament.admin.resources.documents.index', ['tableFilters[assigned_to][value]' => null]),
                 ]);
             }
         }
@@ -168,7 +168,7 @@ class NotificationsWidget extends Widget
         $reminders = collect();
         
         // Recordatorio de documentos pendientes de revisión
-        $pendingReview = Document::where('assignee_id', $user->id)
+        $pendingReview = Document::where('assigned_to', $user->id)
             ->whereHas('status', function ($query) {
                 $query->where('name', 'like', '%revision%')
                     ->orWhere('name', 'like', '%review%');
@@ -189,7 +189,7 @@ class NotificationsWidget extends Widget
         }
         
         // Recordatorio de documentos creados por el usuario
-        $myDocumentsPending = Document::where('creator_id', $user->id)
+        $myDocumentsPending = Document::where('created_by', $user->id)
             ->whereHas('status', function ($query) {
                 $query->where('is_final', false);
             })
@@ -205,7 +205,7 @@ class NotificationsWidget extends Widget
                 'message' => "Tienes {$myDocumentsPending} documento(s) creado(s) por ti que aún están en proceso",
                 'priority' => 'low',
                 'action_text' => 'Ver estado',
-                'action_url' => route('filament.admin.resources.documents.index', ['tableFilters[creator_id][value]' => $user->id]),
+                'action_url' => route('filament.admin.resources.documents.index', ['tableFilters[created_by][value]' => $user->id]),
             ]);
         }
         

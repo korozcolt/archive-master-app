@@ -14,7 +14,7 @@ class QuickActionsWidget extends Widget
     
     protected static ?string $heading = 'Accesos Rápidos';
     
-    protected static ?int $sort = 2;
+    protected static ?int $sort = 3;
     
     protected int | string | array $columnSpan = 'full';
     
@@ -25,14 +25,12 @@ class QuickActionsWidget extends Widget
         return [
             'pendingDocuments' => $this->getPendingDocuments($user),
             'recentDocuments' => $this->getRecentDocuments($user),
-            'quickStats' => $this->getQuickStats($user),
-            'shortcuts' => $this->getKeyboardShortcuts(),
         ];
     }
     
     private function getPendingDocuments($user)
     {
-        return Document::where('assignee_id', $user->id)
+        return Document::where('assigned_to', $user->id)
             ->whereHas('status', function ($query) {
                 $query->where('is_final', false);
             })
@@ -76,41 +74,6 @@ class QuickActionsWidget extends Widget
                     'url' => route('filament.admin.resources.documents.view', $document),
                 ];
             });
-    }
-    
-    private function getQuickStats($user)
-    {
-        return [
-            'my_pending' => Document::where('assignee_id', $user->id)
-                ->whereHas('status', function ($query) {
-                    $query->where('is_final', false);
-                })
-                ->count(),
-            'my_completed_today' => Document::where('assignee_id', $user->id)
-                ->whereHas('status', function ($query) {
-                    $query->where('is_final', true);
-                })
-                ->whereDate('updated_at', today())
-                ->count(),
-            'company_total' => Document::where('company_id', $user->company_id)
-                ->count(),
-            'company_pending' => Document::where('company_id', $user->company_id)
-                ->whereHas('status', function ($query) {
-                    $query->where('is_final', false);
-                })
-                ->count(),
-        ];
-    }
-    
-    private function getKeyboardShortcuts()
-    {
-        return [
-            ['key' => 'Ctrl + K', 'action' => 'Búsqueda rápida'],
-            ['key' => 'Ctrl + N', 'action' => 'Nuevo documento'],
-            ['key' => 'Ctrl + S', 'action' => 'Guardar formulario'],
-            ['key' => 'Escape', 'action' => 'Cerrar modales'],
-            ['key' => 'Ctrl + /', 'action' => 'Mostrar atajos'],
-        ];
     }
     
     private function getStatusColor($status)
