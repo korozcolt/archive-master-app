@@ -2,10 +2,12 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use App\Services\CacheService;
 use App\Models\Company;
+use App\Models\Department;
 use App\Models\User;
+use App\Services\CacheService;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Auth;
 
 class CacheWarm extends Command
 {
@@ -79,13 +81,13 @@ class CacheWarm extends Command
             $this->line('  ✓ Popular tags');
 
             // Warm users by department
-            $departments = \App\Models\Department::where('company_id', $companyId)->pluck('id');
+            $departments = Department::where('company_id', $companyId)->pluck('id');
             foreach ($departments as $deptId) {
                 CacheService::getUsersByDepartment($deptId, $companyId);
             }
             $this->line("  ✓ Users by department ({$departments->count()} departments)");
 
-            auth()->logout();
+            Auth::logout();
 
         } catch (\Exception $e) {
             $this->error("Error warming cache for company {$companyId}: " . $e->getMessage());

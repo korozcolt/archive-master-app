@@ -1,7 +1,9 @@
 <?php
 
+use App\Services\FileCompressionService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -89,14 +91,14 @@ Schedule::command('system:monitor --alert')
 
 // Comprimir archivos semanalmente
 Schedule::call(function () {
-    $compressionService = new \App\Services\FileCompressionService();
+    $compressionService = new FileCompressionService();
     $result = $compressionService->compressExistingFiles('documents', 100);
-    \Illuminate\Support\Facades\Log::info('Compresión automática de archivos completada', $result);
+    Log::info('Compresión automática de archivos completada', $result);
 })->weekly()->mondays()->at('02:00');
 
 // Generar reportes automáticos mensualmente
 Schedule::call(function () {
-    \Illuminate\Support\Facades\Log::info('Generando reportes mensuales automáticos');
+    Log::info('Generando reportes mensuales automáticos');
     // Aquí se puede agregar lógica para generar reportes automáticos
 })->monthly()->at('01:00');
 

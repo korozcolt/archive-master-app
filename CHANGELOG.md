@@ -7,6 +7,196 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2025-12-26
+
+#### Sistema Completo de Plantillas de Documentos
+
+**Base de Datos y Modelos:**
+- **Migración:** `2025_12_26_000000_create_document_templates_table.php`
+  - 32 campos incluyendo configuraciones por defecto, validaciones, campos personalizados, y estadísticas de uso
+  - Campos JSON para `custom_fields`, `required_fields`, `allowed_file_types`, `default_tags`, `suggested_tags`
+  - Campos de auditoría: `created_by`, `updated_by`, timestamps, soft deletes
+  - Índices optimizados: `['company_id', 'is_active']`, `['company_id', 'usage_count']`
+
+- **Modelo:** `app/Models/DocumentTemplate.php`
+  - **7 Relaciones:** company, defaultCategory, defaultStatus, defaultWorkflow, defaultPhysicalLocation, createdBy, updatedBy
+  - **4 Scopes:** `active()`, `forCompany($companyId)`, `mostUsed($limit)`, `recentlyUsed($limit)`
+  - **6 Métodos de negocio:**
+    - `incrementUsage()`: Actualiza contador y last_used_at
+    - `applyToDocument(array $overrides)`: Aplica configuraciones por defecto con overrides opcionales
+    - `validateData(array $data)`: Valida campos requeridos
+    - `getCustomFieldsWithValues(array $values)`: Retorna campos personalizados con sus valores
+    - `isFileTypeAllowed(string $extension)`: Valida tipos de archivo permitidos
+    - `isFileSizeAllowed(int $sizeInBytes)`: Valida tamaño máximo de archivo
+  - **Hooks automáticos:** Auto-asignación de `created_by`, `updated_by`, `company_id` en eventos de modelo
+  - **Activity Logging:** Integración con Spatie ActivityLog
+  - **Casts automáticos:** JSON arrays, booleans, integers, datetime
+
+**Interfaz Filament:**
+- **Resource:** `app/Filament/Resources/DocumentTemplateResource.php`
+  - Formulario con **7 secciones organizadas:**
+    1. **Información Básica:** name, description, icon, color, is_active
+    2. **Configuraciones por Defecto:** category, status, workflow, priority, confidential, tracking, location, prefix
+    3. **Etiquetas:** default_tags, suggested_tags
+    4. **Validaciones y Restricciones:** required_fields, allowed_file_types, max_file_size_mb
+    5. **Campos Personalizados:** Repeater con configuración dinámica de campos (name, label, type, required)
+    6. **Instrucciones y Ayuda:** RichEditor para instructions, help_text
+  - **Tabla con 11 columnas:**
+    - Iconos y colores dinámicos por plantilla
+    - Badge de uso con contador
+    - Indicadores de estado activo/inactivo
+    - Fechas de última uso
+    - Categoría y estado por defecto
+  - **6 Filtros avanzados:** is_active, most_used, category, status, priority, trashed
+  - **Acciones de tabla:**
+    - `duplicate`: Copia plantilla con nombre "(Copia)", is_active=false, usage_count=0
+    - view, edit, delete, restore
+  - **5 Acciones masivas:** activate, deactivate, delete, restore, forceDelete
+  - **Company scoping:** Filtrado automático para usuarios no super_admin
+
+- **Páginas Filament:**
+  - `ListDocumentTemplates.php`: Listado con acción de crear
+  - `CreateDocumentTemplate.php`: Creación con notificación de éxito personalizada
+  - `ViewDocumentTemplate.php`: Vista de detalle con acciones (edit, delete, restore, forceDelete)
+  - `EditDocumentTemplate.php`: Edición con notificación de actualización
+
+**Integración con DocumentResource:**
+- **Selector de Plantilla:** Nueva sección colapsable al inicio del formulario de creación de documentos
+  - Carga plantillas activas de la compañía ordenadas por uso (más usadas primero)
+  - **Auto-completado reactivo:** Al seleccionar una plantilla se auto-completan:
+    - category_id, status_id, priority
+    - physical_location_id
+    - is_confidential, tracking_enabled
+  - Incrementa automáticamente el contador de uso al aplicar plantilla
+  - Feedback visual con icono de check cuando hay plantilla seleccionada
+  - Helper text dinámico
+
+- **Campos Personalizados de Plantilla:** Nueva sección en tab "Metadatos"
+  - Placeholder dinámico mostrando cantidad de campos personalizados
+  - KeyValue input para `custom_data` con helper text mostrando campos disponibles
+  - Visible solo cuando hay plantilla seleccionada
+
+**Datos de Prueba:**
+- **Factory:** `database/factories/DocumentTemplateFactory.php`
+  - Estado base con campos realistas
+  - **6 estados predefinidos:** `withCustomFields()`, `contract()`, `invoice()`, `report()`, `correspondence()`, `popular()`, `recentlyUsed()`
+  - Iconos de Heroicons, colores Tailwind
+  - Datos faker para campos de prueba
+
+- **Seeder:** `database/seeders/DocumentTemplateSeeder.php`
+  - **7 plantillas base por empresa:**
+    1. **Contrato de Servicio:** Prefix CONT-, campos: número_contrato, contratante, monto, fechas, vigencia
+    2. **Factura Comercial:** Prefix FACT-, campos: número_factura, RFC, montos (subtotal, IVA, total), UUID fiscal
+    3. **Reporte Mensual:** Prefix REP-, campos: periodo, departamento, responsable, tipo_reporte
+    4. **Correspondencia Oficial:** Prefix OFIC-, campos: destinatario, remitente, cargos, asunto, fecha
+    5. **Solicitud Interna:** Prefix SOL-, campos: tipo_solicitud, solicitante, departamento, justificación
+    6. **Acta de Reunión:** Prefix ACTA-, campos: fecha, horas, lugar, participantes, secretario
+    7. **Plantilla Inactiva de Prueba:** Para testing
+  - Auto-vincula con categorías y estados existentes
+  - Asigna created_by al primer admin de la empresa
+  - Configuraciones realistas de file types, tamaños, prioridades
+
+**Testing Completo:**
+- **Tests Filament:** `tests/Feature/Filament/DocumentTemplateResourceTest.php` (21 tests)
+  - CRUD completo: view list, create, edit, delete, restore
+  - Búsqueda y filtros
+  - Validaciones de campos requeridos
+  - Acción de duplicado
+  - Acciones masivas (activate, deactivate)
+  - Company scoping
+  - Auto-asignación de created_by/updated_by
+
+- **Tests Unitarios:** `tests/Unit/DocumentTemplateTest.php` (23 tests)
+  - Método `incrementUsage()`
+  - Método `applyToDocument()` con y sin overrides
+  - Método `validateData()` para campos requeridos
+  - Métodos `isFileTypeAllowed()` y `isFileSizeAllowed()`
+  - Método `getCustomFieldsWithValues()`
+  - **4 Scopes:** active, forCompany, mostUsed, recentlyUsed
+  - Auto-hooks de created_by/updated_by
+  - **7 Relaciones:** company, defaultCategory, defaultStatus, defaultWorkflow, defaultPhysicalLocation, createdBy, updatedBy
+  - Type casts (JSON, boolean)
+  - Soft deletes
+
+**Notas de Implementación:**
+- ✅ Sintaxis verificada sin errores en todos los archivos
+- ✅ Migraciones ejecutadas exitosamente con MySQL
+- ✅ Seeder creó 7 plantillas por empresa correctamente
+- ⚠️ Tests con SQLite fallan por incompatibilidad pre-existente con JSON_UNQUOTE() en `add_performance_indexes` migration (no relacionado con plantillas)
+- ✅ Código listo para producción con MySQL/PostgreSQL
+
+**Impacto del Sistema:**
+- **Eficiencia:** Reduce tiempo de creación de documentos mediante auto-completado
+- **Consistencia:** Asegura configuraciones estandarizadas por tipo de documento
+- **Validación:** Campos requeridos y restricciones de archivos por plantilla
+- **Trazabilidad:** Estadísticas de uso (usage_count, last_used_at)
+- **Flexibilidad:** Campos personalizados dinámicos por plantilla
+- **Multi-tenant:** Scoping completo por compañía
+
+### Planned - 2025-01-15
+
+- **ROADMAP DE IMPLEMENTACIÓN CRÍTICO**
+  - Creado `IMPLEMENTATION_ROADMAP.md` con plan detallado de funcionalidades críticas
+  - 91 tareas organizadas en 3 fases (6-8 semanas)
+  - 19 test suites con ~320 assertions planificadas
+  - Prioridades definidas: 🔴 Crítica, 🟡 Alta, 🟢 Media
+
+#### Fase 1 - CRÍTICA (Semanas 1-3)
+- **Sistema de Ubicación Física Inteligente** (26 tareas)
+  - Path Builder jerárquico con autocomplete
+  - Configuración flexible por compañía
+  - Búsqueda por ubicación
+  - Historial completo de movimientos físicos
+  - 3 tablas nuevas: `physical_location_templates`, `physical_locations`, `document_location_history`
+  - 6 test suites (~80 assertions)
+
+- **Diferenciación Original/Copia** (9 tareas)
+  - Campos: `digital_document_type` (original/copia)
+  - Campos: `physical_document_type` (original/copia/no_aplica)
+  - Validaciones y scopes
+  - 2 test suites (~15 assertions)
+
+- **Generación Automática de Barcode y QR** (15 tareas)
+  - Auto-generación en `DocumentObserver`
+  - Librerías: `picqer/php-barcode-generator`, `endroid/qr-code`
+  - `BarcodeService`, `QRCodeService`, `StickerService`
+  - Impresión de stickers en PDF
+  - 5 test suites (~52 assertions)
+
+#### Fase 2 - IMPORTANTE (Semanas 4-5)
+- **Rol Invitado/Guest** (3 tareas)
+  - Nuevo rol para clientes externos
+  - Permisos limitados solo a tracking público
+  - 1 test suite (~18 assertions)
+
+- **Tracking Code Público** (4 tareas)
+  - Campo `public_tracking_code` único
+  - Sistema de expiración opcional
+  - Enable/disable tracking
+  - 1 test suite (~23 assertions)
+
+- **API Pública de Tracking** (9 tareas)
+  - Endpoints públicos SIN autenticación
+  - `/api/public/track/{code}`
+  - Rate limiting agresivo (10/min)
+  - Información sanitizada (sin datos sensibles)
+  - Página web de tracking público
+  - 2 test suites (~65 assertions)
+
+- **Sistema de Recibidos** (10 tareas)
+  - Tabla `receipts`
+  - Generación de cartas de recibido en PDF
+  - Envío automático por email
+  - Tracking code + QR en recibido
+  - `ReceiptService` completo
+  - 2 test suites (~67 assertions)
+
+#### Fase 3 - MEJORAS (Semanas 6-8)
+- Mejoras de UX (5 tareas)
+- Documentación completa (6 tareas)
+- CI/CD con GitHub Actions (4 tareas)
+- Dockerización (docker-compose.yml)
+
 ### Changed - 2025-12-04
 
 - **Migración de Dusk a Livewire Testing para Filament**

@@ -3,15 +3,16 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\DocumentController;
-use App\Http\Controllers\Api\SearchController;
-use App\Http\Controllers\Api\HardwareController;
-use App\Http\Controllers\Api\WebhookController;
-use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\CompanyController;
+use App\Http\Controllers\Api\DocumentController;
+use App\Http\Controllers\Api\HardwareController;
+use App\Http\Controllers\Api\PhysicalLocationController;
+use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\StatusController;
 use App\Http\Controllers\Api\TagController;
+use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\WebhookController;
 
 /*
 |--------------------------------------------------------------------------
@@ -42,6 +43,19 @@ Route::middleware('auth:sanctum')->group(function () {
     // Gestión de documentos
     Route::apiResource('documents', DocumentController::class);
     Route::post('documents/{id}/transition', [DocumentController::class, 'transition']);
+
+    // Gestión de ubicaciones físicas
+    Route::prefix('physical-locations')->group(function () {
+        Route::get('/', [PhysicalLocationController::class, 'index']);
+        Route::get('/search', [PhysicalLocationController::class, 'search']);
+        Route::get('/available', [PhysicalLocationController::class, 'available']);
+        Route::get('/{code}/by-code', [PhysicalLocationController::class, 'findByCode']);
+        Route::get('/{id}', [PhysicalLocationController::class, 'show']);
+        Route::post('/', [PhysicalLocationController::class, 'store']);
+        Route::put('/{id}', [PhysicalLocationController::class, 'update']);
+        Route::delete('/{id}', [PhysicalLocationController::class, 'destroy']);
+        Route::get('/{id}/capacity', [PhysicalLocationController::class, 'checkCapacity']);
+    });
 
     // Gestión de usuarios (con cache)
     Route::middleware('api.cache:600')->group(function () {

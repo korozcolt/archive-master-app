@@ -27,5 +27,8 @@ class DatabaseSeeder extends Seeder
 
         // 5. Crear definiciones de flujo de trabajo
         $this->call(WorkflowDefinitionSeeder::class);
+
+        // 6. Crear plantillas de documentos
+        $this->call(DocumentTemplateSeeder::class);
     }
 }

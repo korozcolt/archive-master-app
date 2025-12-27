@@ -77,6 +77,11 @@ use Illuminate\Http\JsonResponse;
  *     name="Webhooks",
  *     description="Sistema de webhooks para integraciones"
  * )
+ *
+ * @OA\Tag(
+ *     name="Physical Locations",
+ *     description="Gestión de ubicaciones físicas y capacidad de almacenamiento"
+ * )
  */
 class BaseApiController extends Controller
 {

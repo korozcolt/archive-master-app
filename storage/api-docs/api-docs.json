@@ -2365,6 +2365,470 @@
                 ]
             }
         },
+        "/api/physical-locations": {
+            "get": {
+                "tags": [
+                    "Physical Locations"
+                ],
+                "summary": "Listar ubicaciones físicas",
+                "description": "Obtener lista paginada de ubicaciones físicas de la empresa",
+                "operationId": "ea58d8937fefc3756e576011053c7bf7",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Número de página",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Elementos por página",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 15
+                        }
+                    },
+                    {
+                        "name": "template_id",
+                        "in": "query",
+                        "description": "Filtrar por plantilla",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "is_active",
+                        "in": "query",
+                        "description": "Filtrar por estado activo",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "available",
+                        "in": "query",
+                        "description": "Solo ubicaciones con capacidad disponible",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de ubicaciones físicas",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Success"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        },
+                                        "meta": {
+                                            "type": "object"
+                                        },
+                                        "links": {
+                                            "type": "object"
+                                        },
+                                        "timestamp": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Physical Locations"
+                ],
+                "summary": "Crear ubicación física",
+                "description": "Crear una nueva ubicación física",
+                "operationId": "f771fffdfbfead793860fbf28ed7ac7f",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "template_id",
+                                    "structured_data"
+                                ],
+                                "properties": {
+                                    "template_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "structured_data": {
+                                        "type": "object",
+                                        "example": {
+                                            "edificio": "A",
+                                            "piso": "3"
+                                        }
+                                    },
+                                    "capacity_total": {
+                                        "type": "integer",
+                                        "example": 100
+                                    },
+                                    "notes": {
+                                        "type": "string",
+                                        "example": "Ubicación principal"
+                                    },
+                                    "is_active": {
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Ubicación creada exitosamente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Ubicación física creada exitosamente"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        },
+                                        "timestamp": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Error de validación"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/physical-locations/{id}": {
+            "get": {
+                "tags": [
+                    "Physical Locations"
+                ],
+                "summary": "Obtener ubicación física",
+                "description": "Obtener detalles de una ubicación física específica",
+                "operationId": "1cac5af315ed223f1dc0bfb859bc5b73",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID de la ubicación",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detalles de la ubicación física",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Success"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        },
+                                        "timestamp": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Ubicación no encontrada"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Physical Locations"
+                ],
+                "summary": "Actualizar ubicación física",
+                "description": "Actualizar una ubicación física existente",
+                "operationId": "e0c52169021aff120ddf9693eff2e769",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID de la ubicación",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "structured_data": {
+                                        "type": "object",
+                                        "example": {
+                                            "edificio": "B",
+                                            "piso": "2"
+                                        }
+                                    },
+                                    "capacity_total": {
+                                        "type": "integer",
+                                        "example": 150
+                                    },
+                                    "notes": {
+                                        "type": "string",
+                                        "example": "Ubicación actualizada"
+                                    },
+                                    "is_active": {
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Ubicación actualizada exitosamente"
+                    },
+                    "404": {
+                        "description": "Ubicación no encontrada"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Physical Locations"
+                ],
+                "summary": "Eliminar ubicación física",
+                "description": "Eliminar una ubicación física (soft delete)",
+                "operationId": "a6e80c16171499b666f0da7b82ba61ef",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID de la ubicación",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Ubicación eliminada exitosamente"
+                    },
+                    "404": {
+                        "description": "Ubicación no encontrada"
+                    },
+                    "422": {
+                        "description": "No se puede eliminar ubicación con documentos"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/physical-locations/search": {
+            "get": {
+                "tags": [
+                    "Physical Locations"
+                ],
+                "summary": "Buscar ubicaciones físicas",
+                "description": "Buscar ubicaciones por código, path o datos estructurados",
+                "operationId": "2e9a4bb94f7f478e950f67ede8a36871",
+                "parameters": [
+                    {
+                        "name": "query",
+                        "in": "query",
+                        "description": "Término de búsqueda",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "edificio"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Resultados de búsqueda"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/physical-locations/{id}/capacity": {
+            "get": {
+                "tags": [
+                    "Physical Locations"
+                ],
+                "summary": "Verificar capacidad de ubicación",
+                "description": "Obtener información detallada de capacidad de una ubicación",
+                "operationId": "1cc2c03b7e18794eeea492f2533a3edb",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID de la ubicación",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Información de capacidad"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/physical-locations/available": {
+            "get": {
+                "tags": [
+                    "Physical Locations"
+                ],
+                "summary": "Listar ubicaciones disponibles",
+                "description": "Obtener solo ubicaciones con capacidad disponible",
+                "operationId": "0c43f7311e9d3f8c1272d2e05332f908",
+                "responses": {
+                    "200": {
+                        "description": "Lista de ubicaciones disponibles"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/physical-locations/{code}/by-code": {
+            "get": {
+                "tags": [
+                    "Physical Locations"
+                ],
+                "summary": "Obtener ubicación por código",
+                "description": "Buscar una ubicación específica por su código único",
+                "operationId": "92b8e80fc6776b6a109eb6a7a8aa7a81",
+                "parameters": [
+                    {
+                        "name": "code",
+                        "in": "path",
+                        "description": "Código de la ubicación",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "ED-A/P-3/SALA-ARCH"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Ubicación encontrada"
+                    },
+                    "404": {
+                        "description": "Ubicación no encontrada"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/search/documents": {
             "get": {
                 "tags": [
@@ -4075,6 +4539,10 @@
         {
             "name": "Webhooks",
             "description": "Sistema de webhooks para integraciones"
+        },
+        {
+            "name": "Physical Locations",
+            "description": "Gestión de ubicaciones físicas y capacidad de almacenamiento"
         },
         {
             "name": "Categories",

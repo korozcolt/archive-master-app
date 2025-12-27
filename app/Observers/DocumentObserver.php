@@ -4,11 +4,16 @@ namespace App\Observers;
 
 use App\Events\DocumentUpdated;
 use App\Models\Document;
+use App\Models\DocumentLocationHistory;
+use App\Models\PhysicalLocation;
+use App\Models\Status;
+use App\Models\User;
 use App\Notifications\DocumentStatusChanged;
 use App\Notifications\DocumentAssigned;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Auth;
 
 class DocumentObserver
 {
@@ -33,6 +38,19 @@ class DocumentObserver
         // Establecer prioridad por defecto
         if (!$document->priority) {
             $document->priority = 'medium';
+        }
+
+        // Establecer tipo de documento digital por defecto
+        if (!$document->digital_document_type) {
+            $document->digital_document_type = 'copia';
+        }
+
+        // Establecer tipo de documento físico por defecto si no está establecido
+        // Por defecto es null para que el usuario decida
+
+        // Generar código de tracking público si está habilitado
+        if ($document->tracking_enabled && !$document->public_tracking_code) {
+            $document->public_tracking_code = $document->generatePublicTrackingCode();
         }
     }
 
@@ -103,6 +121,13 @@ class DocumentObserver
             ];
         }
 
+        if ($document->isDirty('physical_location_id')) {
+            $importantChanges['physical_location'] = [
+                'old' => $document->getOriginal('physical_location_id'),
+                'new' => $document->physical_location_id
+            ];
+        }
+
         // Almacenar cambios para usar en el evento updated
         // Usamos una propiedad estática temporal para evitar persistirlo en DB
         static::$pendingChanges[$document->id ?? 'new'] = $importantChanges;
@@ -160,6 +185,11 @@ class DocumentObserver
         // Manejar cambio de fecha límite
         if (isset($importantChanges['due_date'])) {
             $this->handleDueDateChange($document, $importantChanges['due_date']);
+        }
+
+        // Manejar cambio de ubicación física
+        if (isset($importantChanges['physical_location'])) {
+            $this->handlePhysicalLocationChange($document, $importantChanges['physical_location']);
         }
 
         Log::info('Documento actualizado', [
@@ -252,12 +282,12 @@ class DocumentObserver
      */
     private function handleStatusChange(Document $document, array $statusChange): void
     {
-        $oldStatus = \App\Models\Status::find($statusChange['old']);
-        $newStatus = \App\Models\Status::find($statusChange['new']);
+        $oldStatus = Status::find($statusChange['old']);
+        $newStatus = Status::find($statusChange['new']);
 
         // Verificar que ambos estados existan antes de proceder
         if (!$newStatus) {
-            \Illuminate\Support\Facades\Log::warning('Status not found for document status change', [
+            Log::warning('Status not found for document status change', [
                 'document_id' => $document->id,
                 'old_status_id' => $statusChange['old'],
                 'new_status_id' => $statusChange['new']
@@ -295,8 +325,8 @@ class DocumentObserver
      */
     private function handleAssigneeChange(Document $document, array $assigneeChange): void
     {
-        $oldAssignee = $assigneeChange['old'] ? \App\Models\User::find($assigneeChange['old']) : null;
-        $newAssignee = $assigneeChange['new'] ? \App\Models\User::find($assigneeChange['new']) : null;
+        $oldAssignee = $assigneeChange['old'] ? User::find($assigneeChange['old']) : null;
+        $newAssignee = $assigneeChange['new'] ? User::find($assigneeChange['new']) : null;
 
         // Notificar al nuevo asignado
         if ($newAssignee) {
@@ -330,7 +360,7 @@ class DocumentObserver
         // Si la prioridad cambió a alta, notificar
         if ($priorityChange['new'] === 'high' && $priorityChange['old'] !== 'high') {
             if ($document->assigned_to) {
-                $assignee = \App\Models\User::find($document->assigned_to);
+                $assignee = User::find($document->assigned_to);
                 if ($assignee) {
                     Log::info('Prioridad de documento cambiada a alta', [
                         'document_id' => $document->id,
@@ -348,13 +378,13 @@ class DocumentObserver
     {
         // Si se estableció o cambió la fecha límite, verificar si es urgente
         if ($dueDateChange['new']) {
-            $dueDate = \Carbon\Carbon::parse($dueDateChange['new']);
-            $now = \Carbon\Carbon::now();
+            $dueDate = Carbon::parse($dueDateChange['new']);
+            $now = Carbon::now();
 
             // Si la fecha límite es en menos de 24 horas, notificar
             if ($dueDate->diffInHours($now) < 24 && $dueDate->isFuture()) {
                 if ($document->assigned_to) {
-                    $assignee = \App\Models\User::find($document->assigned_to);
+                    $assignee = User::find($document->assigned_to);
                     if ($assignee) {
                         Log::warning('Documento con fecha límite urgente', [
                             'document_id' => $document->id,
@@ -378,6 +408,58 @@ class DocumentObserver
             'document_id' => $document->id,
             'department_id' => $document->department_id,
             'event' => $event,
+        ]);
+    }
+
+    /**
+     * Manejar cambio de ubicación física
+     */
+    private function handlePhysicalLocationChange(Document $document, array $locationChange): void
+    {
+        $oldLocationId = $locationChange['old'];
+        $newLocationId = $locationChange['new'];
+
+        // Crear registro en el historial de ubicaciones
+        DocumentLocationHistory::create([
+            'document_id' => $document->id,
+            'physical_location_id' => $newLocationId,
+            'moved_from_location_id' => $oldLocationId,
+            'moved_by' => Auth::id(),
+            'movement_type' => $oldLocationId ? 'moved' : 'stored',
+            'notes' => 'Ubicación actualizada automáticamente',
+            'moved_at' => now(),
+        ]);
+
+        // Actualizar capacidades de las ubicaciones
+        if ($oldLocationId) {
+            $oldLocation = PhysicalLocation::find($oldLocationId);
+            $oldLocation?->decrementCapacity();
+        }
+
+        if ($newLocationId) {
+            $newLocation = PhysicalLocation::find($newLocationId);
+            $newLocation?->incrementCapacity();
+        }
+
+        // Log específico para cambio de ubicación
+        activity()
+            ->performedOn($document)
+            ->causedBy(Auth::user())
+            ->withProperties([
+                'old_location_id' => $oldLocationId,
+                'new_location_id' => $newLocationId,
+                'old_location_path' => $oldLocationId ? PhysicalLocation::find($oldLocationId)?->full_path : null,
+                'new_location_path' => $newLocationId ? PhysicalLocation::find($newLocationId)?->full_path : null,
+                'document_number' => $document->document_number,
+            ])
+            ->log('location_changed');
+
+        Log::info('Ubicación física del documento actualizada', [
+            'document_id' => $document->id,
+            'document_number' => $document->document_number,
+            'old_location_id' => $oldLocationId,
+            'new_location_id' => $newLocationId,
+            'moved_by' => Auth::id(),
         ]);
     }
 }

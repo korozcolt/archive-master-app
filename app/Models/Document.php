@@ -45,6 +45,12 @@ class Document extends Model
         'description',
         'content',
         'physical_location',
+        'physical_location_id',
+        'digital_document_type',
+        'physical_document_type',
+        'public_tracking_code',
+        'tracking_enabled',
+        'tracking_expires_at',
         'is_confidential',
         'is_archived',
         'priority',
@@ -59,11 +65,13 @@ class Document extends Model
     protected $casts = [
         'is_confidential' => 'boolean',
         'is_archived' => 'boolean',
+        'tracking_enabled' => 'boolean',
         'priority' => Priority::class,
         'received_at' => 'datetime',
         'due_at' => 'datetime',
         'completed_at' => 'datetime',
         'archived_at' => 'datetime',
+        'tracking_expires_at' => 'datetime',
         'settings' => 'json',
         'metadata' => 'json',
     ];
@@ -152,6 +160,16 @@ class Document extends Model
         return $this->belongsToMany(Tag::class, 'document_tags')
             ->using(DocumentTag::class)
             ->withTimestamps();
+    }
+
+    public function physicalLocation(): BelongsTo
+    {
+        return $this->belongsTo(PhysicalLocation::class, 'physical_location_id');
+    }
+
+    public function locationHistory(): HasMany
+    {
+        return $this->hasMany(DocumentLocationHistory::class);
     }
 
     // Scopes
@@ -251,6 +269,50 @@ class Document extends Model
                     $q->where('name', 'like', "%{$search}%");
                 });
         });
+    }
+
+    public function scopeDigitalOriginal($query)
+    {
+        return $query->where('digital_document_type', 'original');
+    }
+
+    public function scopeDigitalCopy($query)
+    {
+        return $query->where('digital_document_type', 'copia');
+    }
+
+    public function scopePhysicalOriginal($query)
+    {
+        return $query->where('physical_document_type', 'original');
+    }
+
+    public function scopePhysicalCopy($query)
+    {
+        return $query->where('physical_document_type', 'copia');
+    }
+
+    public function scopeNoPhysical($query)
+    {
+        return $query->where('physical_document_type', 'no_aplica');
+    }
+
+    public function scopeWithTracking($query)
+    {
+        return $query->whereNotNull('public_tracking_code');
+    }
+
+    public function scopeTrackingActive($query)
+    {
+        return $query->where('tracking_enabled', true)
+            ->where(function ($q) {
+                $q->whereNull('tracking_expires_at')
+                    ->orWhere('tracking_expires_at', '>', now());
+            });
+    }
+
+    public function scopeInPhysicalLocation($query, $locationId)
+    {
+        return $query->where('physical_location_id', $locationId);
     }
 
     // Accessors
@@ -657,5 +719,125 @@ class Document extends Model
         }
 
         return null;
+    }
+
+    /**
+     * Generar código único para tracking público
+     */
+    public function generatePublicTrackingCode(): string
+    {
+        return strtoupper(substr(md5($this->id . $this->document_number . uniqid()), 0, 32));
+    }
+
+    /**
+     * Habilitar tracking público del documento
+     */
+    public function enableTracking(?int $expiresInDays = null): bool
+    {
+        if (empty($this->public_tracking_code)) {
+            $this->public_tracking_code = $this->generatePublicTrackingCode();
+        }
+
+        $this->tracking_enabled = true;
+
+        if ($expiresInDays !== null) {
+            $this->tracking_expires_at = now()->addDays($expiresInDays);
+        }
+
+        return $this->save();
+    }
+
+    /**
+     * Deshabilitar tracking público del documento
+     */
+    public function disableTracking(): bool
+    {
+        $this->tracking_enabled = false;
+        return $this->save();
+    }
+
+    /**
+     * Verificar si el tracking está activo
+     */
+    public function isTrackingActive(): bool
+    {
+        if (!$this->tracking_enabled || empty($this->public_tracking_code)) {
+            return false;
+        }
+
+        if ($this->tracking_expires_at && $this->tracking_expires_at->isPast()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Mover documento a una nueva ubicación física
+     */
+    public function moveToLocation(
+        PhysicalLocation $newLocation,
+        ?string $notes = null,
+        ?User $movedBy = null,
+        string $movementType = 'moved'
+    ): bool {
+        $oldLocationId = $this->physical_location_id;
+
+        // Actualizar la ubicación del documento
+        $this->physical_location_id = $newLocation->id;
+        $success = $this->save();
+
+        if ($success) {
+            // Registrar en el historial
+            DocumentLocationHistory::create([
+                'document_id' => $this->id,
+                'physical_location_id' => $newLocation->id,
+                'moved_from_location_id' => $oldLocationId,
+                'moved_by' => $movedBy?->id ?? Auth::id(),
+                'movement_type' => $movementType,
+                'notes' => $notes,
+                'moved_at' => now(),
+            ]);
+
+            // Actualizar capacidades
+            if ($oldLocationId) {
+                $oldLocation = PhysicalLocation::find($oldLocationId);
+                $oldLocation?->decrementCapacity();
+            }
+
+            $newLocation->incrementCapacity();
+        }
+
+        return $success;
+    }
+
+    /**
+     * Obtener historial de movimientos de ubicación
+     */
+    public function getLocationHistory(int $limit = null)
+    {
+        $query = $this->locationHistory()->orderBy('moved_at', 'desc');
+
+        if ($limit) {
+            $query->limit($limit);
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * Obtener la ubicación actual formateada
+     */
+    public function getCurrentLocationPath(): ?string
+    {
+        return $this->physicalLocation?->full_path;
+    }
+
+    /**
+     * Verificar si tiene ubicación física asignada
+     */
+    public function hasPhysicalLocation(): bool
+    {
+        return $this->physical_location_id !== null;
     }
 }

@@ -10,6 +10,13 @@ Route::get('/', function () {
     return view('welcome');
 })->name('welcome');
 
+// Rutas públicas de tracking (sin autenticación)
+Route::prefix('tracking')->name('tracking.')->group(function () {
+    Route::get('/', [App\Http\Controllers\PublicTrackingController::class, 'index'])->name('index');
+    Route::post('/track', [App\Http\Controllers\PublicTrackingController::class, 'track'])->name('track');
+    Route::get('/api/track', [App\Http\Controllers\PublicTrackingController::class, 'trackApi'])->name('api');
+});
+
 // Dashboard - Redirige automáticamente según el rol del usuario
 Route::get('/dashboard', [App\Http\Controllers\DashboardController::class, 'index'])
     ->middleware(['auth'])
@@ -118,3 +125,25 @@ if (!function_exists('downloadFile')) {
         );
     }
 }
+
+// Rutas de stickers (etiquetas con códigos de barras y QR)
+Route::middleware(['auth'])->prefix('stickers')->name('stickers.')->group(function () {
+    // Templates disponibles
+    Route::get('/templates', [App\Http\Controllers\StickerController::class, 'templates'])->name('templates');
+
+    // Documentos
+    Route::prefix('documents')->name('documents.')->group(function () {
+        Route::get('/{document}/preview', [App\Http\Controllers\StickerController::class, 'previewDocument'])->name('preview');
+        Route::get('/{document}/download', [App\Http\Controllers\StickerController::class, 'downloadDocument'])->name('download');
+        Route::get('/{document}/configure', [App\Http\Controllers\StickerController::class, 'configure'])->name('configure');
+        Route::post('/batch/download', [App\Http\Controllers\StickerController::class, 'downloadBatchDocuments'])->name('batch.download');
+    });
+
+    // Ubicaciones físicas
+    Route::prefix('locations')->name('locations.')->group(function () {
+        Route::get('/{location}/preview', [App\Http\Controllers\StickerController::class, 'previewLocation'])->name('preview');
+        Route::get('/{location}/download', [App\Http\Controllers\StickerController::class, 'downloadLocation'])->name('download');
+        Route::get('/{location}/configure', [App\Http\Controllers\StickerController::class, 'configureLocation'])->name('configure');
+        Route::post('/batch/download', [App\Http\Controllers\StickerController::class, 'downloadBatchLocations'])->name('batch.download');
+    });
+});

@@ -177,12 +177,14 @@ class UserResource extends Resource
                                     ])
                                     ->default('America/Bogota'),
                                 Forms\Components\KeyValue::make('settings')
-                                    ->label(__('filament::resources.user.fields.settings'))
-                                    ->keyLabel(__('filament::resources.user.fields.settings_key'))
-                                    ->valueLabel(__('filament::resources.user.fields.settings_value'))
-                                    ->keyPlaceholder(__('filament::resources.user.placeholders.enter_key'))
-                                    ->valuePlaceholder(__('filament::resources.user.placeholders.enter_value'))
-                                    ->columnSpan('full'),
+                                    ->label('Configuraciones personalizadas')
+                                    ->keyLabel('Clave')
+                                    ->valueLabel('Valor')
+                                    ->keyPlaceholder('Ingrese la clave')
+                                    ->valuePlaceholder('Ingrese el valor')
+                                    ->reorderable()
+                                    ->columnSpan('full')
+                                    ->helperText('Configuraciones adicionales del usuario (opcional)'),
                             ]),
                     ])
                     ->columnSpan(['lg' => 1]),

@@ -344,7 +344,26 @@ php artisan pail
 
 ## Estado del Proyecto
 
-**ArchiveMaster está 100% COMPLETADO** con todas las funcionalidades críticas y avanzadas implementadas exitosamente. El sistema está listo para producción.
+**ArchiveMaster Core: 98% COMPLETADO** ✅
+
+El sistema tiene todas las funcionalidades core implementadas y funcionando. Existen **funcionalidades críticas adicionales** planificadas para mejorar la gestión física de documentos y tracking público.
+
+### ⚠️ Funcionalidades Pendientes (Ver IMPLEMENTATION_ROADMAP.md)
+
+**Fase 1 - CRÍTICA** (Prioridad Alta 🔴):
+- 🔲 Sistema de Ubicación Física Inteligente (26 tareas)
+- 🔲 Diferenciación Original/Copia Digital/Física (9 tareas)
+- 🔲 Generación Automática de Barcode/QR + Stickers (15 tareas)
+
+**Fase 2 - IMPORTANTE** (Prioridad Media 🟡):
+- 🔲 Rol Invitado/Guest para clientes externos (3 tareas)
+- 🔲 Tracking Code Público (4 tareas)
+- 🔲 API Pública de Tracking sin autenticación (9 tareas)
+- 🔲 Sistema de Recibidos con PDF y Email (10 tareas)
+
+**Total**: 91 tareas | 19 test suites | ~320 assertions | 6-8 semanas
+
+📄 **Consulta el roadmap completo**: [`IMPLEMENTATION_ROADMAP.md`](IMPLEMENTATION_ROADMAP.md)
 
 ### Verificación Completa de Implementaciones
 
