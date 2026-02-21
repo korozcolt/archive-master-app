@@ -2,15 +2,15 @@
 
 namespace Tests\Browser;
 
-use App\Models\User;
-use App\Models\Company;
-use App\Models\Status;
-use App\Models\Document;
 use App\Models\Category;
+use App\Models\Company;
+use App\Models\Document;
+use App\Models\Status;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Laravel\Dusk\Browser;
-use Tests\DuskTestCase;
 use Spatie\Permission\Models\Role;
+use Tests\DuskTestCase;
 
 class StatusManagementTest extends DuskTestCase
 {
@@ -23,16 +23,16 @@ class StatusManagementTest extends DuskTestCase
     {
         $company = Company::factory()->create();
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         Status::factory()->count(5)->create(['company_id' => $company->id]);
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/statuses')
-                    ->assertSee('Estados')
-                    ->assertPresent('table');
+                ->visit('/admin/statuses')
+                ->assertSee('Estados')
+                ->assertPresent('table');
         });
     }
 
@@ -43,16 +43,16 @@ class StatusManagementTest extends DuskTestCase
     {
         $company = Company::factory()->create();
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/statuses/create')
-                    ->type('input[name="name"]', 'En Revisión')
-                    ->type('input[name="color"]', '#FFA500')
-                    ->press('Crear')
-                    ->pause(1000);
+                ->visit('/admin/statuses/create')
+                ->type('input[name="name"]', 'En Revisión')
+                ->type('input[name="color"]', '#FFA500')
+                ->press('Crear')
+                ->pause(1000);
 
             $this->assertDatabaseHas('statuses', [
                 'name' => 'En Revisión',
@@ -144,7 +144,7 @@ class StatusManagementTest extends DuskTestCase
     {
         $company = Company::factory()->create();
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $status = Status::factory()->create([
@@ -154,11 +154,11 @@ class StatusManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin, $status) {
             $browser->loginAs($admin)
-                    ->visit('/admin/statuses/' . $status->id . '/edit')
-                    ->clear('input[name="name"]')
-                    ->type('input[name="name"]', 'Actualizado')
-                    ->press('Guardar cambios')
-                    ->pause(1000);
+                ->visit('/admin/statuses/'.$status->id.'/edit')
+                ->clear('input[name="name"]')
+                ->type('input[name="name"]', 'Actualizado')
+                ->press('Guardar cambios')
+                ->pause(1000);
 
             $status->refresh();
             $this->assertEquals('Actualizado', $status->name);

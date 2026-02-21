@@ -8,13 +8,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Laravel\Scout\Searchable;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 class PhysicalLocation extends Model
 {
-    use HasFactory, LogsActivity, SoftDeletes, Searchable;
+    use HasFactory, LogsActivity, Searchable, SoftDeletes;
 
     protected $fillable = [
         'company_id',
@@ -86,11 +87,17 @@ class PhysicalLocation extends Model
 
     public function scopeSearch($query, string $search)
     {
-        return $query->where(function ($q) use ($search) {
+        $driver = DB::getDriverName();
+
+        return $query->where(function ($q) use ($search, $driver) {
             $q->where('full_path', 'like', "%{$search}%")
                 ->orWhere('code', 'like', "%{$search}%")
                 ->orWhere('qr_code', 'like', "%{$search}%")
-                ->orWhereRaw('JSON_SEARCH(structured_data, "one", ?) IS NOT NULL', ["%{$search}%"]);
+                ->when(
+                    $driver === 'sqlite',
+                    fn ($query) => $query->orWhere('structured_data', 'like', "%{$search}%"),
+                    fn ($query) => $query->orWhereRaw('JSON_SEARCH(structured_data, \"one\", ?) IS NOT NULL', ["%{$search}%"])
+                );
         });
     }
 
@@ -119,8 +126,8 @@ class PhysicalLocation extends Model
      */
     public function generateCode(): string
     {
-        if (!$this->template || !$this->structured_data) {
-            return 'LOC-' . strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 8));
+        if (! $this->template || ! $this->structured_data) {
+            return 'LOC-'.strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 8));
         }
 
         $levels = $this->template->getOrderedLevels();
@@ -145,7 +152,7 @@ class PhysicalLocation extends Model
      */
     public function generateFullPath(): string
     {
-        if (!$this->template || !$this->structured_data) {
+        if (! $this->template || ! $this->structured_data) {
             return $this->code ?? 'Ubicación sin definir';
         }
 
@@ -175,6 +182,7 @@ class PhysicalLocation extends Model
         }
 
         $this->capacity_used += $amount;
+
         return $this->save();
     }
 
@@ -188,6 +196,7 @@ class PhysicalLocation extends Model
         }
 
         $this->capacity_used -= $amount;
+
         return $this->save();
     }
 
@@ -196,7 +205,7 @@ class PhysicalLocation extends Model
      */
     public function isFull(): bool
     {
-        if (!$this->capacity_total) {
+        if (! $this->capacity_total) {
             return false;
         }
 
@@ -208,7 +217,7 @@ class PhysicalLocation extends Model
      */
     public function getCapacityPercentage(): float
     {
-        if (!$this->capacity_total || $this->capacity_total === 0) {
+        if (! $this->capacity_total || $this->capacity_total === 0) {
             return 0.0;
         }
 
@@ -228,7 +237,7 @@ class PhysicalLocation extends Model
      */
     public function generateQRCode(): string
     {
-        return 'LOC-' . strtoupper(substr(md5($this->code . uniqid()), 0, 16));
+        return 'LOC-'.strtoupper(substr(md5($this->code.uniqid()), 0, 16));
     }
 
     // Hooks
@@ -291,6 +300,6 @@ class PhysicalLocation extends Model
 
     public function shouldBeSearchable(): bool
     {
-        return !$this->trashed() && $this->is_active;
+        return ! $this->trashed() && $this->is_active;
     }
 }

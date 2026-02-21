@@ -2,12 +2,14 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
-use App\Models\Document;
-use App\Models\Company;
-use App\Models\Status;
 use App\Models\Category;
+use App\Models\Company;
+use App\Models\Document;
+use App\Models\Status;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class DocumentTest extends TestCase
@@ -15,8 +17,11 @@ class DocumentTest extends TestCase
     use RefreshDatabase;
 
     protected $user;
+
     protected $company;
+
     protected $status;
+
     protected $category;
 
     protected function setUp(): void
@@ -76,6 +81,34 @@ class DocumentTest extends TestCase
             'company_id' => $this->company->id,
             'created_by' => $this->user->id,
         ]);
+    }
+
+    /**
+     * Test que un usuario puede subir un archivo y se guarda en file_path
+     */
+    public function test_user_can_upload_document_file()
+    {
+        Storage::fake('local');
+
+        $file = UploadedFile::fake()->create('archivo.pdf', 100, 'application/pdf');
+
+        $response = $this->actingAs($this->user)
+            ->post('/documents', [
+                'title' => 'Documento con archivo',
+                'document_number' => 'FILE-001',
+                'description' => 'Documento con archivo adjunto',
+                'status_id' => $this->status->id,
+                'category_id' => $this->category->id,
+                'priority' => 'medium',
+                'file' => $file,
+            ]);
+
+        $response->assertRedirect();
+
+        $document = Document::where('document_number', 'FILE-001')->firstOrFail();
+
+        expect($document->file_path)->not->toBeNull();
+        Storage::disk('local')->assertExists($document->file_path);
     }
 
     /**

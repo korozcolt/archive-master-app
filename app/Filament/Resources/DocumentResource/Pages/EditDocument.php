@@ -50,7 +50,9 @@ class EditDocument extends EditRecord
                     ->action(function (array $data) use ($document, $user): void {
                         // Obtener el estado de destino
                         $toStatus = Status::find($data['to_status_id']);
-                        if (!$toStatus) return;
+                        if (! $toStatus) {
+                            return;
+                        }
 
                         // Cambiar el estado del documento
                         $document->changeStatus($toStatus, $user, $data['comments'] ?? null);
@@ -120,7 +122,7 @@ class EditDocument extends EditRecord
             ->label('Nueva Versión')
             ->icon('heroicon-o-document-plus')
             ->form([
-                \Filament\Forms\Components\FileUpload::make('file')
+                \Filament\Forms\Components\FileUpload::make('file_path')
                     ->label('Archivo')
                     ->directory('documents')
                     ->preserveFilenames()

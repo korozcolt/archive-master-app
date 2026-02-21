@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\Role;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -15,16 +16,39 @@ class RedirectBasedOnRole
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->user()) {
-            // Si es admin y está intentando acceder a /dashboard, redirigir a /admin
-            if ($request->is('dashboard') && $request->user()->hasAnyRole(['admin', 'super_admin', 'branch_admin', 'office_manager'])) {
-                return redirect('/admin');
-            }
+        $user = $request->user();
 
-            // Si es usuario regular y está intentando acceder a /admin, redirigir a /dashboard
-            if ($request->is('admin*') && $request->user()->hasAnyRole(['regular_user', 'receptionist', 'archive_manager'])) {
-                return redirect('/dashboard');
-            }
+        if (! $user) {
+            return $next($request);
+        }
+
+        $adminRoles = [
+            Role::SuperAdmin->value,
+            Role::Admin->value,
+            Role::BranchAdmin->value,
+        ];
+
+        $portalRoles = [
+            Role::OfficeManager->value,
+            Role::ArchiveManager->value,
+            Role::Receptionist->value,
+            Role::RegularUser->value,
+        ];
+
+        if ($request->is('dashboard') && $user->hasAnyRole($adminRoles)) {
+            return redirect('/admin');
+        }
+
+        if ($request->is('dashboard') && $user->hasAnyRole($portalRoles)) {
+            return redirect('/portal');
+        }
+
+        if ($request->is('admin*') && $user->hasAnyRole($portalRoles)) {
+            return redirect('/portal');
+        }
+
+        if ($request->is('portal*') && $user->hasAnyRole($adminRoles)) {
+            return redirect('/admin');
         }
 
         return $next($request);

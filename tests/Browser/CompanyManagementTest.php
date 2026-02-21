@@ -2,14 +2,14 @@
 
 namespace Tests\Browser;
 
-use App\Models\User;
-use App\Models\Company;
 use App\Models\Branch;
+use App\Models\Company;
 use App\Models\Document;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Laravel\Dusk\Browser;
-use Tests\DuskTestCase;
 use Spatie\Permission\Models\Role;
+use Tests\DuskTestCase;
 
 class CompanyManagementTest extends DuskTestCase
 {
@@ -27,7 +27,7 @@ class CompanyManagementTest extends DuskTestCase
             'email' => 'superadmin@test.com',
         ]);
 
-        $superAdminRole = Role::create(['name' => 'Super Admin']);
+        $superAdminRole = Role::firstOrCreate(['name' => 'super_admin']);
         $superAdmin->assignRole($superAdminRole);
 
         // Crear empresas adicionales
@@ -35,10 +35,10 @@ class CompanyManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($superAdmin) {
             $browser->loginAs($superAdmin)
-                    ->visit('/admin/companies')
-                    ->assertSee('Empresas')
-                    ->assertPresent('table')
-                    ->assertSee('Test Company');
+                ->visit('/admin/companies')
+                ->assertSee('Empresas')
+                ->assertPresent('table')
+                ->assertSee('Test Company');
         });
     }
 
@@ -53,20 +53,20 @@ class CompanyManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $superAdminRole = Role::create(['name' => 'Super Admin']);
+        $superAdminRole = Role::firstOrCreate(['name' => 'super_admin']);
         $superAdmin->assignRole($superAdminRole);
 
         $this->browse(function (Browser $browser) use ($superAdmin) {
             $browser->loginAs($superAdmin)
-                    ->visit('/admin/companies')
-                    ->clickLink('Nueva empresa')
-                    ->waitForLocation('/admin/companies/create')
-                    ->type('input[name="name"]', 'Nueva Empresa Test')
-                    ->type('input[name="slug"]', 'nueva-empresa-test')
-                    ->type('input[name="email"]', 'contact@nuevaempresa.com')
-                    ->type('input[name="phone"]', '+1234567890')
-                    ->press('Crear')
-                    ->pause(1000);
+                ->visit('/admin/companies')
+                ->clickLink('Nueva empresa')
+                ->waitForLocation('/admin/companies/create')
+                ->type('input[name="name"]', 'Nueva Empresa Test')
+                ->type('input[name="slug"]', 'nueva-empresa-test')
+                ->type('input[name="email"]', 'contact@nuevaempresa.com')
+                ->type('input[name="phone"]', '+1234567890')
+                ->press('Crear')
+                ->pause(1000);
 
             // Verificar en base de datos
             $this->assertDatabaseHas('companies', [
@@ -87,15 +87,15 @@ class CompanyManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $superAdminRole = Role::create(['name' => 'Super Admin']);
+        $superAdminRole = Role::firstOrCreate(['name' => 'super_admin']);
         $superAdmin->assignRole($superAdminRole);
 
         $this->browse(function (Browser $browser) use ($superAdmin) {
             $browser->loginAs($superAdmin)
-                    ->visit('/admin/companies/create')
-                    ->press('Crear')
-                    ->pause(500)
-                    ->assertPresent('input[name="name"]:invalid');
+                ->visit('/admin/companies/create')
+                ->press('Crear')
+                ->pause(500)
+                ->assertPresent('input[name="name"]:invalid');
         });
     }
 
@@ -113,18 +113,18 @@ class CompanyManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $superAdminRole = Role::create(['name' => 'Super Admin']);
+        $superAdminRole = Role::firstOrCreate(['name' => 'super_admin']);
         $superAdmin->assignRole($superAdminRole);
 
         $this->browse(function (Browser $browser) use ($superAdmin, $company) {
             $browser->loginAs($superAdmin)
-                    ->visit('/admin/companies/' . $company->id . '/edit')
-                    ->clear('input[name="name"]')
-                    ->type('input[name="name"]', 'Empresa Modificada')
-                    ->clear('input[name="email"]')
-                    ->type('input[name="email"]', 'modificada@test.com')
-                    ->press('Guardar cambios')
-                    ->pause(1000);
+                ->visit('/admin/companies/'.$company->id.'/edit')
+                ->clear('input[name="name"]')
+                ->type('input[name="name"]', 'Empresa Modificada')
+                ->clear('input[name="email"]')
+                ->type('input[name="email"]', 'modificada@test.com')
+                ->press('Guardar cambios')
+                ->pause(1000);
 
             // Verificar en base de datos
             $company->refresh();
@@ -147,15 +147,15 @@ class CompanyManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $superAdminRole = Role::create(['name' => 'Super Admin']);
+        $superAdminRole = Role::firstOrCreate(['name' => 'super_admin']);
         $superAdmin->assignRole($superAdminRole);
 
         $this->browse(function (Browser $browser) use ($superAdmin, $company) {
             $browser->loginAs($superAdmin)
-                    ->visit('/admin/companies/' . $company->id . '/edit')
-                    ->uncheck('input[name="active"]')
-                    ->press('Guardar cambios')
-                    ->pause(1000);
+                ->visit('/admin/companies/'.$company->id.'/edit')
+                ->uncheck('input[name="active"]')
+                ->press('Guardar cambios')
+                ->pause(1000);
 
             // Verificar en base de datos
             $company->refresh();
@@ -174,7 +174,7 @@ class CompanyManagementTest extends DuskTestCase
             'company_id' => $company1->id,
             'email' => 'user1@company1.com',
         ]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user1->assignRole($adminRole);
 
         // Crear documentos para empresa 1
@@ -202,17 +202,17 @@ class CompanyManagementTest extends DuskTestCase
         // Usuario 1 solo debe ver sus propios documentos
         $this->browse(function (Browser $browser) use ($user1) {
             $browser->loginAs($user1)
-                    ->visit('/admin/documents')
-                    ->assertSee('Documento Empresa 1')
-                    ->assertDontSee('Documento Empresa 2');
+                ->visit('/admin/documents')
+                ->assertSee('Documento Empresa 1')
+                ->assertDontSee('Documento Empresa 2');
         });
 
         // Usuario 2 solo debe ver sus propios documentos
         $this->browse(function (Browser $browser) use ($user2) {
             $browser->loginAs($user2)
-                    ->visit('/admin/documents')
-                    ->assertSee('Documento Empresa 2')
-                    ->assertDontSee('Documento Empresa 1');
+                ->visit('/admin/documents')
+                ->assertSee('Documento Empresa 2')
+                ->assertDontSee('Documento Empresa 1');
         });
 
         // Verificar en base de datos
@@ -230,13 +230,13 @@ class CompanyManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/companies')
-                    ->pause(500);
+                ->visit('/admin/companies')
+                ->pause(500);
 
             // Debe ser redirigido o ver mensaje de acceso denegado
             // La implementación exacta depende de tu configuración de permisos
@@ -254,7 +254,7 @@ class CompanyManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $superAdminRole = Role::create(['name' => 'Super Admin']);
+        $superAdminRole = Role::firstOrCreate(['name' => 'super_admin']);
         $superAdmin->assignRole($superAdminRole);
 
         // Crear sucursales
@@ -264,8 +264,8 @@ class CompanyManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($superAdmin, $company) {
             $browser->loginAs($superAdmin)
-                    ->visit('/admin/companies/' . $company->id)
-                    ->pause(500);
+                ->visit('/admin/companies/'.$company->id)
+                ->pause(500);
 
             // Verificar que la empresa tiene 3 sucursales
             $this->assertEquals(3, Branch::where('company_id', $company->id)->count());
@@ -288,15 +288,15 @@ class CompanyManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $superAdminRole = Role::create(['name' => 'Super Admin']);
+        $superAdminRole = Role::firstOrCreate(['name' => 'super_admin']);
         $superAdmin->assignRole($superAdminRole);
 
         $this->browse(function (Browser $browser) use ($superAdmin, $company) {
             $browser->loginAs($superAdmin)
-                    ->visit('/admin/companies/' . $company->id)
-                    ->assertSee('Empresa Detallada')
-                    ->assertSee('detallada@test.com')
-                    ->assertSee('+1234567890');
+                ->visit('/admin/companies/'.$company->id)
+                ->assertSee('Empresa Detallada')
+                ->assertSee('detallada@test.com')
+                ->assertSee('+1234567890');
         });
     }
 
@@ -311,7 +311,7 @@ class CompanyManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $superAdminRole = Role::create(['name' => 'Super Admin']);
+        $superAdminRole = Role::firstOrCreate(['name' => 'super_admin']);
         $superAdmin->assignRole($superAdminRole);
 
         // Crear empresas específicas
@@ -320,10 +320,10 @@ class CompanyManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($superAdmin) {
             $browser->loginAs($superAdmin)
-                    ->visit('/admin/companies')
-                    ->type('input[type="search"]', 'XYZ')
-                    ->pause(1000)
-                    ->assertSee('Empresa Búsqueda Especial XYZ');
+                ->visit('/admin/companies')
+                ->type('input[type="search"]', 'XYZ')
+                ->pause(1000)
+                ->assertSee('Empresa Búsqueda Especial XYZ');
         });
     }
 
@@ -338,13 +338,13 @@ class CompanyManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $superAdminRole = Role::create(['name' => 'Super Admin']);
+        $superAdminRole = Role::firstOrCreate(['name' => 'super_admin']);
         $superAdmin->assignRole($superAdminRole);
 
         $this->browse(function (Browser $browser) use ($superAdmin, $company) {
             $browser->loginAs($superAdmin)
-                    ->visit('/admin/companies')
-                    ->pause(500);
+                ->visit('/admin/companies')
+                ->pause(500);
 
             // Eliminar empresa
             // Nota: La implementación exacta depende de cómo Filament maneja las eliminaciones

@@ -2,15 +2,15 @@
 
 namespace Tests\Browser;
 
-use App\Models\User;
-use App\Models\Company;
 use App\Models\Category;
-use App\Models\Status;
+use App\Models\Company;
 use App\Models\Document;
+use App\Models\Status;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Laravel\Dusk\Browser;
-use Tests\DuskTestCase;
 use Spatie\Permission\Models\Role;
+use Tests\DuskTestCase;
 
 class DocumentManagementTest extends DuskTestCase
 {
@@ -27,7 +27,7 @@ class DocumentManagementTest extends DuskTestCase
         ]);
 
         // Crear rol admin
-        $adminRole = Role::create(['name' => 'admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         // Crear algunos documentos
@@ -38,9 +38,9 @@ class DocumentManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user) {
             $browser->loginAs($user)
-                    ->visit('/admin/documents')
-                    ->assertSee('Documentos')
-                    ->assertPresent('table');
+                ->visit('/admin/documents')
+                ->assertSee('Documentos')
+                ->assertPresent('table');
         });
     }
 
@@ -54,7 +54,7 @@ class DocumentManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         // Crear documento específico
@@ -71,10 +71,10 @@ class DocumentManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user) {
             $browser->loginAs($user)
-                    ->visit('/admin/documents')
-                    ->type('input[type="search"]', 'Único')
-                    ->pause(1000) // Wait for search results
-                    ->assertSee('Documento de Prueba Único');
+                ->visit('/admin/documents')
+                ->type('input[type="search"]', 'Único')
+                ->pause(1000) // Wait for search results
+                ->assertSee('Documento de Prueba Único');
         });
     }
 
@@ -91,16 +91,16 @@ class DocumentManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         $this->browse(function (Browser $browser) use ($user) {
             $browser->loginAs($user)
-                    ->visit('/admin/documents')
-                    ->clickLink('Crear Rápido')
-                    ->waitForLocation('/admin/documents/create')
-                    ->assertPathIs('/admin/documents/create')
-                    ->assertSee('Crear documento');
+                ->visit('/admin/documents')
+                ->clickLink('Crear Rápido')
+                ->waitForLocation('/admin/documents/create')
+                ->assertPathIs('/admin/documents/create')
+                ->assertSee('Crear documento');
         });
     }
 
@@ -123,7 +123,7 @@ class DocumentManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         // Crear documentos con diferentes estados
@@ -143,12 +143,12 @@ class DocumentManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user) {
             $browser->loginAs($user)
-                    ->visit('/admin/documents')
-                    ->assertSee('Documento en Borrador')
-                    ->assertSee('Documento Aprobado')
-                    ->click('button[title="Filtrar"]')
-                    ->waitFor('.fi-ta-filters')
-                    ->pause(500);
+                ->visit('/admin/documents')
+                ->assertSee('Documento en Borrador')
+                ->assertSee('Documento Aprobado')
+                ->click('button[title="Filtrar"]')
+                ->waitFor('.fi-ta-filters')
+                ->pause(500);
         });
     }
 }

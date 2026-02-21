@@ -2,13 +2,8 @@
 
 namespace Database\Factories;
 
-use App\Models\Category;
 use App\Models\Company;
 use App\Models\DocumentTemplate;
-use App\Models\PhysicalLocation;
-use App\Models\Status;
-use App\Models\User;
-use App\Models\WorkflowDefinition;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -61,7 +56,7 @@ class DocumentTemplateFactory extends Factory
             'is_active' => true,
             'usage_count' => $this->faker->numberBetween(0, 100),
             'last_used_at' => $this->faker->optional(0.7)->dateTimeBetween('-6 months'),
-            'created_by' => User::factory(),
+            'created_by' => null,
             'updated_by' => null,
         ];
     }

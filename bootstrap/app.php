@@ -12,6 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->web(replace: [
+            \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class => \App\Http\Middleware\VerifyCsrfToken::class,
+        ]);
+
         $middleware->api([
             \App\Http\Middleware\ApiResponseMiddleware::class,
         ]);
@@ -23,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Middleware de monitoreo de performance
         $middleware->append(\App\Http\Middleware\PerformanceMonitor::class);
+        $middleware->append(\App\Http\Middleware\RedirectBasedOnRole::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

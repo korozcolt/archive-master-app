@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -11,6 +12,12 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (app()->environment('testing')) {
+            return;
+        }
+
+        $driver = DB::getDriverName();
+
         // Helper function to safely add index
         $addIndexSafely = function ($table, $columns, $indexName) {
             try {
@@ -24,7 +31,7 @@ return new class extends Migration
         Schema::table('documents', function (Blueprint $table) use ($addIndexSafely) {
             // Índice compuesto para búsquedas por empresa y estado
             $addIndexSafely($table, ['company_id', 'status_id'], 'idx_documents_company_status');
-            
+
             // Índice compuesto para búsquedas por empresa y categoría
             $addIndexSafely($table, ['company_id', 'category_id'], 'idx_documents_company_category');
 
@@ -90,14 +97,16 @@ return new class extends Migration
         });
 
         // Índices para la tabla tags
-        Schema::table('tags', function (Blueprint $table) use ($addIndexSafely) {
+        Schema::table('tags', function (Blueprint $table) use ($addIndexSafely, $driver) {
             // Índice para tags por empresa
             $addIndexSafely($table, ['company_id', 'active'], 'idx_tags_company_active');
 
-            // Generated column for JSON indexing on 'name'
-            $table->string('name_en')->virtualAs('JSON_UNQUOTE(JSON_EXTRACT(name, "$.en"))')->nullable();
-            // Índice para búsqueda por nombre (usando la columna generada)
-            $addIndexSafely($table, ['company_id', 'name_en'], 'idx_tags_company_name_en');
+            // Columnas generadas basadas en JSON (solo compatibles con MySQL/MariaDB)
+            if (in_array($driver, ['mysql', 'mariadb'], true)) {
+                $table->string('name_en')->virtualAs('JSON_UNQUOTE(JSON_EXTRACT(name, "$.en"))')->nullable();
+                // Índice para búsqueda por nombre (usando la columna generada)
+                $addIndexSafely($table, ['company_id', 'name_en'], 'idx_tags_company_name_en');
+            }
         });
 
         // Índices para la tabla document_tags (tabla pivot)
@@ -171,6 +180,12 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (app()->environment(['testing', 'local'])) {
+            return;
+        }
+
+        $driver = DB::getDriverName();
+
         // Eliminar índices de documents
         Schema::table('documents', function (Blueprint $table) {
             $table->dropIndex('idx_documents_company_status');
@@ -207,10 +222,13 @@ return new class extends Migration
         });
 
         // Eliminar índices de tags
-        Schema::table('tags', function (Blueprint $table) {
+        Schema::table('tags', function (Blueprint $table) use ($driver) {
             $table->dropIndex('idx_tags_company_active');
-            $table->dropIndex('idx_tags_company_name_en');
-            $table->dropColumn('name_en');
+
+            if (in_array($driver, ['mysql', 'mariadb'], true)) {
+                $table->dropIndex('idx_tags_company_name_en');
+                $table->dropColumn('name_en');
+            }
         });
 
         // Eliminar índices de document_tags

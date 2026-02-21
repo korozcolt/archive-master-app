@@ -2,11 +2,11 @@
 
 namespace Tests\Browser;
 
-use App\Models\User;
+use App\Models\Category;
 use App\Models\Company;
 use App\Models\Document;
-use App\Models\Category;
 use App\Models\Status;
+use App\Models\User;
 use App\Services\OCRService;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\Storage;
@@ -75,7 +75,7 @@ class OCRProcessingTest extends DuskTestCase
             'is_active' => true,
         ]);
 
-        $admin->assignRole('Super Admin');
+        $admin->assignRole('super_admin');
 
         // Crear documento de prueba
         $document = Document::factory()->create([
@@ -87,12 +87,12 @@ class OCRProcessingTest extends DuskTestCase
         ]);
 
         // Verificar que el usuario puede autenticarse
-        $this->browse(function (Browser $browser) use ($admin, $document) {
+        $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin, 'web')
-                    ->visit('/admin')
-                    ->waitFor('@filament-navigation', 10)
-                    ->assertAuthenticated()
-                    ->assertSee($admin->name);
+                ->visit('/admin')
+                ->waitFor('@filament-navigation', 10)
+                ->assertAuthenticated()
+                ->assertSee($admin->name);
         });
 
         // Verificar que el documento existe en la base de datos
@@ -159,16 +159,16 @@ class OCRProcessingTest extends DuskTestCase
         ]);
 
         foreach ($users as $user) {
-            $user->assignRole('Admin');
+            $user->assignRole('admin');
         }
 
         // Cada usuario puede autenticarse
         foreach ($users as $user) {
             $this->browse(function (Browser $browser) use ($user) {
                 $browser->loginAs($user, 'web')
-                        ->visit('/admin')
-                        ->waitFor('@filament-navigation', 10)
-                        ->assertAuthenticated();
+                    ->visit('/admin')
+                    ->waitFor('@filament-navigation', 10)
+                    ->assertAuthenticated();
             });
         }
 
@@ -190,7 +190,7 @@ class OCRProcessingTest extends DuskTestCase
             'password' => bcrypt('password'),
             'company_id' => $company->id,
         ]);
-        $user->assignRole('Admin');
+        $user->assignRole('admin');
 
         // Crear documento
         $document = Document::factory()->create([

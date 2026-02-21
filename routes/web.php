@@ -1,9 +1,12 @@
 <?php
 
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Route;
+use App\Http\Middleware\RedirectBasedOnRole;
+use App\Livewire\Portal\Dashboard as PortalDashboard;
+use App\Livewire\Portal\Reports as PortalReports;
 use App\Models\Document;
 use App\Models\DocumentVersion;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 
 // Ruta principal - Página de bienvenida con React
 Route::get('/', function () {
@@ -22,9 +25,19 @@ Route::get('/dashboard', [App\Http\Controllers\DashboardController::class, 'inde
     ->middleware(['auth'])
     ->name('dashboard');
 
+// Portal de usuarios (no admin)
+Route::middleware(['auth', RedirectBasedOnRole::class])
+    ->prefix('portal')
+    ->name('portal.')
+    ->group(function () {
+        Route::get('/', PortalDashboard::class)->name('dashboard');
+        Route::get('/reports', PortalReports::class)->name('reports');
+    });
+
 // Debug route for testing
-Route::get('/debug-user', function() {
+Route::get('/debug-user', function () {
     $user = Auth::user();
+
     return response()->json([
         'id' => $user->id,
         'email' => $user->email,
@@ -36,10 +49,11 @@ Route::get('/debug-user', function() {
 })->middleware(['auth']);
 
 // Ruta de logout
-Route::post('/logout', function() {
+Route::post('/logout', function () {
     Auth::logout();
     request()->session()->invalidate();
     request()->session()->regenerateToken();
+
     return redirect('/');
 })->name('logout');
 
@@ -78,9 +92,11 @@ Route::prefix('documents')->name('documents.')->middleware(['auth'])->group(func
     Route::get('/{id}/download', function ($id) {
         $document = Document::findOrFail($id);
         authorizeDocumentAccess($document);
-        validateFileExists($document->file);
+        validateFileExists($document->file_path);
 
-        return downloadFile($document->file);
+        logDocumentDownload($document);
+
+        return downloadFile($document->file_path);
     })->name('download');
 
     // Grupo para versiones de documentos
@@ -91,38 +107,114 @@ Route::prefix('documents')->name('documents.')->middleware(['auth'])->group(func
             authorizeDocumentAccess($version->document);
             validateFileExists($version->file_path);
 
+            logDocumentDownload($version->document, $version->id);
+
             return downloadFile($version->file_path);
         })->name('download');
     });
 });
 
 // Funciones auxiliares para mejorar legibilidad
-if (!function_exists('authorizeDocumentAccess')) {
+if (! function_exists('authorizeDocumentAccess')) {
     function authorizeDocumentAccess($document): void
     {
-        if (!Auth::check() || (!Auth::user()->hasRole('super_admin') &&
-            Auth::user()->company_id != $document->company_id)) {
+        if (! Auth::check()) {
+            abort(403, 'No tiene permiso para acceder a este documento.');
+        }
+
+        $user = Auth::user();
+
+        if ($user->hasRole('super_admin')) {
+            return;
+        }
+
+        if ($user->company_id != $document->company_id) {
+            abort(403, 'No tiene permiso para acceder a este documento.');
+        }
+
+        $hasAccess = canDownloadDocument($user, $document);
+
+        if (! $hasAccess) {
             abort(403, 'No tiene permiso para acceder a este documento.');
         }
     }
 }
 
-if (!function_exists('validateFileExists')) {
+if (! function_exists('canDownloadDocument')) {
+    function canDownloadDocument($user, $document): bool
+    {
+        if ($user->hasRole(['admin'])) {
+            return true;
+        }
+
+        if ($user->hasRole('branch_admin')) {
+            return $document->branch_id === null || $document->branch_id === $user->branch_id;
+        }
+
+        if ($user->hasRole('office_manager')) {
+            return $document->department_id === $user->department_id;
+        }
+
+        if ($user->hasRole('archive_manager')) {
+            return ! is_null($document->physical_location_id);
+        }
+
+        return $document->created_by === $user->id || $document->assigned_to === $user->id;
+    }
+}
+
+if (! function_exists('validateFileExists')) {
     function validateFileExists($filePath): void
     {
-        if (!$filePath || !file_exists(storage_path('app/public/' . $filePath))) {
+        $service = app(\App\Services\DocumentFileService::class);
+        if (! $filePath || ! $service->fileExists($filePath)) {
             abort(404, 'El archivo no existe.');
         }
     }
 }
 
-if (!function_exists('downloadFile')) {
+if (! function_exists('logDocumentDownload')) {
+    function logDocumentDownload($document, ?int $versionId = null): void
+    {
+        \Log::info('Descarga de documento', [
+            'document_id' => $document->id,
+            'document_number' => $document->document_number,
+            'version_id' => $versionId,
+            'user_id' => Auth::id(),
+            'company_id' => Auth::user()?->company_id,
+        ]);
+
+        logDocumentAccess($document, 'download');
+    }
+}
+
+if (! function_exists('logDocumentAccess')) {
+    function logDocumentAccess($document, string $action): void
+    {
+        try {
+            \App\Models\DocumentAccessLog::create([
+                'document_id' => $document->id,
+                'user_id' => Auth::id(),
+                'action' => $action,
+                'ip' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+            ]);
+        } catch (\Throwable $e) {
+            \Log::warning('No se pudo registrar acceso al documento', [
+                'document_id' => $document->id,
+                'action' => $action,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+}
+
+if (! function_exists('downloadFile')) {
     function downloadFile($filePath)
     {
-        return response()->download(
-            storage_path('app/public/' . $filePath),
-            basename($filePath)
-        );
+        $service = app(\App\Services\DocumentFileService::class);
+
+        return $service->downloadResponse($filePath);
     }
 }
 

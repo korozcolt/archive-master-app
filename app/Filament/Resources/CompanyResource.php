@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\ResourceAccess;
 use App\Filament\Resources\CompanyResource\Pages;
 use App\Filament\Resources\CompanyResource\RelationManagers\BranchesRelationManager;
 use App\Filament\Resources\CompanyResource\RelationManagers\CategoriesRelationManager;
@@ -12,17 +13,17 @@ use App\Filament\Resources\CompanyResource\RelationManagers\UsersRelationManager
 use App\Models\Company;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Resources\Concerns\Translatable;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
-use Filament\Resources\Concerns\Translatable;
 
 class CompanyResource extends Resource
 {
     use Translatable;
+
     protected static ?string $model = Company::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-building-office';
@@ -32,6 +33,16 @@ class CompanyResource extends Resource
     protected static ?string $navigationGroup = 'Administración';
 
     protected static ?int $navigationSort = 1;
+
+    public static function canViewAny(): bool
+    {
+        return ResourceAccess::allows(roles: ['admin']);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
 
     public static function getNavigationBadge(): ?string
     {
@@ -123,6 +134,7 @@ class CompanyResource extends Resource
                         if (is_array($state)) {
                             return $record->getTranslation('name', app()->getLocale());
                         }
+
                         return $state;
                     }),
                 Tables\Columns\TextColumn::make('legal_name')

@@ -2,15 +2,15 @@
 
 namespace Tests\Browser;
 
-use App\Models\User;
-use App\Models\Company;
 use App\Models\Category;
-use App\Models\Status;
+use App\Models\Company;
 use App\Models\Document;
+use App\Models\Status;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Laravel\Dusk\Browser;
-use Tests\DuskTestCase;
 use Spatie\Permission\Models\Role;
+use Tests\DuskTestCase;
 
 class AdvancedSearchTest extends DuskTestCase
 {
@@ -26,14 +26,14 @@ class AdvancedSearchTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         $this->browse(function (Browser $browser) use ($user) {
             $browser->loginAs($user)
-                    ->visit('/admin/advanced-searches')
-                    ->assertSee('Búsqueda')
-                    ->pause(500);
+                ->visit('/admin/advanced-searches')
+                ->assertSee('Búsqueda')
+                ->pause(500);
         });
     }
 
@@ -50,7 +50,7 @@ class AdvancedSearchTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         // Crear documentos de prueba
@@ -69,12 +69,12 @@ class AdvancedSearchTest extends DuskTestCase
             'status_id' => $status->id,
         ]);
 
-        $this->browse(function (Browser $browser) use ($user, $targetDoc) {
+        $this->browse(function (Browser $browser) use ($user) {
             $browser->loginAs($user)
-                    ->visit('/admin/documents')
-                    ->type('input[type="search"]', 'XYZ123')
-                    ->pause(1000)
-                    ->assertSee('Contrato Especial XYZ123');
+                ->visit('/admin/documents')
+                ->type('input[type="search"]', 'XYZ123')
+                ->pause(1000)
+                ->assertSee('Contrato Especial XYZ123');
         });
     }
 
@@ -98,7 +98,7 @@ class AdvancedSearchTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         // Crear documentos en diferentes categorías
@@ -120,10 +120,10 @@ class AdvancedSearchTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user) {
             $browser->loginAs($user)
-                    ->visit('/admin/documents')
-                    ->assertSee('Contrato de Trabajo')
-                    ->assertSee('Factura de Compra')
-                    ->pause(500);
+                ->visit('/admin/documents')
+                ->assertSee('Contrato de Trabajo')
+                ->assertSee('Factura de Compra')
+                ->pause(500);
         });
     }
 
@@ -137,15 +137,15 @@ class AdvancedSearchTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         $this->browse(function (Browser $browser) use ($user) {
             $browser->loginAs($user)
-                    ->visit('/admin/documents')
-                    ->type('input[type="search"]', 'DocumentoQueNoExiste123456789')
-                    ->pause(1000)
-                    ->assertDontSee('DocumentoQueNoExiste123456789');
+                ->visit('/admin/documents')
+                ->type('input[type="search"]', 'DocumentoQueNoExiste123456789')
+                ->pause(1000)
+                ->assertSee('No se encontraron registros');
         });
     }
 }

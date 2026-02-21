@@ -2,15 +2,15 @@
 
 namespace Tests\Browser;
 
-use App\Models\User;
+use App\Models\Category;
 use App\Models\Company;
 use App\Models\Document;
-use App\Models\Category;
 use App\Models\Status;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Laravel\Dusk\Browser;
-use Tests\DuskTestCase;
 use Spatie\Permission\Models\Role;
+use Tests\DuskTestCase;
 
 class BarcodeQRTest extends DuskTestCase
 {
@@ -71,7 +71,7 @@ class BarcodeQRTest extends DuskTestCase
         $category = Category::factory()->create(['company_id' => $company->id]);
         $status = Status::factory()->create(['company_id' => $company->id]);
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $document = Document::factory()->create([
@@ -84,9 +84,9 @@ class BarcodeQRTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin, $document) {
             $browser->loginAs($admin)
-                    ->visit('/admin/documents/' . $document->id)
-                    ->assertPresent('img[alt*="QR"], .qr-code, #qr-code')
-                    ->pause(500);
+                ->visit('/admin/documents/'.$document->id)
+                ->assertPresent('img[alt*="QR"], .qr-code, #qr-code')
+                ->pause(500);
         });
     }
 
@@ -99,7 +99,7 @@ class BarcodeQRTest extends DuskTestCase
         $category = Category::factory()->create(['company_id' => $company->id]);
         $status = Status::factory()->create(['company_id' => $company->id]);
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $document = Document::factory()->create([
@@ -111,9 +111,9 @@ class BarcodeQRTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin, $document) {
             $browser->loginAs($admin)
-                    ->visit('/admin/documents/' . $document->id)
-                    ->click('button[title="Descargar QR"], a[href*="qr-code/download"]')
-                    ->pause(2000);
+                ->visit('/admin/documents/'.$document->id)
+                ->click('button[title="Descargar QR"], a[href*="qr-code/download"]')
+                ->pause(2000);
         });
     }
 
@@ -124,15 +124,15 @@ class BarcodeQRTest extends DuskTestCase
     {
         $company = Company::factory()->create();
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/hardware/scan')
-                    ->assertSee('Escanear')
-                    ->assertPresent('button[id*="scan"], #start-scan')
-                    ->pause(500);
+                ->visit('/admin/hardware/scan')
+                ->assertSee('Escanear')
+                ->assertPresent('button[id*="scan"], #start-scan')
+                ->pause(500);
         });
     }
 
@@ -223,7 +223,7 @@ class BarcodeQRTest extends DuskTestCase
         $category = Category::factory()->create(['company_id' => $company->id]);
         $status = Status::factory()->create(['company_id' => $company->id]);
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $document = Document::factory()->create([
@@ -235,9 +235,9 @@ class BarcodeQRTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin, $document) {
             $browser->loginAs($admin)
-                    ->visit('/admin/documents/' . $document->id)
-                    ->click('button[title="Imprimir QR"], button[onclick*="print"]')
-                    ->pause(1000);
+                ->visit('/admin/documents/'.$document->id)
+                ->click('button[title="Imprimir QR"], button[onclick*="print"]')
+                ->pause(1000);
         });
     }
 
@@ -266,7 +266,7 @@ class BarcodeQRTest extends DuskTestCase
             'code' => 'DOC-API-SCAN-001',
             'type' => 'barcode',
         ], [
-            'Authorization' => 'Bearer ' . $token,
+            'Authorization' => 'Bearer '.$token,
             'Accept' => 'application/json',
         ]);
 

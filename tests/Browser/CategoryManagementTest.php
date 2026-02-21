@@ -2,15 +2,15 @@
 
 namespace Tests\Browser;
 
-use App\Models\User;
-use App\Models\Company;
 use App\Models\Category;
+use App\Models\Company;
 use App\Models\Document;
 use App\Models\Status;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Laravel\Dusk\Browser;
-use Tests\DuskTestCase;
 use Spatie\Permission\Models\Role;
+use Tests\DuskTestCase;
 
 class CategoryManagementTest extends DuskTestCase
 {
@@ -27,7 +27,7 @@ class CategoryManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         // Crear categorías
@@ -37,9 +37,9 @@ class CategoryManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/categories')
-                    ->assertSee('Categorías')
-                    ->assertPresent('table');
+                ->visit('/admin/categories')
+                ->assertSee('Categorías')
+                ->assertPresent('table');
         });
     }
 
@@ -54,18 +54,18 @@ class CategoryManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/categories')
-                    ->clickLink('Nueva')
-                    ->waitForLocation('/admin/categories/create')
-                    ->type('input[name="name"]', 'Contratos')
-                    ->type('textarea[name="description"]', 'Categoría para contratos legales')
-                    ->press('Crear')
-                    ->pause(1000);
+                ->visit('/admin/categories')
+                ->clickLink('Nueva')
+                ->waitForLocation('/admin/categories/create')
+                ->type('input[name="name"]', 'Contratos')
+                ->type('textarea[name="description"]', 'Categoría para contratos legales')
+                ->press('Crear')
+                ->pause(1000);
 
             // Verificar en base de datos
             $this->assertDatabaseHas('categories', [
@@ -86,7 +86,7 @@ class CategoryManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         // Crear categoría padre
@@ -98,11 +98,11 @@ class CategoryManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin, $parentCategory) {
             $browser->loginAs($admin)
-                    ->visit('/admin/categories/create')
-                    ->type('input[name="name"]', 'Contratos Laborales')
-                    ->select('select[name="parent_id"]', $parentCategory->id)
-                    ->press('Crear')
-                    ->pause(1000);
+                ->visit('/admin/categories/create')
+                ->type('input[name="name"]', 'Contratos Laborales')
+                ->select('select[name="parent_id"]', $parentCategory->id)
+                ->press('Crear')
+                ->pause(1000);
 
             // Verificar en base de datos
             $this->assertDatabaseHas('categories', [
@@ -123,15 +123,15 @@ class CategoryManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/categories/create')
-                    ->press('Crear')
-                    ->pause(500)
-                    ->assertPresent('input[name="name"]:invalid');
+                ->visit('/admin/categories/create')
+                ->press('Crear')
+                ->pause(500)
+                ->assertPresent('input[name="name"]:invalid');
         });
     }
 
@@ -146,7 +146,7 @@ class CategoryManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $category = Category::factory()->create([
@@ -156,13 +156,13 @@ class CategoryManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin, $category) {
             $browser->loginAs($admin)
-                    ->visit('/admin/categories/' . $category->id . '/edit')
-                    ->clear('input[name="name"]')
-                    ->type('input[name="name"]', 'Categoría Modificada')
-                    ->clear('textarea[name="description"]')
-                    ->type('textarea[name="description"]', 'Descripción actualizada')
-                    ->press('Guardar cambios')
-                    ->pause(1000);
+                ->visit('/admin/categories/'.$category->id.'/edit')
+                ->clear('input[name="name"]')
+                ->type('input[name="name"]', 'Categoría Modificada')
+                ->clear('textarea[name="description"]')
+                ->type('textarea[name="description"]', 'Descripción actualizada')
+                ->press('Guardar cambios')
+                ->pause(1000);
 
             // Verificar en base de datos
             $category->refresh();
@@ -182,7 +182,7 @@ class CategoryManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         // Crear jerarquía: Documentos > Legales > Contratos
@@ -206,10 +206,10 @@ class CategoryManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/categories')
-                    ->assertSee('Documentos')
-                    ->assertSee('Legales')
-                    ->assertSee('Contratos');
+                ->visit('/admin/categories')
+                ->assertSee('Documentos')
+                ->assertSee('Legales')
+                ->assertSee('Contratos');
         });
 
         // Verificar jerarquía en base de datos
@@ -227,7 +227,7 @@ class CategoryManagementTest extends DuskTestCase
         $admin1 = User::factory()->create([
             'company_id' => $company1->id,
         ]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin1->assignRole($adminRole);
 
         Category::factory()->count(3)->create([
@@ -250,9 +250,9 @@ class CategoryManagementTest extends DuskTestCase
         // Admin 1 solo ve categorías de su empresa
         $this->browse(function (Browser $browser) use ($admin1, $company1) {
             $browser->loginAs($admin1)
-                    ->visit('/admin/categories')
-                    ->assertSee('Categoría Company 1')
-                    ->assertDontSee('Categoría Company 2');
+                ->visit('/admin/categories')
+                ->assertSee('Categoría Company 1')
+                ->assertDontSee('Categoría Company 2');
 
             // Verificar en base de datos
             $this->assertEquals(3, Category::where('company_id', $company1->id)->count());
@@ -261,9 +261,9 @@ class CategoryManagementTest extends DuskTestCase
         // Admin 2 solo ve categorías de su empresa
         $this->browse(function (Browser $browser) use ($admin2, $company2) {
             $browser->loginAs($admin2)
-                    ->visit('/admin/categories')
-                    ->assertSee('Categoría Company 2')
-                    ->assertDontSee('Categoría Company 1');
+                ->visit('/admin/categories')
+                ->assertSee('Categoría Company 2')
+                ->assertDontSee('Categoría Company 1');
 
             // Verificar en base de datos
             $this->assertEquals(2, Category::where('company_id', $company2->id)->count());
@@ -281,7 +281,7 @@ class CategoryManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         // Crear categoría específica
@@ -296,10 +296,10 @@ class CategoryManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/categories')
-                    ->type('input[type="search"]', 'XYZ')
-                    ->pause(1000)
-                    ->assertSee('Categoría Especial XYZ');
+                ->visit('/admin/categories')
+                ->type('input[type="search"]', 'XYZ')
+                ->pause(1000)
+                ->assertSee('Categoría Especial XYZ');
         });
     }
 
@@ -315,7 +315,7 @@ class CategoryManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $category = Category::factory()->create([
@@ -333,8 +333,8 @@ class CategoryManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin, $category) {
             $browser->loginAs($admin)
-                    ->visit('/admin/categories/' . $category->id)
-                    ->pause(500);
+                ->visit('/admin/categories/'.$category->id)
+                ->pause(500);
 
             // Verificar conteo en base de datos
             $this->assertEquals(5, Document::where('category_id', $category->id)->count());
@@ -352,7 +352,7 @@ class CategoryManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $category = Category::factory()->create([
@@ -362,8 +362,8 @@ class CategoryManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin, $category) {
             $browser->loginAs($admin)
-                    ->visit('/admin/categories')
-                    ->pause(500);
+                ->visit('/admin/categories')
+                ->pause(500);
 
             // Eliminar categoría
             $category->delete();
@@ -387,7 +387,7 @@ class CategoryManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $category = Category::factory()->create([
@@ -405,8 +405,8 @@ class CategoryManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin, $category) {
             $browser->loginAs($admin)
-                    ->visit('/admin/categories')
-                    ->pause(500);
+                ->visit('/admin/categories')
+                ->pause(500);
 
             // Intentar eliminar debe fallar o mostrar advertencia
             try {
@@ -430,7 +430,7 @@ class CategoryManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         // Crear 4 niveles: Nivel1 > Nivel2 > Nivel3 > Nivel4
@@ -460,11 +460,11 @@ class CategoryManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/categories')
-                    ->assertSee('Nivel 1')
-                    ->assertSee('Nivel 2')
-                    ->assertSee('Nivel 3')
-                    ->assertSee('Nivel 4');
+                ->visit('/admin/categories')
+                ->assertSee('Nivel 1')
+                ->assertSee('Nivel 2')
+                ->assertSee('Nivel 3')
+                ->assertSee('Nivel 4');
         });
 
         // Verificar cadena jerárquica
@@ -484,7 +484,7 @@ class CategoryManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $parent1 = Category::factory()->create([
@@ -505,10 +505,10 @@ class CategoryManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin, $child, $parent2) {
             $browser->loginAs($admin)
-                    ->visit('/admin/categories/' . $child->id . '/edit')
-                    ->select('select[name="parent_id"]', $parent2->id)
-                    ->press('Guardar cambios')
-                    ->pause(1000);
+                ->visit('/admin/categories/'.$child->id.'/edit')
+                ->select('select[name="parent_id"]', $parent2->id)
+                ->press('Guardar cambios')
+                ->pause(1000);
 
             // Verificar en base de datos
             $child->refresh();
@@ -528,7 +528,7 @@ class CategoryManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $category = Category::factory()->create([
@@ -547,9 +547,9 @@ class CategoryManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin, $category) {
             $browser->loginAs($admin)
-                    ->visit('/admin/categories/' . $category->id)
-                    ->assertSee('Categoría Detallada')
-                    ->assertSee('Descripción completa de la categoría');
+                ->visit('/admin/categories/'.$category->id)
+                ->assertSee('Categoría Detallada')
+                ->assertSee('Descripción completa de la categoría');
         });
     }
 }

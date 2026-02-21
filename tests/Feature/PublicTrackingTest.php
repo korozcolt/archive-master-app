@@ -17,8 +17,11 @@ class PublicTrackingTest extends TestCase
     use RefreshDatabase;
 
     protected $company;
+
     protected $user;
+
     protected $category;
+
     protected $status;
 
     protected function setUp(): void
@@ -49,11 +52,11 @@ class PublicTrackingTest extends TestCase
             'status_id' => $this->status->id,
             'created_by' => $this->user->id,
             'tracking_enabled' => true,
-            'public_tracking_code' => 'ABC123DEF456GHI789JKL012MNO345PQ',
+            'public_tracking_code' => str_repeat('E', 32),
         ]);
 
         $response = $this->post(route('tracking.track'), [
-            'tracking_code' => 'ABC123DEF456GHI789JKL012MNO345PQ',
+            'tracking_code' => str_repeat('E', 32),
         ]);
 
         $response->assertStatus(200);
@@ -64,8 +67,9 @@ class PublicTrackingTest extends TestCase
     /** @test */
     public function cannot_track_document_with_invalid_code()
     {
+        $invalidCode = str_repeat('F', 32);
         $response = $this->post(route('tracking.track'), [
-            'tracking_code' => 'INVALIDCODEINVALIDCODEINVALIDC',
+            'tracking_code' => $invalidCode,
         ]);
 
         $response->assertStatus(302);
@@ -81,11 +85,11 @@ class PublicTrackingTest extends TestCase
             'status_id' => $this->status->id,
             'created_by' => $this->user->id,
             'tracking_enabled' => false,
-            'public_tracking_code' => 'DISABLED123DISABLED123DISABLED12',
+            'public_tracking_code' => str_repeat('G', 32),
         ]);
 
         $response = $this->post(route('tracking.track'), [
-            'tracking_code' => 'DISABLED123DISABLED123DISABLED12',
+            'tracking_code' => str_repeat('G', 32),
         ]);
 
         $response->assertStatus(302);
@@ -101,12 +105,12 @@ class PublicTrackingTest extends TestCase
             'status_id' => $this->status->id,
             'created_by' => $this->user->id,
             'tracking_enabled' => true,
-            'public_tracking_code' => 'EXPIRED123EXPIRED123EXPIRED12345',
+            'public_tracking_code' => str_repeat('H', 32),
             'tracking_expires_at' => Carbon::now()->subDay(), // Expiró ayer
         ]);
 
         $response = $this->post(route('tracking.track'), [
-            'tracking_code' => 'EXPIRED123EXPIRED123EXPIRED12345',
+            'tracking_code' => str_repeat('H', 32),
         ]);
 
         $response->assertStatus(302);
@@ -122,12 +126,12 @@ class PublicTrackingTest extends TestCase
             'status_id' => $this->status->id,
             'created_by' => $this->user->id,
             'tracking_enabled' => true,
-            'public_tracking_code' => 'FUTURE123FUTURE123FUTURE123FUTURE',
+            'public_tracking_code' => str_repeat('I', 32),
             'tracking_expires_at' => Carbon::now()->addWeek(), // Expira en una semana
         ]);
 
         $response = $this->post(route('tracking.track'), [
-            'tracking_code' => 'FUTURE123FUTURE123FUTURE123FUTURE',
+            'tracking_code' => str_repeat('I', 32),
         ]);
 
         $response->assertStatus(200);
@@ -187,7 +191,7 @@ class PublicTrackingTest extends TestCase
             'status_id' => $status2->id,
             'created_by' => $this->user->id,
             'tracking_enabled' => true,
-            'public_tracking_code' => 'HISTORY123HISTORY123HISTORY123HIS',
+            'public_tracking_code' => str_repeat('J', 32),
         ]);
 
         // Crear historial de workflow
@@ -200,7 +204,7 @@ class PublicTrackingTest extends TestCase
         ]);
 
         $response = $this->post(route('tracking.track'), [
-            'tracking_code' => 'HISTORY123HISTORY123HISTORY123HIS',
+            'tracking_code' => str_repeat('J', 32),
         ]);
 
         $response->assertStatus(200);
@@ -215,17 +219,18 @@ class PublicTrackingTest extends TestCase
     /** @test */
     public function api_endpoint_returns_json_with_valid_code()
     {
+        $trackingCode = str_repeat('A', 32);
         $document = Document::factory()->create([
             'company_id' => $this->company->id,
             'category_id' => $this->category->id,
             'status_id' => $this->status->id,
             'created_by' => $this->user->id,
             'tracking_enabled' => true,
-            'public_tracking_code' => 'API123API123API123API123API123API',
+            'public_tracking_code' => $trackingCode,
         ]);
 
         $response = $this->getJson(route('tracking.api', [
-            'tracking_code' => 'API123API123API123API123API123API',
+            'tracking_code' => $trackingCode,
         ]));
 
         $response->assertStatus(200);
@@ -250,8 +255,9 @@ class PublicTrackingTest extends TestCase
     /** @test */
     public function api_endpoint_returns_error_with_invalid_code()
     {
+        $invalidCode = str_repeat('B', 32);
         $response = $this->getJson(route('tracking.api', [
-            'tracking_code' => 'INVALIDCODEINVALIDCODEINVALIDC',
+            'tracking_code' => $invalidCode,
         ]));
 
         $response->assertStatus(404);
@@ -263,18 +269,19 @@ class PublicTrackingTest extends TestCase
     /** @test */
     public function api_endpoint_returns_410_for_expired_code()
     {
+        $trackingCode = str_repeat('C', 32);
         $document = Document::factory()->create([
             'company_id' => $this->company->id,
             'category_id' => $this->category->id,
             'status_id' => $this->status->id,
             'created_by' => $this->user->id,
             'tracking_enabled' => true,
-            'public_tracking_code' => 'APIEXP123APIEXP123APIEXP123APIEXP',
+            'public_tracking_code' => $trackingCode,
             'tracking_expires_at' => Carbon::now()->subDay(),
         ]);
 
         $response = $this->getJson(route('tracking.api', [
-            'tracking_code' => 'APIEXP123APIEXP123APIEXP123APIEXP',
+            'tracking_code' => $trackingCode,
         ]));
 
         $response->assertStatus(410); // 410 Gone
@@ -287,18 +294,19 @@ class PublicTrackingTest extends TestCase
     /** @test */
     public function tracking_does_not_expose_sensitive_information()
     {
+        $trackingCode = str_repeat('D', 32);
         $document = Document::factory()->create([
             'company_id' => $this->company->id,
             'category_id' => $this->category->id,
             'status_id' => $this->status->id,
             'created_by' => $this->user->id,
             'tracking_enabled' => true,
-            'public_tracking_code' => 'SECURE123SECURE123SECURE123SECURE1',
+            'public_tracking_code' => $trackingCode,
             'document_number' => 'DOC-2025-0001',
         ]);
 
         $response = $this->getJson(route('tracking.api', [
-            'tracking_code' => 'SECURE123SECURE123SECURE123SECURE1',
+            'tracking_code' => $trackingCode,
         ]));
 
         $response->assertStatus(200);

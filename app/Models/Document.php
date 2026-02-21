@@ -28,7 +28,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  */
 class Document extends Model
 {
-    use HasFactory, LogsActivity, SoftDeletes, Searchable;
+    use HasFactory, LogsActivity, Searchable, SoftDeletes;
 
     protected $fillable = [
         'company_id',
@@ -44,6 +44,7 @@ class Document extends Model
         'title',
         'description',
         'content',
+        'file_path',
         'physical_location',
         'physical_location_id',
         'digital_document_type',
@@ -55,7 +56,9 @@ class Document extends Model
         'is_archived',
         'priority',
         'received_at',
+        'due_date',
         'due_at',
+        'sla_due_date',
         'completed_at',
         'archived_at',
         'settings',
@@ -68,13 +71,38 @@ class Document extends Model
         'tracking_enabled' => 'boolean',
         'priority' => Priority::class,
         'received_at' => 'datetime',
+        'due_date' => 'datetime',
         'due_at' => 'datetime',
+        'sla_due_date' => 'datetime',
         'completed_at' => 'datetime',
         'archived_at' => 'datetime',
         'tracking_expires_at' => 'datetime',
         'settings' => 'json',
         'metadata' => 'json',
     ];
+
+    public function getDueDateAttribute(): mixed
+    {
+        $value = $this->attributes['due_date'] ?? $this->attributes['due_at'] ?? null;
+
+        if ($value === null) {
+            return null;
+        }
+
+        return $this->asDateTime($value);
+    }
+
+    public function setDueDateAttribute(mixed $value): void
+    {
+        $this->attributes['due_date'] = $value;
+        $this->attributes['due_at'] = $value;
+    }
+
+    public function setDueAtAttribute(mixed $value): void
+    {
+        $this->attributes['due_at'] = $value;
+        $this->attributes['due_date'] = $value;
+    }
 
     /**
      * Attributes that should not be persisted to the database
@@ -91,7 +119,7 @@ class Document extends Model
         return LogOptions::defaults()
             ->logOnly([
                 'title', 'description', 'status_id', 'assigned_to',
-                'is_confidential', 'is_archived', 'priority'
+                'is_confidential', 'is_archived', 'priority',
             ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
@@ -328,7 +356,7 @@ class Document extends Model
 
     public function getPriorityLabelAttribute(): string
     {
-        if (!$this->priority) {
+        if (! $this->priority) {
             return 'Normal';
         }
 
@@ -348,7 +376,7 @@ class Document extends Model
 
     public function getDaysUntilDueAttribute(): ?int
     {
-        if (!$this->due_at) {
+        if (! $this->due_at) {
             return null;
         }
 
@@ -360,7 +388,7 @@ class Document extends Model
         return $this->created_at->diffForHumans();
     }
 
-    public function addVersion(string $content = null, string $filePath = null, User $user = null): DocumentVersion
+    public function addVersion(?string $content = null, ?string $filePath = null, ?User $user = null): DocumentVersion
     {
         // Obtener el último número de versión y aumentarlo en 1
         $versionNumber = $this->versions()->max('version_number') + 1;
@@ -381,7 +409,7 @@ class Document extends Model
         ]);
     }
 
-    public function changeStatus(Status $newStatus, User $user = null, string $comments = null): bool
+    public function changeStatus(Status $newStatus, ?User $user = null, ?string $comments = null): bool
     {
         $currentStatusId = $this->status_id;
 
@@ -403,7 +431,7 @@ class Document extends Model
         return $success;
     }
 
-    public function archive(User $user = null, string $comments = null): bool
+    public function archive(?User $user = null, ?string $comments = null): bool
     {
         $this->is_archived = true;
         $this->archived_at = now();
@@ -416,7 +444,7 @@ class Document extends Model
             $archivedStatus = Status::firstOrCreate(
                 [
                     'company_id' => $this->company_id,
-                    'slug' => DocumentStatus::Archived->value
+                    'slug' => DocumentStatus::Archived->value,
                 ],
                 [
                     'name' => DocumentStatus::Archived->getLabel(),
@@ -433,7 +461,7 @@ class Document extends Model
         return $success;
     }
 
-    public function unarchive(User $user = null, string $comments = null): bool
+    public function unarchive(?User $user = null, ?string $comments = null): bool
     {
         $this->is_archived = false;
         $this->archived_at = null;
@@ -441,7 +469,7 @@ class Document extends Model
         return $this->save();
     }
 
-    public function complete(User $user = null, string $comments = null): bool
+    public function complete(?User $user = null, ?string $comments = null): bool
     {
         $this->completed_at = now();
 
@@ -453,7 +481,7 @@ class Document extends Model
             $approvedStatus = Status::firstOrCreate(
                 [
                     'company_id' => $this->company_id,
-                    'slug' => DocumentStatus::Approved->value
+                    'slug' => DocumentStatus::Approved->value,
                 ],
                 [
                     'name' => DocumentStatus::Approved->getLabel(),
@@ -507,7 +535,7 @@ class Document extends Model
             'id' => $this->id,
             'document_number' => $this->document_number,
             'company' => $companyName,
-            'created_at' => $this->created_at?->toDateTimeString() ?? now()->toDateTimeString()
+            'created_at' => $this->created_at?->toDateTimeString() ?? now()->toDateTimeString(),
         ];
 
         return json_encode($data);
@@ -524,6 +552,7 @@ class Document extends Model
     public function transitionTo(Status $newStatus, ?string $comment = null, ?User $user = null): bool
     {
         $workflowEngine = app(WorkflowEngine::class);
+
         return $workflowEngine->transitionDocument($this, $newStatus, $comment, $user);
     }
 
@@ -533,11 +562,12 @@ class Document extends Model
     public function getAvailableTransitions(?User $user = null): array
     {
         $user = $user ?? Auth::user();
-        if (!$user) {
+        if (! $user) {
             return [];
         }
 
         $workflowEngine = app(WorkflowEngine::class);
+
         return $workflowEngine->getAvailableTransitions($this, $user);
     }
 
@@ -547,11 +577,12 @@ class Document extends Model
     public function canTransitionTo(Status $newStatus, ?User $user = null): bool
     {
         $user = $user ?? Auth::user();
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
         $workflowEngine = app(WorkflowEngine::class);
+
         return $workflowEngine->canTransition($this, $newStatus, $user);
     }
 
@@ -634,7 +665,7 @@ class Document extends Model
      */
     public function shouldBeSearchable(): bool
     {
-        return !$this->trashed();
+        return ! $this->trashed();
     }
 
     /**
@@ -675,6 +706,7 @@ class Document extends Model
         if ($this->assignee && method_exists($this->assignee, 'supervisor')) {
             return $this->assignee->supervisor;
         }
+
         return null;
     }
 
@@ -683,7 +715,7 @@ class Document extends Model
      */
     public function isOverdue(): bool
     {
-        if (!$this->status || $this->status->is_final) {
+        if (! $this->status || $this->status->is_final) {
             return false;
         }
 
@@ -693,6 +725,7 @@ class Document extends Model
 
         if ($workflowDefinition && $workflowDefinition->sla_hours) {
             $slaDeadline = $this->created_at->addHours($workflowDefinition->sla_hours);
+
             return now()->gt($slaDeadline);
         }
 
@@ -704,7 +737,7 @@ class Document extends Model
      */
     public function getTimeToSLA(): ?int
     {
-        if (!$this->status || $this->status->is_final) {
+        if (! $this->status || $this->status->is_final) {
             return null;
         }
 
@@ -715,6 +748,7 @@ class Document extends Model
         if ($workflowDefinition && $workflowDefinition->sla_hours) {
             $slaDeadline = $this->created_at->addHours($workflowDefinition->sla_hours);
             $hoursRemaining = now()->diffInHours($slaDeadline, false);
+
             return $hoursRemaining > 0 ? $hoursRemaining : 0;
         }
 
@@ -726,7 +760,7 @@ class Document extends Model
      */
     public function generatePublicTrackingCode(): string
     {
-        return strtoupper(substr(md5($this->id . $this->document_number . uniqid()), 0, 32));
+        return strtoupper(substr(md5($this->id.$this->document_number.uniqid()), 0, 32));
     }
 
     /**
@@ -753,6 +787,7 @@ class Document extends Model
     public function disableTracking(): bool
     {
         $this->tracking_enabled = false;
+
         return $this->save();
     }
 
@@ -761,7 +796,7 @@ class Document extends Model
      */
     public function isTrackingActive(): bool
     {
-        if (!$this->tracking_enabled || empty($this->public_tracking_code)) {
+        if (! $this->tracking_enabled || empty($this->public_tracking_code)) {
             return false;
         }
 
@@ -814,7 +849,7 @@ class Document extends Model
     /**
      * Obtener historial de movimientos de ubicación
      */
-    public function getLocationHistory(int $limit = null)
+    public function getLocationHistory(?int $limit = null)
     {
         $query = $this->locationHistory()->orderBy('moved_at', 'desc');
 

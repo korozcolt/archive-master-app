@@ -3,16 +3,13 @@
 namespace App\Filament\Resources;
 
 use App\Enums\Role;
-use App\Filament\Resources\CompanyResource\RelationManagers\StatusesRelationManager;
+use App\Filament\ResourceAccess;
 use App\Filament\Resources\WorkflowDefinitionResource\Pages;
 use App\Filament\Resources\WorkflowDefinitionResource\RelationManagers;
-use App\Models\Company;
-use App\Models\Status;
 use App\Models\WorkflowDefinition;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Collection;
-use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -30,6 +27,16 @@ class WorkflowDefinitionResource extends Resource
     protected static ?string $navigationGroup = 'Gestión Documental';
 
     protected static ?int $navigationSort = 4;
+
+    public static function canViewAny(): bool
+    {
+        return ResourceAccess::allows(roles: ['admin']);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
 
     public static function getNavigationBadge(): ?string
     {
@@ -70,6 +77,7 @@ class WorkflowDefinitionResource extends Resource
                                 if ($companyId) {
                                     return $query->where('company_id', $companyId);
                                 }
+
                                 return $query;
                             })
                             ->required()
@@ -82,6 +90,7 @@ class WorkflowDefinitionResource extends Resource
                                 if ($companyId) {
                                     return $query->where('company_id', $companyId);
                                 }
+
                                 return $query;
                             })
                             ->required()

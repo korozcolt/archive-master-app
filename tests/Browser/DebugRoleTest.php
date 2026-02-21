@@ -28,7 +28,7 @@ class DebugRoleTest extends DuskTestCase
             'branch_id' => $branch->id
         ]);
 
-        $role = Role::create(['name' => 'regular_user', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'regular_user', 'guard_name' => 'web']);
 
         $user = User::factory()->create([
             'company_id' => $company->id,

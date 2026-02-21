@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
-use App\Enums\Role;
+use App\Enums\Role as AppRole;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,9 +16,9 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
-    use HasApiTokens, HasFactory, Notifiable, HasRoles, LogsActivity, Searchable;
+    use HasApiTokens, HasFactory, HasRoles, LogsActivity, Notifiable, Searchable;
 
     protected $fillable = [
         'name',
@@ -56,6 +58,19 @@ class User extends Authenticatable
             ->dontSubmitEmptyLogs();
     }
 
+    public function canAccessPanel(Panel $panel): bool
+    {
+        if ($panel->getId() !== 'admin') {
+            return false;
+        }
+
+        return $this->hasAnyRole([
+            AppRole::SuperAdmin->value,
+            AppRole::Admin->value,
+            AppRole::BranchAdmin->value,
+        ]);
+    }
+
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
@@ -74,6 +89,11 @@ class User extends Authenticatable
     public function createdDocuments(): HasMany
     {
         return $this->hasMany(Document::class, 'created_by');
+    }
+
+    public function documents(): HasMany
+    {
+        return $this->createdDocuments();
     }
 
     public function assignedDocuments(): HasMany
@@ -123,6 +143,7 @@ class User extends Authenticatable
                     return true;
                 }
             }
+
             return false;
         }
 

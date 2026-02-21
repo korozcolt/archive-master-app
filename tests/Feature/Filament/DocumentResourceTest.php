@@ -20,8 +20,11 @@ class DocumentResourceTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected Company $company;
+
     protected Status $status;
+
     protected Category $category;
 
     protected function setUp(): void
@@ -113,6 +116,25 @@ class DocumentResourceTest extends TestCase
     }
 
     /** @test */
+    public function can_view_document_page()
+    {
+        $this->actingAs($this->admin);
+
+        $document = Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $this->status->id,
+            'category_id' => $this->category->id,
+            'created_by' => $this->admin->id,
+            'file_path' => 'documents/test.pdf',
+        ]);
+
+        Livewire::test(DocumentResource\Pages\ViewDocument::class, [
+            'record' => $document->id,
+        ])
+            ->assertSuccessful();
+    }
+
+    /** @test */
     public function can_create_document()
     {
         $this->actingAs($this->admin);
@@ -125,6 +147,8 @@ class DocumentResourceTest extends TestCase
             'category_id' => $this->category->id,
             'priority' => 'medium',
             'is_confidential' => false,
+            'digital_document_type' => 'copia',
+            'tracking_enabled' => false,
             'tags' => [],
         ];
 
@@ -266,6 +290,8 @@ class DocumentResourceTest extends TestCase
             'assigned_to' => $assignee->id,
             'priority' => 'high',
             'is_confidential' => false,
+            'digital_document_type' => 'copia',
+            'tracking_enabled' => false,
             'tags' => [],
         ];
 
@@ -291,6 +317,8 @@ class DocumentResourceTest extends TestCase
             'status_id' => $this->status->id,
             'priority' => 'high',
             'is_confidential' => false,
+            'digital_document_type' => 'copia',
+            'tracking_enabled' => false,
             'tags' => [],
         ];
 
@@ -327,6 +355,8 @@ class DocumentResourceTest extends TestCase
             'status_id' => $this->status->id,
             'priority' => 'medium',
             'is_confidential' => false,
+            'digital_document_type' => 'copia',
+            'tracking_enabled' => false,
             'tags' => [],
         ];
 
