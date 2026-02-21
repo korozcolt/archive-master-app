@@ -1,7 +1,7 @@
 # Plan Maestro de Desarrollo por Fases (Con Checklist)
 
 **Fecha de inicio propuesta**: 2026-02-09  
-**Última actualización**: 2026-02-06  
+**Última actualización**: 2026-02-21  
 **Estado general**: En progreso
 
 ---
@@ -141,6 +141,9 @@ Completar funcionalidades y tests aún pendientes del roadmap.
 - [ ] Implementar restauración desde backup (documentación + validación)
 - [ ] Implementar módulo `Receipt` (migración, modelo, servicio, controlador, resource)
 - [ ] Crear vistas/plantillas de recibidos PDF
+- [x] Implementar base web de recibidos (`receipts` + vista + descarga PDF)
+- [x] Implementar onboarding `regular_user` desde recibido con login OTP en portal
+- [ ] Completar administración de recibidos en panel (`Filament Resource`) y notificación externa (email/SMS)
 - [ ] Agregar endpoints públicos de tracking en API
 - [ ] Implementar rate limiter y sanitización para tracking público
 - [ ] Crear tests faltantes priorizados:
@@ -186,6 +189,34 @@ Dejar control de calidad continuo y preparación para producción.
 
 ---
 
+## Fase IA - OpenAI/Gemini para Documentos (2026-04-20 a 2026-05-22)
+
+### Objetivo
+Generar resúmenes ejecutivos y sugerencias de clasificación/tags por versión de documento, en pipeline asíncrono y multi-tenant.
+
+### Checklist
+- [x] Fase 0: Decisiones técnicas (`PD-AI-001`) con BYOK y flags base.
+- [x] Fase 1: Core BD/modelos/factories (`company_ai_settings`, `document_ai_runs`, `document_ai_outputs`).
+- [~] Fase 2: Seguridad completa (RBAC `ai.*`, auditoría y gestión de llaves en UI).
+- [x] Fase 2 (parcial): permisos `ai.*` y policies por modelo IA con aislamiento por compañía/documento.
+- [x] Fase 2 (parcial): auditoría técnica de runs (`LogsActivity` en `DocumentAiRun`).
+- [x] Fase 2 (parcial): `api_key_encrypted` oculto en serialización de settings.
+- [ ] Fase 2 (pendiente): gestión de llaves por UI (masked + test key) y aplicación completa en panel admin.
+- [ ] Fase 3: Integración proveedores (gateway + adapters OpenAI/Gemini).
+- [x] Fase 3 (parcial): contrato de proveedor + `AiGateway` + adapters base OpenAI/Gemini con `config/ai.php`.
+- [ ] Fase 3 (pendiente): integración live API (no mock) + `test key` admin contra proveedor real.
+- [x] Fase 4: Pipeline asíncrono por `DocumentVersionCreated` + cache por `input_hash`.
+- [x] Fase 5: UI Admin Filament para settings IA por compañía.
+- [x] Fase 6: UI Portal operativo para resumen/sugerencias y aplicar cambios.
+- [~] Fase 7: Hardening (PII redaction, límites, observabilidad y reintentos).
+- [ ] Fase 8 opcional: embeddings/búsqueda semántica por tenant.
+
+### Criterio de salida
+- [ ] Flujo estable en producción para `summarize` por versión.
+- [ ] Costos, límites y trazabilidad por compañía validados.
+
+---
+
 ## Registro de Avance (Bitácora Operativa)
 
 Usar esta sección para trazabilidad diaria/semanal.
@@ -213,6 +244,16 @@ Usar esta sección para trazabilidad diaria/semanal.
 | 2026-02-06 | Fase 2 | Tracking público | Tracking UI + API con evidencia (válido, inválido, expirado) | `e2e/evidence/phase2-tracking-*.png` | Completado |
 | 2026-02-06 | Fase 2 | Stickers/QR | Preview y descarga de stickers con QR operativo | `e2e/evidence/phase2-sticker-document-preview.png` | Completado |
 | 2026-02-06 | Fase 2 | Dusk base | Acceso admin por rol + ajustes de Dusk env + advanced search OK | `php artisan dusk --filter=AdvancedSearchTest` | En progreso |
+| 2026-02-21 | Fase 3 | Recibidos + onboarding OTP | Flujo receptionist→recibido→regular_user + login OTP portal + PDF recibido | `php artisan test tests/Feature/ReceiptPortalOtpAuthTest.php` | Completado |
+| 2026-02-21 | Fase 3 | Fix crítico rutas | Se corrige colisión `documents.store` API/web con prefijo `api.documents.*` | `php artisan route:list --name=documents.store` | Completado |
+| 2026-02-21 | Fase IA | Fase 0+1 | Documento de decisión (`PD-AI-001`) + core tablas/modelos/factories + test base | `php artisan test tests/Feature/AiModuleCoreTest.php` | Completado |
+| 2026-02-21 | Fase IA | Fase 2 (parcial) | RBAC `ai.*` + policies IA + auditoría runs + tests de autorización | `php artisan test tests/Feature/AiAuthorizationTest.php` | Completado |
+| 2026-02-21 | Fase IA | Validación regresión | Suite IA + portal OTP + acceso portal estable tras cambios de seguridad | `php artisan test tests/Feature/AiAuthorizationTest.php tests/Feature/AiModuleCoreTest.php tests/Feature/ReceiptPortalOtpAuthTest.php tests/Feature/PortalAccessTest.php` | Completado |
+| 2026-02-21 | Fase IA | Fase 3 (parcial) | `AiGateway` + adapters OpenAI/Gemini + configuración central IA | `php artisan test tests/Feature/AiGatewayTest.php` | Completado |
+| 2026-02-21 | Fase IA | Fase 4 | Evento+listener+job asíncronos para resumen IA con límite diario, límite de páginas y cache por hash | `php artisan test tests/Feature/AiPipelineTest.php` | Completado |
+| 2026-02-21 | Fase IA | Fase 5 | UI admin en `CompanyResource` para provider/key/límites + acciones `Test key` y `Run sample` + guardado seguro de key | `php artisan test tests/Feature/Filament/CompanyAiSettingsTest.php tests/Feature/Filament/CompanyResourceTest.php` | Completado |
+| 2026-02-21 | Fase IA | Fase 6 | Panel IA en vista de documento (resumen/sugerencias) + acciones portal `Regenerar IA`, `Aplicar sugerencias` y `Marcar incorrecto` + visibilidad de entidades/confianza por rol | `php artisan test tests/Feature/DocumentAiPortalActionsTest.php` | Completado |
+| 2026-02-21 | Fase IA | Fase 7 (parcial) | Redacción PII + throttling portal + budget mensual + circuit breaker (incluye pruebas con fallos reales del gateway) + observabilidad admin (métricas rápidas, página dedicada por empresa y export CSV) | `php artisan test tests/Feature/AiGatewayTest.php tests/Feature/AiPipelineTest.php tests/Feature/DocumentAiPortalActionsTest.php tests/Feature/Filament/CompanyAiSettingsTest.php` | En progreso |
 
 ---
 

@@ -41,7 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Gestión de documentos
-    Route::apiResource('documents', DocumentController::class);
+    Route::apiResource('documents', DocumentController::class)->names('api.documents');
     Route::post('documents/{id}/transition', [DocumentController::class, 'transition']);
 
     // Gestión de ubicaciones físicas

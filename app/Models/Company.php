@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Scout\Searchable;
 use Spatie\Activitylog\LogOptions;
@@ -13,7 +14,7 @@ use Spatie\Translatable\HasTranslations;
 
 class Company extends Model
 {
-    use HasFactory, LogsActivity, SoftDeletes, HasTranslations, Searchable;
+    use HasFactory, HasTranslations, LogsActivity, Searchable, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -29,7 +30,7 @@ class Company extends Model
         'active',
         'settings',
     ];
-    
+
     public $translatable = [
         'name',
         'legal_name',
@@ -89,6 +90,16 @@ class Company extends Model
         return $this->hasMany(WorkflowDefinition::class);
     }
 
+    public function aiSetting(): HasOne
+    {
+        return $this->hasOne(CompanyAiSetting::class);
+    }
+
+    public function aiRuns(): HasMany
+    {
+        return $this->hasMany(DocumentAiRun::class);
+    }
+
     public function scopeActive($query)
     {
         return $query->where('active', true);
@@ -97,7 +108,7 @@ class Company extends Model
     public function getLogoUrlAttribute(): string
     {
         if ($this->logo) {
-            return asset('storage/' . $this->logo);
+            return asset('storage/'.$this->logo);
         }
 
         // Use the SVG default logo
@@ -151,6 +162,6 @@ class Company extends Model
      */
     public function shouldBeSearchable(): bool
     {
-        return $this->active && !$this->trashed();
+        return $this->active && ! $this->trashed();
     }
 }

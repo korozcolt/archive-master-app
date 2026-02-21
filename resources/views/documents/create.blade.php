@@ -132,6 +132,48 @@
                 @enderror
             </div>
 
+            @if(Auth::user()?->hasRole('receptionist'))
+                <div class="rounded-md border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/30">
+                    <h3 class="text-sm font-semibold text-blue-900 dark:text-blue-200">Datos del recibido</h3>
+                    <p class="mt-1 text-xs text-blue-800 dark:text-blue-300">
+                        Al guardar, se generará un recibido y se habilitará acceso OTP al portal para el receptor.
+                    </p>
+
+                    <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <label for="recipient_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Nombre receptor <span class="text-red-600">*</span>
+                            </label>
+                            <input type="text" name="recipient_name" id="recipient_name" value="{{ old('recipient_name') }}"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 sm:text-sm">
+                            @error('recipient_name')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <div>
+                            <label for="recipient_email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Correo receptor <span class="text-red-600">*</span>
+                            </label>
+                            <input type="email" name="recipient_email" id="recipient_email" value="{{ old('recipient_email') }}"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 sm:text-sm">
+                            @error('recipient_email')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label for="recipient_phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Teléfono receptor
+                            </label>
+                            <input type="text" name="recipient_phone" id="recipient_phone" value="{{ old('recipient_phone') }}"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 sm:text-sm">
+                            @error('recipient_phone')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             <!-- Confidencial -->
             <div class="flex items-start">
                 <div class="flex items-center h-5">

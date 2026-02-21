@@ -111,6 +111,16 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(WorkflowHistory::class, 'performed_by');
     }
 
+    public function issuedReceipts(): HasMany
+    {
+        return $this->hasMany(Receipt::class, 'issued_by');
+    }
+
+    public function receivedReceipts(): HasMany
+    {
+        return $this->hasMany(Receipt::class, 'recipient_user_id');
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);

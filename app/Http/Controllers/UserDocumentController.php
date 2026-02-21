@@ -2,12 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Role;
+use App\Events\DocumentVersionCreated;
+use App\Listeners\QueueDocumentVersionAiPipeline;
 use App\Models\Category;
 use App\Models\Document;
+use App\Models\DocumentAiOutput;
+use App\Models\DocumentAiRun;
+use App\Models\Receipt;
 use App\Models\Status;
+use App\Models\Tag;
+use App\Models\User;
 use App\Services\DocumentFileService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Spatie\Permission\Models\Role as SpatieRole;
 
 class UserDocumentController extends Controller
 {
@@ -120,6 +131,8 @@ class UserDocumentController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
+        $isReceptionist = $user->roles()->where('name', Role::Receptionist->value)->exists();
+        $hasReceiptData = $request->filled('recipient_name') && $request->filled('recipient_email');
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -130,6 +143,9 @@ class UserDocumentController extends Controller
             'file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png|max:10240', // 10MB max
             'is_confidential' => 'boolean',
             'priority' => 'required|in:low,medium,high',
+            'recipient_name' => ($isReceptionist || $hasReceiptData) ? 'required|string|max:255' : 'nullable|string|max:255',
+            'recipient_email' => ($isReceptionist || $hasReceiptData) ? 'required|email|max:255' : 'nullable|email|max:255',
+            'recipient_phone' => 'nullable|string|max:30',
         ]);
 
         // Procesar archivo si existe
@@ -155,6 +171,19 @@ class UserDocumentController extends Controller
             'file_path' => $filePath,
         ]);
 
+        if ($isReceptionist || $hasReceiptData) {
+            $receipt = $this->createReceiptForPortalUser(
+                document: $document,
+                issuer: $user,
+                recipientName: $validated['recipient_name'],
+                recipientEmail: $validated['recipient_email'],
+                recipientPhone: $validated['recipient_phone'] ?? null,
+            );
+
+            return redirect()->route('documents.show', $document)
+                ->with('success', 'Documento creado exitosamente. Recibido generado: '.$receipt->receipt_number);
+        }
+
         return redirect()->route('documents.show', $document)
             ->with('success', 'Documento creado exitosamente.');
     }
@@ -175,9 +204,15 @@ class UserDocumentController extends Controller
             logDocumentAccess($document, 'view');
         }
 
-        $document->load(['status', 'category', 'creator', 'assignee', 'tags', 'versions']);
+        $document->load(['status', 'category', 'creator', 'assignee', 'tags', 'versions', 'receipts', 'company']);
+        $latestAiRun = $document->aiRuns()
+            ->with('output')
+            ->where('task', 'summarize')
+            ->latest('id')
+            ->first();
+        $latestAiOutput = $latestAiRun?->output;
 
-        return view('documents.show', compact('document'));
+        return view('documents.show', compact('document', 'latestAiRun', 'latestAiOutput'));
     }
 
     /**
@@ -285,6 +320,66 @@ class UserDocumentController extends Controller
             || $document->assigned_to === $user->id;
     }
 
+    private function createReceiptForPortalUser(
+        Document $document,
+        User $issuer,
+        string $recipientName,
+        string $recipientEmail,
+        ?string $recipientPhone
+    ): Receipt {
+        $recipientUser = User::query()
+            ->where('email', $recipientEmail)
+            ->first();
+
+        if ($recipientUser && (int) $recipientUser->company_id !== (int) $issuer->company_id) {
+            abort(422, 'El correo receptor ya existe en otra empresa.');
+        }
+
+        if (! $recipientUser) {
+            $recipientUser = User::create([
+                'name' => $recipientName,
+                'email' => $recipientEmail,
+                'password' => Hash::make(Str::password(16)),
+                'company_id' => $issuer->company_id,
+                'branch_id' => $issuer->branch_id,
+                'department_id' => $issuer->department_id,
+                'position' => 'Usuario Portal',
+                'phone' => $recipientPhone,
+                'language' => 'es',
+                'timezone' => $issuer->timezone ?? 'America/Bogota',
+                'is_active' => true,
+                'email_verified_at' => now(),
+            ]);
+        }
+
+        SpatieRole::firstOrCreate(['name' => Role::RegularUser->value]);
+
+        if (! $recipientUser->hasRole(Role::RegularUser->value)) {
+            $recipientUser->assignRole(Role::RegularUser->value);
+        }
+
+        return Receipt::create([
+            'document_id' => $document->id,
+            'company_id' => $document->company_id,
+            'issued_by' => $issuer->id,
+            'recipient_user_id' => $recipientUser->id,
+            'receipt_number' => $this->generateReceiptNumber(),
+            'recipient_name' => $recipientName,
+            'recipient_email' => $recipientEmail,
+            'recipient_phone' => $recipientPhone,
+            'issued_at' => now(),
+        ]);
+    }
+
+    private function generateReceiptNumber(): string
+    {
+        do {
+            $number = 'REC-'.now()->format('Ymd').'-'.str_pad((string) random_int(1, 9999), 4, '0', STR_PAD_LEFT);
+        } while (Receipt::query()->where('receipt_number', $number)->exists());
+
+        return $number;
+    }
+
     /**
      * Exportar documentos a CSV
      */
@@ -390,5 +485,181 @@ class UserDocumentController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    public function regenerateAiSummary(Document $document)
+    {
+        $user = Auth::user();
+
+        if (! $this->canAccessDocument($user, $document)) {
+            abort(403, 'No tienes permiso para regenerar IA en este documento.');
+        }
+
+        if (! $user->can('create', DocumentAiRun::class)) {
+            abort(403, 'No tienes permiso para ejecutar IA.');
+        }
+
+        $latestVersion = $document->versions()->latest('version_number')->first();
+        if (! $latestVersion) {
+            return redirect()->route('documents.show', $document)
+                ->with('error', 'El documento no tiene versiones para procesar.');
+        }
+
+        $listener = app(QueueDocumentVersionAiPipeline::class);
+        $beforeCount = DocumentAiRun::query()
+            ->where('document_version_id', $latestVersion->id)
+            ->where('task', 'summarize')
+            ->count();
+
+        $listener->handle(new DocumentVersionCreated($latestVersion));
+
+        $afterCount = DocumentAiRun::query()
+            ->where('document_version_id', $latestVersion->id)
+            ->where('task', 'summarize')
+            ->count();
+
+        if ($afterCount <= $beforeCount) {
+            return redirect()->route('documents.show', $document)
+                ->with('warning', 'No se pudo encolar IA. Verifica configuración por compañía.');
+        }
+
+        return redirect()->route('documents.show', $document)
+            ->with('success', 'Resumen IA encolado para regeneración.');
+    }
+
+    public function applyAiSuggestions(Document $document)
+    {
+        $user = Auth::user();
+
+        if (! $this->canAccessDocument($user, $document)) {
+            abort(403, 'No tienes permiso para aplicar sugerencias IA en este documento.');
+        }
+
+        $run = $document->aiRuns()
+            ->with('output')
+            ->where('task', 'summarize')
+            ->where('status', 'success')
+            ->latest('id')
+            ->first();
+
+        if (! $run || ! $run->output) {
+            return redirect()->route('documents.show', $document)
+                ->with('warning', 'No hay sugerencias IA disponibles.');
+        }
+
+        /** @var DocumentAiOutput $output */
+        $output = $run->output;
+        if (! $user->can('applySuggestions', $output)) {
+            abort(403, 'No tienes permiso para aplicar sugerencias IA.');
+        }
+
+        $changes = 0;
+
+        if ($output->suggested_category_id) {
+            $category = Category::query()
+                ->where('id', $output->suggested_category_id)
+                ->where('company_id', $document->company_id)
+                ->first();
+
+            if ($category && (int) $document->category_id !== (int) $category->id) {
+                $document->category_id = $category->id;
+                $changes++;
+            }
+        }
+
+        if ($output->suggested_department_id) {
+            $department = \App\Models\Department::query()
+                ->where('id', $output->suggested_department_id)
+                ->where('company_id', $document->company_id)
+                ->first();
+
+            if ($department && (int) $document->department_id !== (int) $department->id) {
+                $document->department_id = $department->id;
+                $changes++;
+            }
+        }
+
+        $tags = collect($output->suggested_tags ?? [])
+            ->filter(fn ($tag): bool => is_string($tag) && trim($tag) !== '')
+            ->map(fn (string $tag): string => trim($tag))
+            ->unique()
+            ->values();
+
+        $tagIds = [];
+        foreach ($tags as $tagName) {
+            $slug = Str::slug($tagName);
+            $tag = Tag::query()->firstOrCreate(
+                [
+                    'company_id' => $document->company_id,
+                    'slug' => $slug,
+                ],
+                [
+                    'name' => $tagName,
+                    'active' => true,
+                ]
+            );
+
+            $tagIds[] = $tag->id;
+        }
+
+        if ($tagIds !== []) {
+            $document->tags()->syncWithoutDetaching($tagIds);
+            $changes++;
+        }
+
+        if ($document->isDirty(['category_id', 'department_id'])) {
+            $document->save();
+        }
+
+        return redirect()->route('documents.show', $document)
+            ->with('success', $changes > 0
+                ? 'Sugerencias IA aplicadas al documento.'
+                : 'No hubo cambios nuevos para aplicar.');
+    }
+
+    public function markAiSummaryIncorrect(Request $request, Document $document)
+    {
+        $user = Auth::user();
+
+        if (! $this->canAccessDocument($user, $document)) {
+            abort(403, 'No tienes permiso para registrar feedback IA en este documento.');
+        }
+
+        $run = $document->aiRuns()
+            ->with('output')
+            ->where('task', 'summarize')
+            ->where('status', 'success')
+            ->latest('id')
+            ->first();
+
+        if (! $run || ! $run->output) {
+            return redirect()->route('documents.show', $document)
+                ->with('warning', 'No hay un resumen IA para reportar.');
+        }
+
+        /** @var DocumentAiOutput $output */
+        $output = $run->output;
+
+        if (! $user->can('markIncorrect', $output)) {
+            abort(403, 'No tienes permiso para reportar este resumen IA.');
+        }
+
+        $note = trim((string) $request->input('feedback_note', ''));
+        $confidence = is_array($output->confidence) ? $output->confidence : [];
+        $feedback = is_array($confidence['feedback'] ?? null) ? $confidence['feedback'] : [];
+        $feedback[] = [
+            'type' => 'incorrect',
+            'user_id' => $user->id,
+            'marked_at' => now()->toISOString(),
+            'note' => $note !== '' ? $note : null,
+        ];
+
+        $confidence['feedback'] = $feedback;
+        $output->update([
+            'confidence' => $confidence,
+        ]);
+
+        return redirect()->route('documents.show', $document)
+            ->with('success', 'Feedback IA registrado. Gracias por reportarlo.');
     }
 }

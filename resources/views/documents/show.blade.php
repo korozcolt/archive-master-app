@@ -141,6 +141,114 @@
         </div>
     </div>
 
+    @if($latestAiRun)
+        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+            <div class="p-6 space-y-5">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">
+                        Resumen Ejecutivo (IA)
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <span class="inline-flex items-center rounded-md px-2 py-1 text-xs font-semibold
+                            @if($latestAiRun->status === 'success') bg-green-100 text-green-700
+                            @elseif($latestAiRun->status === 'running' || $latestAiRun->status === 'queued') bg-yellow-100 text-yellow-700
+                            @elseif($latestAiRun->status === 'skipped') bg-gray-100 text-gray-700
+                            @else bg-red-100 text-red-700 @endif">
+                            {{ strtoupper($latestAiRun->status) }}
+                        </span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">
+                            {{ strtoupper($latestAiRun->provider) }} • {{ $latestAiRun->updated_at?->format('d/m/Y H:i') }}
+                        </span>
+                    </div>
+                </div>
+
+                @if($latestAiOutput && Auth::user()->can('view', $latestAiOutput))
+                    <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                        <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">Resumen</p>
+                        <div class="mt-2 text-sm leading-6 text-gray-700 dark:text-gray-300">
+                            {!! nl2br(e($latestAiOutput->summary_md ?? 'Sin resumen disponible.')) !!}
+                        </div>
+                    </div>
+
+                    @if(!empty($latestAiOutput->executive_bullets) && is_array($latestAiOutput->executive_bullets))
+                        <div>
+                            <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">Puntos clave</p>
+                            <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-700 dark:text-gray-300">
+                                @foreach($latestAiOutput->executive_bullets as $bullet)
+                                    <li>{{ $bullet }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
+                    <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                        <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">Sugerencias IA</p>
+                        <div class="mt-2 space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                            <p>
+                                <span class="font-medium">Tags sugeridos:</span>
+                                {{ collect($latestAiOutput->suggested_tags ?? [])->join(', ') ?: 'Sin sugerencias' }}
+                            </p>
+                            <p>
+                                <span class="font-medium">Categoría sugerida:</span>
+                                {{ optional(\App\Models\Category::find($latestAiOutput->suggested_category_id))->name ?? 'Sin sugerencia' }}
+                            </p>
+                            <p>
+                                <span class="font-medium">Departamento sugerido:</span>
+                                {{ optional(\App\Models\Department::find($latestAiOutput->suggested_department_id))->name ?? 'Sin sugerencia' }}
+                            </p>
+                        </div>
+                    </div>
+
+                    @if(Auth::user()->can('viewEntities', $latestAiOutput))
+                        <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                            <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">Entidades detectadas y confianza</p>
+                            <div class="mt-2 space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                                <p>
+                                    <span class="font-medium">Entidades:</span>
+                                    {{ !empty($latestAiOutput->entities) ? json_encode($latestAiOutput->entities, JSON_UNESCAPED_UNICODE) : 'Sin entidades' }}
+                                </p>
+                                <p>
+                                    <span class="font-medium">Confianza:</span>
+                                    {{ !empty($latestAiOutput->confidence) ? json_encode($latestAiOutput->confidence, JSON_UNESCAPED_UNICODE) : 'Sin datos de confianza' }}
+                                </p>
+                            </div>
+                        </div>
+                    @endif
+                @endif
+
+                <div class="flex flex-wrap gap-2">
+                    @if(Auth::user()->can('create', \App\Models\DocumentAiRun::class))
+                        <form method="POST" action="{{ route('documents.ai.regenerate', $document) }}">
+                            @csrf
+                            <button type="submit" class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700">
+                                Regenerar IA
+                            </button>
+                        </form>
+                    @endif
+
+                    @if($latestAiOutput && Auth::user()->can('applySuggestions', $latestAiOutput))
+                        <form method="POST" action="{{ route('documents.ai.apply', $document) }}">
+                            @csrf
+                            <button type="submit" class="inline-flex items-center rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">
+                                Aplicar sugerencias
+                            </button>
+                        </form>
+                    @endif
+
+                    @if($latestAiOutput && Auth::user()->can('markIncorrect', $latestAiOutput))
+                        <form method="POST" action="{{ route('documents.ai.mark-incorrect', $document) }}" class="flex flex-wrap items-center gap-2">
+                            @csrf
+                            <input type="text" name="feedback_note" maxlength="255" placeholder="¿Qué salió mal? (opcional)" class="rounded-md border-gray-300 px-3 py-2 text-xs dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100" />
+                            <button type="submit" class="inline-flex items-center rounded-md bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700">
+                                Marcar como incorrecto
+                            </button>
+                        </form>
+                    @endif
+                </div>
+            </div>
+        </div>
+    @endif
+
     <!-- Tags -->
     @if($document->tags->count() > 0)
         <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
@@ -153,6 +261,29 @@
                         <span class="px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                             {{ $tag->name }}
                         </span>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if($document->receipts->count() > 0)
+        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+            <div class="p-6">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+                    Recibidos
+                </h3>
+                <div class="space-y-3">
+                    @foreach($document->receipts as $receipt)
+                        <div class="flex items-center justify-between rounded border border-gray-200 p-3 dark:border-gray-700">
+                            <div>
+                                <p class="font-medium text-gray-900 dark:text-gray-100">{{ $receipt->receipt_number }}</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">{{ $receipt->recipient_name }} ({{ $receipt->recipient_email }})</p>
+                            </div>
+                            <a href="{{ route('receipts.show', $receipt) }}" class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">
+                                Ver recibido
+                            </a>
+                        </div>
                     @endforeach
                 </div>
             </div>

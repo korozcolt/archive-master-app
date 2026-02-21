@@ -200,6 +200,16 @@ class Document extends Model
         return $this->hasMany(DocumentLocationHistory::class);
     }
 
+    public function receipts(): HasMany
+    {
+        return $this->hasMany(Receipt::class);
+    }
+
+    public function aiRuns(): HasMany
+    {
+        return $this->hasMany(DocumentAiRun::class);
+    }
+
     // Scopes
     public function scopeInCompany($query, $companyId)
     {

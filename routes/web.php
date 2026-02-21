@@ -13,6 +13,11 @@ Route::get('/', function () {
     return view('welcome');
 })->name('welcome');
 
+Route::get('/login', [App\Http\Controllers\PortalAuthController::class, 'showLoginForm'])->name('portal.auth.login');
+Route::post('/portal/auth/request-otp', [App\Http\Controllers\PortalAuthController::class, 'requestOtp'])->name('portal.auth.request-otp');
+Route::get('/portal/auth/verify', [App\Http\Controllers\PortalAuthController::class, 'showVerifyForm'])->name('portal.auth.verify.form');
+Route::post('/portal/auth/verify', [App\Http\Controllers\PortalAuthController::class, 'verifyOtp'])->name('portal.auth.verify');
+
 // Rutas públicas de tracking (sin autenticación)
 Route::prefix('tracking')->name('tracking.')->group(function () {
     Route::get('/', [App\Http\Controllers\PublicTrackingController::class, 'index'])->name('index');
@@ -80,6 +85,11 @@ Route::middleware(['auth'])->prefix('approvals')->name('approvals.')->group(func
 Route::middleware(['auth'])->group(function () {
     // Ruta de exportación (debe estar antes del resource)
     Route::get('/documents/export/csv', [App\Http\Controllers\UserDocumentController::class, 'export'])->name('documents.export');
+    Route::middleware('throttle:ai-actions')->group(function () {
+        Route::post('/documents/{document}/ai/regenerate', [App\Http\Controllers\UserDocumentController::class, 'regenerateAiSummary'])->name('documents.ai.regenerate');
+        Route::post('/documents/{document}/ai/apply-suggestions', [App\Http\Controllers\UserDocumentController::class, 'applyAiSuggestions'])->name('documents.ai.apply');
+        Route::post('/documents/{document}/ai/mark-incorrect', [App\Http\Controllers\UserDocumentController::class, 'markAiSummaryIncorrect'])->name('documents.ai.mark-incorrect');
+    });
 
     // Rutas CRUD de documentos
     Route::resource('documents', App\Http\Controllers\UserDocumentController::class);
@@ -238,4 +248,9 @@ Route::middleware(['auth'])->prefix('stickers')->name('stickers.')->group(functi
         Route::get('/{location}/configure', [App\Http\Controllers\StickerController::class, 'configureLocation'])->name('configure');
         Route::post('/batch/download', [App\Http\Controllers\StickerController::class, 'downloadBatchLocations'])->name('batch.download');
     });
+});
+
+Route::middleware(['auth'])->prefix('receipts')->name('receipts.')->group(function () {
+    Route::get('/{receipt}', [App\Http\Controllers\ReceiptController::class, 'show'])->name('show');
+    Route::get('/{receipt}/download', [App\Http\Controllers\ReceiptController::class, 'download'])->name('download');
 });

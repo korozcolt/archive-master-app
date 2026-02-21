@@ -3,10 +3,11 @@
 namespace App\Enums;
 
 use Filament\Support\Contracts\HasColor;
-use Filament\Support\Contracts\HasLabel;
 use Filament\Support\Contracts\HasIcon;
+use Filament\Support\Contracts\HasLabel;
 
-enum Role: string implements HasLabel, HasColor, HasIcon {
+enum Role: string implements HasColor, HasIcon, HasLabel
+{
     case SuperAdmin = 'super_admin';           // Acceso completo a todo el sistema
     case Admin = 'admin';                      // Administrador de empresa
     case BranchAdmin = 'branch_admin';         // Administrador de sucursal
@@ -28,7 +29,7 @@ enum Role: string implements HasLabel, HasColor, HasIcon {
         };
     }
 
-    public function getColor(): string | array | null
+    public function getColor(): string|array|null
     {
         return match ($this) {
             self::SuperAdmin => 'danger',
@@ -41,7 +42,7 @@ enum Role: string implements HasLabel, HasColor, HasIcon {
         };
     }
 
-    public function getIcon(): string | null
+    public function getIcon(): ?string
     {
         return match ($this) {
             self::SuperAdmin => 'heroicon-o-key',
@@ -83,23 +84,32 @@ enum Role: string implements HasLabel, HasColor, HasIcon {
             self::SuperAdmin => ['*'],
             self::Admin => [
                 'manage-company', 'manage-branches', 'manage-departments', 'manage-users',
-                'manage-documents', 'manage-categories', 'view-reports'
+                'manage-documents', 'manage-categories', 'view-reports',
+                'ai.settings.manage', 'ai.run.generate', 'ai.output.view',
+                'ai.output.regenerate', 'ai.output.apply_suggestions',
             ],
             self::BranchAdmin => [
                 'manage-branch', 'manage-departments', 'manage-users', 'manage-documents',
-                'view-branch-reports'
+                'view-branch-reports',
+                'ai.settings.manage', 'ai.run.generate', 'ai.output.view',
+                'ai.output.regenerate', 'ai.output.apply_suggestions',
             ],
             self::OfficeManager => [
-                'manage-department', 'manage-documents', 'assign-documents'
+                'manage-department', 'manage-documents', 'assign-documents',
+                'ai.run.generate', 'ai.output.view', 'ai.output.regenerate',
+                'ai.output.apply_suggestions',
             ],
             self::ArchiveManager => [
-                'manage-archives', 'view-documents', 'archive-documents'
+                'manage-archives', 'view-documents', 'archive-documents',
+                'ai.run.generate', 'ai.output.view', 'ai.output.regenerate',
+                'ai.output.apply_suggestions',
             ],
             self::Receptionist => [
-                'create-documents', 'view-documents', 'update-documents'
+                'create-documents', 'view-documents', 'update-documents',
+                'ai.run.generate', 'ai.output.view',
             ],
             self::RegularUser => [
-                'view-own-documents', 'create-documents'
+                'view-own-documents', 'create-documents', 'ai.output.view',
             ],
         };
     }
@@ -113,6 +123,7 @@ enum Role: string implements HasLabel, HasColor, HasIcon {
                 $allPermissions = array_merge($allPermissions, $permissions);
             }
         }
+
         return array_unique($allPermissions);
     }
 }

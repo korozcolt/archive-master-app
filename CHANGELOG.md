@@ -7,6 +7,105 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2026-02-21
+
+- UI Portal IA (Fase 6, parcial):
+  - panel IA en detalle de documento con estado de run, resumen y sugerencias
+  - acción `Regenerar IA` (encola nueva corrida por versión)
+  - acción `Aplicar sugerencias` (categoría/departamento/tags sugeridos)
+  - acción `Marcar como incorrecto` (feedback persistido en `confidence.feedback`)
+  - bloque `Entidades detectadas y confianza` visible solo para roles autorizados
+- Hardening IA (Fase 7, parcial):
+  - redacción básica de PII antes de enviar texto a proveedor cuando `redact_pii=true`
+  - rate limiting de acciones IA del portal con `throttle:ai-actions` (por usuario/compañía), configurable por `AI_ACTIONS_PER_HOUR`
+  - control de presupuesto mensual por compañía (`monthly_budget_cents`) en pipeline
+  - circuit breaker simple por proveedor/compañía (threshold + cooldown)
+  - logs estructurados de runs IA (`started/succeeded/skipped/failed`)
+  - observabilidad admin en edición de empresa: runs de hoy, éxitos del mes, costo acumulado, fallos por proveedor (24h) y último error
+  - página dedicada de observabilidad IA por empresa con agregados por proveedor y últimos 7 días
+  - exportación CSV desde la página de observabilidad IA
+  - tests de resiliencia del circuit breaker con fallos reales del gateway (incremento de contador y apertura por threshold)
+- Nuevas rutas portal para IA:
+  - `documents.ai.regenerate`
+  - `documents.ai.apply`
+- Tests Feature de acciones IA en portal:
+  - `/Volumes/NAS(MAC)/Data/Herd/archive-master-app/tests/Feature/DocumentAiPortalActionsTest.php`
+
+### Added - 2026-02-21
+
+- UI Admin IA (Fase 5) en edición de empresa:
+  - sección `Configuración IA` en `CompanyResource` (proveedor, habilitación, key oculta, límites y flags)
+  - acciones de página en `EditCompany`: `Test key IA` y `Run sample IA`
+  - persistencia manual segura de settings IA por compañía (sin exponer key previa)
+- Tests de Filament para settings IA:
+  - `/Volumes/NAS(MAC)/Data/Herd/archive-master-app/tests/Feature/Filament/CompanyAiSettingsTest.php`
+
+### Added - 2026-02-21
+
+- Pipeline asíncrono IA (Fase 4):
+  - evento `DocumentVersionCreated`
+  - listener en cola `QueueDocumentVersionAiPipeline`
+  - job `RunAiPipelineForDocumentVersion`
+  - creación de run `queued` y transición a `running/success/failed/skipped`
+  - validaciones de límite diario y máximo de páginas
+  - cache por `input_hash` + `prompt_version` (skip por duplicado exitoso)
+  - persistencia de `DocumentAiOutput` cuando `store_outputs=true`
+- `DocumentVersion` ahora dispara el evento `DocumentVersionCreated` al crear versión.
+- Cobertura de pruebas del pipeline IA:
+  - `/Volumes/NAS(MAC)/Data/Herd/archive-master-app/tests/Feature/AiPipelineTest.php`
+
+### Added - 2026-02-21
+
+- Entregable de decisiones técnicas de IA: `/Volumes/NAS(MAC)/Data/Herd/archive-master-app/PD-AI-001.md` (BYOK, proveedor por tenant, flags y alcance v1).
+- Core multi-tenant del módulo IA (Fase 1):
+  - `company_ai_settings`
+  - `document_ai_runs`
+  - `document_ai_outputs`
+- Modelos y relaciones:
+  - `CompanyAiSetting`, `DocumentAiRun`, `DocumentAiOutput`
+  - relaciones en `Company`, `Document`, `DocumentVersion`.
+- Factories para:
+  - `CompanyAiSetting`, `DocumentAiRun`, `DocumentAiOutput`, `DocumentVersion`.
+- Test de núcleo IA:
+  - `/Volumes/NAS(MAC)/Data/Herd/archive-master-app/tests/Feature/AiModuleCoreTest.php`
+- Seguridad IA (Fase 2, parcial):
+  - permisos RBAC `ai.settings.manage`, `ai.run.generate`, `ai.output.view`, `ai.output.regenerate`, `ai.output.apply_suggestions`
+  - policies: `CompanyAiSettingPolicy`, `DocumentAiRunPolicy`, `DocumentAiOutputPolicy`
+  - mapeo de policies en `AuthServiceProvider`
+  - auditoría técnica de corridas IA en `DocumentAiRun` con `LogsActivity`
+  - test de autorización: `/Volumes/NAS(MAC)/Data/Herd/archive-master-app/tests/Feature/AiAuthorizationTest.php`
+- Ajuste de seguridad en `CompanyAiSetting`: `api_key_encrypted` oculto en serialización (`hidden`).
+- Nota técnica: enforcement operativo en policies quedó por roles + scope (tenant/documento) por compatibilidad con implementación actual de autorización en `User`.
+- Integración IA base (Fase 3, parcial):
+  - `AiGateway` multi-tenant por compañía/proveedor
+  - contrato `AiProviderContract`
+  - adapters `OpenAiProvider` y `GeminiProvider` (modo mock configurable)
+  - configuración central en `config/ai.php`
+  - test de gateway: `/Volumes/NAS(MAC)/Data/Herd/archive-master-app/tests/Feature/AiGatewayTest.php`
+
+### Added - 2026-02-21
+
+- Módulo base de recibidos:
+  - migración `receipts`
+  - modelo `Receipt`
+  - vistas web de recibido y PDF (`receipts.show`, `receipts.pdf`)
+  - rutas protegidas `receipts.show` y `receipts.download`
+- Autenticación OTP para portal desde recibido:
+  - migración `portal_login_otps`
+  - modelo `PortalLoginOtp`
+  - `PortalAuthController` con solicitud y verificación OTP
+  - vistas `auth/portal-login` y `auth/portal-verify-otp`
+  - rutas `portal.auth.*` + `/login`
+- Tests Feature nuevos para flujo receptionist -> receipt -> regular_user -> OTP login:
+  - `tests/Feature/ReceiptPortalOtpAuthTest.php`
+
+### Fixed - 2026-02-21
+
+- Colisión de nombres de rutas `documents.store` entre API y web:
+  - `Route::apiResource('documents', ...)` ahora usa nombres `api.documents.*`
+  - el formulario web vuelve a resolver correctamente a `UserDocumentController@store`
+- `UserDocumentController@store` ahora genera recibido cuando se envían datos de receptor (además del caso receptionist explícito), evitando bloqueo del onboarding por estado de rol en sesión.
+
 ### Added - 2026-02-06
 
 - Portal Livewire `/portal` para roles operativos con dashboard y reportes personales de enviados/recibidos.

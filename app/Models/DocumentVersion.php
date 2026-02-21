@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use App\Events\DocumentVersionCreated;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -49,6 +51,11 @@ class DocumentVersion extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function aiRuns(): HasMany
+    {
+        return $this->hasMany(DocumentAiRun::class);
+    }
+
     // Scopes
     public function scopeCurrent($query)
     {
@@ -74,7 +81,7 @@ class DocumentVersion extends Model
     public function getFileUrlAttribute(): ?string
     {
         if ($this->file_path) {
-            return asset('storage/' . $this->file_path);
+            return asset('storage/'.$this->file_path);
         }
 
         return null;
@@ -91,7 +98,7 @@ class DocumentVersion extends Model
 
     public function getHumanFileSizeAttribute(): ?string
     {
-        if (!$this->file_size) {
+        if (! $this->file_size) {
             return null;
         }
 
@@ -104,12 +111,12 @@ class DocumentVersion extends Model
             $i++;
         }
 
-        return round($bytes, 2) . ' ' . $units[$i];
+        return round($bytes, 2).' '.$units[$i];
     }
 
     public function getVersionNameAttribute(): string
     {
-        return "V{$this->version_number}" . ($this->is_current ? ' (Actual)' : '');
+        return "V{$this->version_number}".($this->is_current ? ' (Actual)' : '');
     }
 
     public function getCreatedByNameAttribute(): string
@@ -137,14 +144,14 @@ class DocumentVersion extends Model
         if ($this->content != $otherVersion->content) {
             $diff['content'] = [
                 'old' => $otherVersion->content,
-                'new' => $this->content
+                'new' => $this->content,
             ];
         }
 
         if ($this->file_path != $otherVersion->file_path) {
             $diff['file'] = [
                 'old' => $otherVersion->file_name,
-                'new' => $this->file_name
+                'new' => $this->file_name,
             ];
         }
 
@@ -154,6 +161,10 @@ class DocumentVersion extends Model
     // Hooks
     protected static function booted()
     {
+        static::created(function (DocumentVersion $version) {
+            event(new DocumentVersionCreated($version));
+        });
+
         static::creating(function (DocumentVersion $version) {
             // Si no se proporciona metadata, inicializar como array vacío
             if (empty($version->metadata)) {
@@ -164,7 +175,7 @@ class DocumentVersion extends Model
             if ($version->created_by) {
                 $version->metadata = array_merge($version->metadata, [
                     'created_by_name' => User::find($version->created_by)?->name ?? 'Usuario desconocido',
-                    'created_at_formatted' => now()->format('d/m/Y H:i:s')
+                    'created_at_formatted' => now()->format('d/m/Y H:i:s'),
                 ]);
             }
 
@@ -178,7 +189,7 @@ class DocumentVersion extends Model
                 if ($previousVersion) {
                     $version->change_summary = "Actualización desde versión {$previousVersion->version_number}";
                 } else {
-                    $version->change_summary = "Versión inicial";
+                    $version->change_summary = 'Versión inicial';
                 }
             }
         });

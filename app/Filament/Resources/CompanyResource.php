@@ -11,6 +11,7 @@ use App\Filament\Resources\CompanyResource\RelationManagers\StatusesRelationMana
 use App\Filament\Resources\CompanyResource\RelationManagers\TagsRelationManager;
 use App\Filament\Resources\CompanyResource\RelationManagers\UsersRelationManager;
 use App\Models\Company;
+use App\Models\DocumentAiRun;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Concerns\Translatable;
@@ -116,6 +117,166 @@ class CompanyResource extends Resource
                             ->helperText('Configuración en formato JSON. Dejar vacío si no es necesario.')
                             ->columnSpanFull(),
                     ]),
+
+                Forms\Components\Section::make('Configuración IA')
+                    ->description('Configuración de proveedor IA por compañía (BYOK).')
+                    ->schema([
+                        Forms\Components\Select::make('ai_setting.provider')
+                            ->label('Proveedor IA')
+                            ->options([
+                                'none' => 'Ninguno',
+                                'openai' => 'OpenAI',
+                                'gemini' => 'Gemini',
+                            ])
+                            ->default('none')
+                            ->native(false)
+                            ->dehydratedWhenHidden(false),
+                        Forms\Components\Toggle::make('ai_setting.is_enabled')
+                            ->label('IA habilitada')
+                            ->default(false)
+                            ->dehydratedWhenHidden(false),
+                        Forms\Components\Placeholder::make('api_key_status')
+                            ->label('Estado de API key')
+                            ->content(function (?Company $record): string {
+                                if (! $record) {
+                                    return 'Sin configuración guardada.';
+                                }
+
+                                return filled($record->aiSetting?->api_key_encrypted)
+                                    ? 'API key configurada ✅'
+                                    : 'Sin API key configurada.';
+                            }),
+                        Forms\Components\TextInput::make('ai_setting.api_key_encrypted')
+                            ->label('API key (oculta)')
+                            ->password()
+                            ->revealable()
+                            ->placeholder('Ingresa una nueva key para actualizar')
+                            ->afterStateHydrated(function (Forms\Components\TextInput $component): void {
+                                $component->state('');
+                            })
+                            ->dehydrateStateUsing(fn (?string $state): ?string => filled($state) ? trim($state) : null)
+                            ->dehydrated(fn (?string $state): bool => filled($state))
+                            ->dehydratedWhenHidden(false),
+                        Forms\Components\TextInput::make('ai_setting.daily_doc_limit')
+                            ->label('Límite diario de documentos')
+                            ->numeric()
+                            ->minValue(1)
+                            ->default(100)
+                            ->dehydratedWhenHidden(false),
+                        Forms\Components\TextInput::make('ai_setting.max_pages_per_doc')
+                            ->label('Máximo de páginas por documento')
+                            ->numeric()
+                            ->minValue(1)
+                            ->default(100)
+                            ->dehydratedWhenHidden(false),
+                        Forms\Components\TextInput::make('ai_setting.monthly_budget_cents')
+                            ->label('Presupuesto mensual (centavos)')
+                            ->numeric()
+                            ->minValue(0)
+                            ->dehydratedWhenHidden(false),
+                        Forms\Components\Toggle::make('ai_setting.store_outputs')
+                            ->label('Guardar resultados de IA')
+                            ->default(true)
+                            ->dehydratedWhenHidden(false),
+                        Forms\Components\Toggle::make('ai_setting.redact_pii')
+                            ->label('Redactar PII antes de enviar')
+                            ->default(true)
+                            ->dehydratedWhenHidden(false),
+                    ])
+                    ->columns(2)
+                    ->hidden(fn (?Company $record): bool => $record === null)
+                    ->collapsible(),
+
+                Forms\Components\Section::make('Observabilidad IA')
+                    ->description('Métricas rápidas de ejecución y costo por compañía.')
+                    ->schema([
+                        Forms\Components\Placeholder::make('ai_observability_runs_today')
+                            ->label('Runs IA hoy')
+                            ->content(function (?Company $record): string {
+                                if (! $record) {
+                                    return '0';
+                                }
+
+                                $count = DocumentAiRun::query()
+                                    ->where('company_id', $record->id)
+                                    ->whereDate('created_at', now()->toDateString())
+                                    ->count();
+
+                                return (string) $count;
+                            }),
+                        Forms\Components\Placeholder::make('ai_observability_runs_success_month')
+                            ->label('Runs exitosos (mes)')
+                            ->content(function (?Company $record): string {
+                                if (! $record) {
+                                    return '0';
+                                }
+
+                                $count = DocumentAiRun::query()
+                                    ->where('company_id', $record->id)
+                                    ->where('status', 'success')
+                                    ->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])
+                                    ->count();
+
+                                return (string) $count;
+                            }),
+                        Forms\Components\Placeholder::make('ai_observability_cost_month')
+                            ->label('Costo mensual acumulado')
+                            ->content(function (?Company $record): string {
+                                if (! $record) {
+                                    return '$0.00';
+                                }
+
+                                $cents = (int) DocumentAiRun::query()
+                                    ->where('company_id', $record->id)
+                                    ->where('status', 'success')
+                                    ->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])
+                                    ->sum('cost_cents');
+
+                                return '$'.number_format($cents / 100, 2);
+                            }),
+                        Forms\Components\Placeholder::make('ai_observability_failures_24h')
+                            ->label('Fallos proveedor (24h)')
+                            ->content(function (?Company $record): string {
+                                if (! $record) {
+                                    return 'OpenAI: 0 | Gemini: 0';
+                                }
+
+                                $runs = DocumentAiRun::query()
+                                    ->where('company_id', $record->id)
+                                    ->where('status', 'failed')
+                                    ->where('created_at', '>=', now()->subDay())
+                                    ->get(['provider']);
+
+                                $openAi = $runs->where('provider', 'openai')->count();
+                                $gemini = $runs->where('provider', 'gemini')->count();
+
+                                return "OpenAI: {$openAi} | Gemini: {$gemini}";
+                            }),
+                        Forms\Components\Placeholder::make('ai_observability_last_error')
+                            ->label('Último error')
+                            ->content(function (?Company $record): string {
+                                if (! $record) {
+                                    return 'Sin datos';
+                                }
+
+                                $lastError = DocumentAiRun::query()
+                                    ->where('company_id', $record->id)
+                                    ->where('status', 'failed')
+                                    ->whereNotNull('error_message')
+                                    ->latest('id')
+                                    ->value('error_message');
+
+                                if (! $lastError) {
+                                    return 'Sin errores recientes';
+                                }
+
+                                return (string) str($lastError)->limit(120);
+                            })
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(2)
+                    ->hidden(fn (?Company $record): bool => $record === null)
+                    ->collapsible(),
             ]);
     }
 
@@ -209,6 +370,7 @@ class CompanyResource extends Resource
             'create-wizard' => Pages\CreateCompanyWizard::route('/create-wizard'),
             'view' => Pages\ViewCompany::route('/{record}'),
             'edit' => Pages\EditCompany::route('/{record}/edit'),
+            'ai-observability' => Pages\AiObservability::route('/{record}/ai-observability'),
         ];
     }
 
