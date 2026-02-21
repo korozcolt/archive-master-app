@@ -2,15 +2,14 @@
 
 namespace Tests\Browser;
 
-use App\Models\User;
-use App\Models\Company;
 use App\Models\Branch;
+use App\Models\Company;
 use App\Models\Department;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Laravel\Dusk\Browser;
-use Tests\DuskTestCase;
 use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
+use Tests\DuskTestCase;
 
 class UserManagementTest extends DuskTestCase
 {
@@ -28,7 +27,7 @@ class UserManagementTest extends DuskTestCase
             'email' => 'superadmin@test.com',
         ]);
 
-        $superAdminRole = Role::create(['name' => 'Super Admin']);
+        $superAdminRole = Role::firstOrCreate(['name' => 'super_admin']);
         $superAdmin->assignRole($superAdminRole);
 
         // Crear usuarios adicionales
@@ -38,9 +37,9 @@ class UserManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($superAdmin) {
             $browser->loginAs($superAdmin)
-                    ->visit('/admin/users')
-                    ->assertSee('Usuarios')
-                    ->assertPresent('table');
+                ->visit('/admin/users')
+                ->assertSee('Usuarios')
+                ->assertPresent('table');
         });
     }
 
@@ -60,20 +59,20 @@ class UserManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/users')
-                    ->clickLink('Nuevo')
-                    ->waitForLocation('/admin/users/create')
-                    ->type('input[name="name"]', 'Usuario Nuevo')
-                    ->type('input[name="email"]', 'nuevousuario@test.com')
-                    ->type('input[name="password"]', 'password123')
-                    ->type('input[name="password_confirmation"]', 'password123')
-                    ->press('Crear')
-                    ->pause(1000);
+                ->visit('/admin/users')
+                ->clickLink('Nuevo')
+                ->waitForLocation('/admin/users/create')
+                ->type('input[name="name"]', 'Usuario Nuevo')
+                ->type('input[name="email"]', 'nuevousuario@test.com')
+                ->type('input[name="password"]', 'password123')
+                ->type('input[name="password_confirmation"]', 'password123')
+                ->press('Crear')
+                ->pause(1000);
 
             // Verificar en base de datos
             $this->assertDatabaseHas('users', [
@@ -94,15 +93,15 @@ class UserManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/users/create')
-                    ->press('Crear')
-                    ->pause(500)
-                    ->assertPresent('input[name="name"]:invalid');
+                ->visit('/admin/users/create')
+                ->press('Crear')
+                ->pause(500)
+                ->assertPresent('input[name="name"]:invalid');
         });
     }
 
@@ -117,7 +116,7 @@ class UserManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $userToEdit = User::factory()->create([
@@ -128,11 +127,11 @@ class UserManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin, $userToEdit) {
             $browser->loginAs($admin)
-                    ->visit('/admin/users/' . $userToEdit->id . '/edit')
-                    ->clear('input[name="name"]')
-                    ->type('input[name="name"]', 'Usuario Modificado')
-                    ->press('Guardar cambios')
-                    ->pause(1000);
+                ->visit('/admin/users/'.$userToEdit->id.'/edit')
+                ->clear('input[name="name"]')
+                ->type('input[name="name"]', 'Usuario Modificado')
+                ->press('Guardar cambios')
+                ->pause(1000);
 
             // Verificar en base de datos
             $userToEdit->refresh();
@@ -151,8 +150,8 @@ class UserManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
-        $managerRole = Role::create(['name' => 'Manager']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
+        $managerRole = Role::firstOrCreate(['name' => 'office_manager']);
         $admin->assignRole($adminRole);
 
         $userToAssign = User::factory()->create([
@@ -161,13 +160,13 @@ class UserManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin, $userToAssign) {
             $browser->loginAs($admin)
-                    ->visit('/admin/users/' . $userToAssign->id . '/edit')
-                    ->pause(500);
+                ->visit('/admin/users/'.$userToAssign->id.'/edit')
+                ->pause(500);
 
             // Asignar rol (la implementación exacta depende de tu UI)
             // Verificar en base de datos después
-            $userToAssign->assignRole('Manager');
-            $this->assertTrue($userToAssign->hasRole('Manager'));
+            $userToAssign->assignRole('office_manager');
+            $this->assertTrue($userToAssign->hasRole('office_manager'));
         });
     }
 
@@ -182,7 +181,7 @@ class UserManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $userToToggle = User::factory()->create([
@@ -192,10 +191,10 @@ class UserManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin, $userToToggle) {
             $browser->loginAs($admin)
-                    ->visit('/admin/users/' . $userToToggle->id . '/edit')
-                    ->uncheck('input[name="is_active"]')
-                    ->press('Guardar cambios')
-                    ->pause(1000);
+                ->visit('/admin/users/'.$userToToggle->id.'/edit')
+                ->uncheck('input[name="is_active"]')
+                ->press('Guardar cambios')
+                ->pause(1000);
 
             // Verificar en base de datos
             $userToToggle->refresh();
@@ -219,11 +218,11 @@ class UserManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) {
             $browser->visit('/admin/login')
-                    ->type('input[type="email"]', 'inactive@test.com')
-                    ->type('input[type="password"]', 'password')
-                    ->press('button[type="submit"]')
-                    ->pause(1000)
-                    ->assertPathIs('/admin/login'); // Should stay on login page
+                ->type('input[type="email"]', 'inactive@test.com')
+                ->type('input[type="password"]', 'password')
+                ->press('button[type="submit"]')
+                ->pause(1000)
+                ->assertPathIs('/admin/login'); // Should stay on login page
         });
     }
 
@@ -238,7 +237,7 @@ class UserManagementTest extends DuskTestCase
             'company_id' => $company1->id,
             'email' => 'admin1@company1.com',
         ]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin1->assignRole($adminRole);
 
         User::factory()->count(3)->create([
@@ -260,8 +259,8 @@ class UserManagementTest extends DuskTestCase
         // Admin 1 solo debe ver usuarios de su empresa (4 total: 3 creados + admin1)
         $this->browse(function (Browser $browser) use ($admin1, $company1) {
             $browser->loginAs($admin1)
-                    ->visit('/admin/users')
-                    ->pause(500);
+                ->visit('/admin/users')
+                ->pause(500);
 
             // Verificar en base de datos
             $this->assertEquals(4, User::where('company_id', $company1->id)->count());
@@ -270,8 +269,8 @@ class UserManagementTest extends DuskTestCase
         // Admin 2 solo debe ver usuarios de su empresa (3 total: 2 creados + admin2)
         $this->browse(function (Browser $browser) use ($admin2, $company2) {
             $browser->loginAs($admin2)
-                    ->visit('/admin/users')
-                    ->pause(500);
+                ->visit('/admin/users')
+                ->pause(500);
 
             // Verificar en base de datos
             $this->assertEquals(3, User::where('company_id', $company2->id)->count());
@@ -289,7 +288,7 @@ class UserManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         // Crear usuario específico
@@ -305,10 +304,10 @@ class UserManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/users')
-                    ->type('input[type="search"]', 'Especial')
-                    ->pause(1000)
-                    ->assertSee('Juan Pérez Especial');
+                ->visit('/admin/users')
+                ->type('input[type="search"]', 'Especial')
+                ->pause(1000)
+                ->assertSee('Juan Pérez Especial');
         });
     }
 
@@ -327,22 +326,22 @@ class UserManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user) {
             $browser->loginAs($user)
-                    ->visit('/admin/profile')
-                    ->type('input[name="current_password"]', 'oldpassword')
-                    ->type('input[name="password"]', 'newpassword123')
-                    ->type('input[name="password_confirmation"]', 'newpassword123')
-                    ->press('Actualizar contraseña')
-                    ->pause(1000);
+                ->visit('/admin/profile')
+                ->type('input[name="current_password"]', 'oldpassword')
+                ->type('input[name="password"]', 'newpassword123')
+                ->type('input[name="password_confirmation"]', 'newpassword123')
+                ->press('Actualizar contraseña')
+                ->pause(1000);
 
             // Verificar que puede hacer login con nueva contraseña
             $browser->visit('/admin/logout')
-                    ->pause(500)
-                    ->visit('/admin/login')
-                    ->type('input[type="email"]', 'user@test.com')
-                    ->type('input[type="password"]', 'newpassword123')
-                    ->press('button[type="submit"]')
-                    ->waitForLocation('/admin', 10)
-                    ->assertPathIs('/admin');
+                ->pause(500)
+                ->visit('/admin/login')
+                ->type('input[type="email"]', 'user@test.com')
+                ->type('input[type="password"]', 'newpassword123')
+                ->press('button[type="submit"]')
+                ->waitForLocation('/admin', 10)
+                ->assertPathIs('/admin');
         });
     }
 
@@ -361,11 +360,11 @@ class UserManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user) {
             $browser->loginAs($user)
-                    ->visit('/admin/profile')
-                    ->clear('input[name="name"]')
-                    ->type('input[name="name"]', 'Usuario Actualizado')
-                    ->press('Guardar cambios')
-                    ->pause(1000);
+                ->visit('/admin/profile')
+                ->clear('input[name="name"]')
+                ->type('input[name="name"]', 'Usuario Actualizado')
+                ->press('Guardar cambios')
+                ->pause(1000);
 
             // Verificar en base de datos
             $user->refresh();
@@ -393,7 +392,7 @@ class UserManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $userToAssign = User::factory()->create([
@@ -402,8 +401,8 @@ class UserManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin, $userToAssign) {
             $browser->loginAs($admin)
-                    ->visit('/admin/users/' . $userToAssign->id . '/edit')
-                    ->pause(500);
+                ->visit('/admin/users/'.$userToAssign->id.'/edit')
+                ->pause(500);
 
             // Asignar sucursal y departamento
             // La implementación exacta depende de tu UI
@@ -431,7 +430,7 @@ class UserManagementTest extends DuskTestCase
             'company_id' => $company1->id,
         ]);
 
-        $superAdminRole = Role::create(['name' => 'Super Admin']);
+        $superAdminRole = Role::firstOrCreate(['name' => 'super_admin']);
         $superAdmin->assignRole($superAdminRole);
 
         // Crear usuarios en ambas empresas
@@ -440,8 +439,8 @@ class UserManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($superAdmin) {
             $browser->loginAs($superAdmin)
-                    ->visit('/admin/users')
-                    ->pause(500);
+                ->visit('/admin/users')
+                ->pause(500);
 
             // Super Admin debe poder ver usuarios de todas las empresas
             // Verificar en base de datos
@@ -461,7 +460,7 @@ class UserManagementTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $userToDelete = User::factory()->create([
@@ -471,8 +470,8 @@ class UserManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin, $userToDelete) {
             $browser->loginAs($admin)
-                    ->visit('/admin/users')
-                    ->pause(500);
+                ->visit('/admin/users')
+                ->pause(500);
 
             // Eliminar usuario
             $userToDelete->delete();

@@ -6,11 +6,10 @@ use App\Filament\Resources\DocumentResource;
 use App\Models\Status;
 use App\Models\WorkflowDefinition;
 use Filament\Actions;
-use Filament\Resources\Pages\ViewRecord;
-use Illuminate\Support\Facades\Auth;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
-use App\Enums\Priority;
+use Filament\Resources\Pages\ViewRecord;
+use Illuminate\Support\Facades\Auth;
 
 class ViewDocument extends ViewRecord
 {
@@ -84,17 +83,12 @@ class ViewDocument extends ViewRecord
 
                                 Infolists\Components\Section::make('Archivos')
                                     ->schema([
-                                        Infolists\Components\ImageEntry::make('file')
-                                            ->label('Archivo')
-                                            ->visibility('public')
-                                            ->hidden(fn ($record) => !$record->file || !str_starts_with(mime_content_type(storage_path('app/public/' . $record->file)), 'image/')),
-
-                                        Infolists\Components\TextEntry::make('file')
+                                        Infolists\Components\TextEntry::make('file_path')
                                             ->label('Archivo Adjunto')
                                             ->formatStateUsing(fn ($state) => $state ? basename($state) : 'Sin archivo')
-                                            ->url(fn ($record) => $record->file ? url('storage/' . $record->file) : null)
+                                            ->url(fn ($record) => $record->file_path ? route('documents.download', ['id' => $record->id]) : null)
                                             ->openUrlInNewTab()
-                                            ->hidden(fn ($record) => !$record->file || str_starts_with(mime_content_type(storage_path('app/public/' . $record->file)), 'image/')),
+                                            ->hidden(fn ($record) => ! $record->file_path),
                                     ]),
                             ]),
 
@@ -183,7 +177,9 @@ class ViewDocument extends ViewRecord
                     ->action(function (array $data) use ($document, $user): void {
                         // Obtener el estado de destino
                         $toStatus = Status::find($data['to_status_id']);
-                        if (!$toStatus) return;
+                        if (! $toStatus) {
+                            return;
+                        }
 
                         // Cambiar el estado del documento
                         $document->changeStatus($toStatus, $user, $data['comments'] ?? null);
@@ -253,7 +249,7 @@ class ViewDocument extends ViewRecord
             ->label('Nueva Versión')
             ->icon('heroicon-o-document-plus')
             ->form([
-                \Filament\Forms\Components\FileUpload::make('file')
+                \Filament\Forms\Components\FileUpload::make('file_path')
                     ->label('Archivo')
                     ->directory('documents')
                     ->preserveFilenames()
@@ -270,9 +266,8 @@ class ViewDocument extends ViewRecord
                 // Create new version
                 $document->addVersion(
                     $data['content'] ?? null,
-                    $data['file'] ?? null,
-                    $user,
-                    $data['change_summary'] ?? 'Nueva versión'
+                    $data['file_path'] ?? null,
+                    $user
                 );
 
                 // Notification
@@ -292,7 +287,7 @@ class ViewDocument extends ViewRecord
             ->icon('heroicon-o-arrow-down-tray')
             ->url(function () use ($document) {
                 // Si existe el archivo, crear una URL de descarga
-                if ($document->file) {
+                if ($document->file_path) {
                     return route('documents.download', ['id' => $document->id]);
                 }
 
@@ -301,7 +296,7 @@ class ViewDocument extends ViewRecord
             ->openUrlInNewTab()
             ->action(function () use ($document): void {
                 // Si no hay archivo, mostrar notificación
-                if (!$document->file) {
+                if (! $document->file_path) {
                     \Filament\Notifications\Notification::make()
                         ->title('No hay archivo')
                         ->body('Este documento no tiene un archivo adjunto para descargar.')
@@ -309,7 +304,7 @@ class ViewDocument extends ViewRecord
                         ->send();
                 }
             })
-            ->hidden(fn ($record) => !$record->file);
+            ->hidden(fn ($record) => ! $record->file_path);
 
         return $actions;
     }

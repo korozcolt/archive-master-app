@@ -2,15 +2,15 @@
 
 namespace Tests\Browser;
 
-use App\Models\User;
 use App\Models\Company;
-use App\Models\Status;
 use App\Models\Document;
+use App\Models\Status;
+use App\Models\User;
 use App\Models\WorkflowDefinition;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Laravel\Dusk\Browser;
-use Tests\DuskTestCase;
 use Spatie\Permission\Models\Role;
+use Tests\DuskTestCase;
 
 class WorkflowTest extends DuskTestCase
 {
@@ -26,7 +26,7 @@ class WorkflowTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         // Crear estados
@@ -49,9 +49,9 @@ class WorkflowTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user) {
             $browser->loginAs($user)
-                    ->visit('/admin/workflow-definitions')
-                    ->assertSee('Definiciones de flujo')
-                    ->assertPresent('table');
+                ->visit('/admin/workflow-definitions')
+                ->assertSee('Definiciones de flujo')
+                ->assertPresent('table');
         });
     }
 
@@ -65,7 +65,7 @@ class WorkflowTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         $status = Status::factory()->create([
@@ -80,9 +80,9 @@ class WorkflowTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user, $document) {
             $browser->loginAs($user)
-                    ->visit('/admin/documents/' . $document->id)
-                    ->assertSee($document->title)
-                    ->pause(500);
+                ->visit('/admin/documents/'.$document->id)
+                ->assertSee($document->title)
+                ->pause(500);
         });
     }
 
@@ -96,14 +96,14 @@ class WorkflowTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         $this->browse(function (Browser $browser) use ($user) {
             $browser->loginAs($user)
-                    ->visit('/admin/statuses')
-                    ->assertSee('Estados')
-                    ->pause(500);
+                ->visit('/admin/statuses')
+                ->assertSee('Estados')
+                ->pause(500);
         });
     }
 }

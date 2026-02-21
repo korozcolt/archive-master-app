@@ -13,6 +13,7 @@
 
     <!-- Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @livewireStyles
 </head>
 <body class="font-sans antialiased">
     <div class="min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -23,16 +24,25 @@
                     <div class="flex">
                         <!-- Logo -->
                         <div class="shrink-0 flex items-center">
-                            <a href="{{ route('dashboard') }}" class="text-xl font-bold text-gray-800 dark:text-gray-200">
+                            @php
+                                $portalRoles = ['office_manager', 'archive_manager', 'receptionist', 'regular_user'];
+                                $isPortalUser = Auth::user()?->hasAnyRole($portalRoles);
+                            @endphp
+                            <a href="{{ $isPortalUser ? route('portal.dashboard') : route('dashboard') }}" class="text-xl font-bold text-gray-800 dark:text-gray-200">
                                 ArchiveMaster
                             </a>
                         </div>
 
                         <!-- Navigation Links -->
                         <div class="hidden space-x-8 sm:-my-px sm:ml-10 sm:flex">
-                            <a href="{{ route('dashboard') }}" class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('dashboard') ? 'border-indigo-400 dark:border-indigo-600' : 'border-transparent' }} text-sm font-medium text-gray-900 dark:text-gray-100">
+                            <a href="{{ $isPortalUser ? route('portal.dashboard') : route('dashboard') }}" class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('dashboard') || request()->routeIs('portal.dashboard') ? 'border-indigo-400 dark:border-indigo-600' : 'border-transparent' }} text-sm font-medium text-gray-900 dark:text-gray-100">
                                 Dashboard
                             </a>
+                            @if ($isPortalUser)
+                                <a href="{{ route('portal.reports') }}" class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('portal.reports') ? 'border-indigo-400 dark:border-indigo-600' : 'border-transparent' }} text-sm font-medium text-gray-900 dark:text-gray-100">
+                                    Reportes
+                                </a>
+                            @endif
                             <a href="{{ route('documents.index') }}" class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('documents.*') ? 'border-indigo-400 dark:border-indigo-600' : 'border-transparent' }} text-sm font-medium text-gray-900 dark:text-gray-100">
                                 Mis Documentos
                             </a>
@@ -171,12 +181,17 @@
                     </div>
                 @endif
 
-                @yield('content')
+                @isset($slot)
+                    {{ $slot }}
+                @else
+                    @yield('content')
+                @endisset
             </div>
         </main>
     </div>
 
     <!-- Alpine.js for notifications dropdown -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    @livewireScripts
 </body>
 </html>

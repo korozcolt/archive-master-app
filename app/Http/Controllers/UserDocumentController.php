@@ -2,15 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Document;
 use App\Models\Category;
+use App\Models\Document;
 use App\Models\Status;
+use App\Services\DocumentFileService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 
 class UserDocumentController extends Controller
 {
+    protected DocumentFileService $documentFileService;
+
+    public function __construct(DocumentFileService $documentFileService)
+    {
+        $this->documentFileService = $documentFileService;
+    }
+
     /**
      * Display a listing of user's documents.
      */
@@ -20,18 +27,18 @@ class UserDocumentController extends Controller
 
         // Query base de documentos del usuario
         $query = Document::where('company_id', $user->company_id)
-            ->where(function($q) use ($user) {
+            ->where(function ($q) use ($user) {
                 $q->where('assigned_to', $user->id)
-                  ->orWhere('created_by', $user->id);
+                    ->orWhere('created_by', $user->id);
             });
 
         // Búsqueda por texto (título, descripción, número de documento)
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhere('document_number', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('document_number', 'like', "%{$search}%");
             });
         }
 
@@ -116,7 +123,7 @@ class UserDocumentController extends Controller
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'document_number' => 'nullable|string|max:50|unique:documents,document_number,NULL,id,company_id,' . $user->company_id,
+            'document_number' => 'nullable|string|max:50|unique:documents,document_number,NULL,id,company_id,'.$user->company_id,
             'description' => 'nullable|string',
             'category_id' => 'required|exists:categories,id',
             'status_id' => 'required|exists:statuses,id',
@@ -128,7 +135,7 @@ class UserDocumentController extends Controller
         // Procesar archivo si existe
         $filePath = null;
         if ($request->hasFile('file')) {
-            $filePath = $request->file('file')->store('documents', 'public');
+            $filePath = $this->documentFileService->storeUploadedFile($request->file('file'));
         }
 
         // Crear documento
@@ -145,7 +152,7 @@ class UserDocumentController extends Controller
             'status_id' => $validated['status_id'],
             'is_confidential' => $request->has('is_confidential'),
             'priority' => $validated['priority'],
-            'file' => $filePath,
+            'file_path' => $filePath,
         ]);
 
         return redirect()->route('documents.show', $document)
@@ -160,8 +167,12 @@ class UserDocumentController extends Controller
         $user = Auth::user();
 
         // Verificar que el usuario tenga acceso al documento
-        if (!$this->canAccessDocument($user, $document)) {
+        if (! $this->canAccessDocument($user, $document)) {
             abort(403, 'No tienes permiso para ver este documento.');
+        }
+
+        if (function_exists('logDocumentAccess')) {
+            logDocumentAccess($document, 'view');
         }
 
         $document->load(['status', 'category', 'creator', 'assignee', 'tags', 'versions']);
@@ -177,7 +188,7 @@ class UserDocumentController extends Controller
         $user = Auth::user();
 
         // Solo el creador o el asignado pueden editar
-        if (!$this->canEditDocument($user, $document)) {
+        if (! $this->canEditDocument($user, $document)) {
             abort(403, 'No tienes permiso para editar este documento.');
         }
 
@@ -194,13 +205,13 @@ class UserDocumentController extends Controller
     {
         $user = Auth::user();
 
-        if (!$this->canEditDocument($user, $document)) {
+        if (! $this->canEditDocument($user, $document)) {
             abort(403, 'No tienes permiso para editar este documento.');
         }
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'document_number' => 'nullable|string|max:50|unique:documents,document_number,' . $document->id . ',id,company_id,' . $user->company_id,
+            'document_number' => 'nullable|string|max:50|unique:documents,document_number,'.$document->id.',id,company_id,'.$user->company_id,
             'description' => 'nullable|string',
             'category_id' => 'required|exists:categories,id',
             'status_id' => 'required|exists:statuses,id',
@@ -211,11 +222,7 @@ class UserDocumentController extends Controller
 
         // Procesar nuevo archivo si existe
         if ($request->hasFile('file')) {
-            // Eliminar archivo anterior si existe
-            if ($document->file) {
-                Storage::disk('public')->delete($document->file);
-            }
-            $validated['file'] = $request->file('file')->store('documents', 'public');
+            $validated['file_path'] = $this->documentFileService->replaceFile($document->file_path, $request->file('file'));
         }
 
         $validated['is_confidential'] = $request->has('is_confidential');
@@ -239,8 +246,8 @@ class UserDocumentController extends Controller
         }
 
         // Eliminar archivo si existe
-        if ($document->file) {
-            Storage::disk('public')->delete($document->file);
+        if ($document->file_path) {
+            $this->documentFileService->deleteFile($document->file_path);
         }
 
         $document->delete();
@@ -287,18 +294,18 @@ class UserDocumentController extends Controller
 
         // Aplicar los mismos filtros que en index()
         $query = Document::where('company_id', $user->company_id)
-            ->where(function($q) use ($user) {
+            ->where(function ($q) use ($user) {
                 $q->where('assigned_to', $user->id)
-                  ->orWhere('created_by', $user->id);
+                    ->orWhere('created_by', $user->id);
             });
 
         // Aplicar filtros de búsqueda
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhere('document_number', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('document_number', 'like', "%{$search}%");
             });
         }
 
@@ -332,16 +339,16 @@ class UserDocumentController extends Controller
             ->get();
 
         // Generar CSV
-        $filename = 'documentos_' . date('Y-m-d_His') . '.csv';
+        $filename = 'documentos_'.date('Y-m-d_His').'.csv';
         $headers = [
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
             'Pragma' => 'no-cache',
             'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
-            'Expires' => '0'
+            'Expires' => '0',
         ];
 
-        $callback = function() use ($documents) {
+        $callback = function () use ($documents) {
             $file = fopen('php://output', 'w');
 
             // BOM para UTF-8
@@ -359,7 +366,7 @@ class UserDocumentController extends Controller
                 'Creado por',
                 'Asignado a',
                 'Fecha creación',
-                'Última actualización'
+                'Última actualización',
             ]);
 
             // Datos
@@ -375,7 +382,7 @@ class UserDocumentController extends Controller
                     $doc->creator->name ?? '',
                     $doc->assignee->name ?? '',
                     $doc->created_at->format('d/m/Y H:i'),
-                    $doc->updated_at->format('d/m/Y H:i')
+                    $doc->updated_at->format('d/m/Y H:i'),
                 ]);
             }
 

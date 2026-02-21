@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -14,7 +15,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('physical_locations', function (Blueprint $table) {
+        $driver = DB::getDriverName();
+
+        Schema::create('physical_locations', function (Blueprint $table) use ($driver) {
             $table->id();
             $table->foreignId('company_id')->constrained()->onDelete('cascade');
             $table->foreignId('template_id')->nullable()->constrained('physical_location_templates')->nullOnDelete();
@@ -48,8 +51,10 @@ return new class extends Migration
             $table->index(['company_id', 'code']);
             $table->index('capacity_used'); // Para alertas de capacidad
 
-            // Full-text search en path y código
-            $table->fullText(['full_path', 'code'], 'physical_locations_search');
+            // Full-text search en path y código (solo MySQL/MariaDB)
+            if (in_array($driver, ['mysql', 'mariadb'], true)) {
+                $table->fullText(['full_path', 'code'], 'physical_locations_search');
+            }
         });
     }
 

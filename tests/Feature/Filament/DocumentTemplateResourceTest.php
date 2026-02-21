@@ -6,8 +6,6 @@ use App\Filament\Resources\DocumentTemplateResource;
 use App\Models\Category;
 use App\Models\Company;
 use App\Models\DocumentTemplate;
-use App\Models\PhysicalLocation;
-use App\Models\PhysicalLocationTemplate;
 use App\Models\Status;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,8 +18,11 @@ class DocumentTemplateResourceTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected Company $company;
+
     protected Category $category;
+
     protected Status $status;
 
     protected function setUp(): void
@@ -177,12 +178,14 @@ class DocumentTemplateResourceTest extends TestCase
                 'label' => 'Número de Contrato',
                 'type' => 'text',
                 'required' => true,
+                'description' => null,
             ],
             [
                 'name' => 'monto',
                 'label' => 'Monto',
                 'type' => 'number',
                 'required' => true,
+                'description' => null,
             ],
         ];
 

@@ -2,15 +2,15 @@
 
 namespace Tests\Browser;
 
-use App\Models\User;
+use App\Models\Category;
 use App\Models\Company;
 use App\Models\Document;
-use App\Models\Category;
 use App\Models\Status;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Laravel\Dusk\Browser;
-use Tests\DuskTestCase;
 use Spatie\Permission\Models\Role;
+use Tests\DuskTestCase;
 
 class ExportFeaturesTest extends DuskTestCase
 {
@@ -25,7 +25,7 @@ class ExportFeaturesTest extends DuskTestCase
         $category = Category::factory()->create(['company_id' => $company->id]);
         $status = Status::factory()->create(['company_id' => $company->id]);
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         Document::factory()->count(10)->create([
@@ -37,10 +37,10 @@ class ExportFeaturesTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/documents')
-                    ->click('button[title="Exportar"]')
-                    ->click('button[data-format="csv"]')
-                    ->pause(2000);
+                ->visit('/admin/documents')
+                ->click('button[title="Exportar"]')
+                ->click('button[data-format="csv"]')
+                ->pause(2000);
 
             // Verificar que la descarga se inició
             // La implementación exacta depende de cómo manejas descargas en tu sistema
@@ -56,7 +56,7 @@ class ExportFeaturesTest extends DuskTestCase
         $category = Category::factory()->create(['company_id' => $company->id]);
         $status = Status::factory()->create(['company_id' => $company->id]);
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         Document::factory()->count(10)->create([
@@ -68,10 +68,10 @@ class ExportFeaturesTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/documents')
-                    ->click('button[title="Exportar"]')
-                    ->click('button[data-format="xlsx"]')
-                    ->pause(2000);
+                ->visit('/admin/documents')
+                ->click('button[title="Exportar"]')
+                ->click('button[data-format="xlsx"]')
+                ->pause(2000);
         });
     }
 
@@ -84,7 +84,7 @@ class ExportFeaturesTest extends DuskTestCase
         $category = Category::factory()->create(['company_id' => $company->id]);
         $status = Status::factory()->create(['company_id' => $company->id]);
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         Document::factory()->count(5)->create([
@@ -96,10 +96,10 @@ class ExportFeaturesTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/documents')
-                    ->click('button[title="Exportar"]')
-                    ->click('button[data-format="pdf"]')
-                    ->pause(2000);
+                ->visit('/admin/documents')
+                ->click('button[title="Exportar"]')
+                ->click('button[data-format="pdf"]')
+                ->pause(2000);
         });
     }
 
@@ -113,7 +113,7 @@ class ExportFeaturesTest extends DuskTestCase
         $status1 = Status::factory()->create(['company_id' => $company->id, 'name' => 'Activo']);
         $status2 = Status::factory()->create(['company_id' => $company->id, 'name' => 'Inactivo']);
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         Document::factory()->count(5)->create([
@@ -132,9 +132,9 @@ class ExportFeaturesTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/documents')
-                    ->click('button[title="Filtrar"]')
-                    ->pause(500);
+                ->visit('/admin/documents')
+                ->click('button[title="Filtrar"]')
+                ->pause(500);
 
             // Aplicar filtro por estado
             // Luego exportar
@@ -151,7 +151,7 @@ class ExportFeaturesTest extends DuskTestCase
         $category = Category::factory()->create(['company_id' => $company->id]);
         $status = Status::factory()->create(['company_id' => $company->id]);
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         Document::factory()->count(10)->create([
@@ -163,12 +163,12 @@ class ExportFeaturesTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/documents')
-                    ->check('input[type="checkbox"][data-row="1"]')
-                    ->check('input[type="checkbox"][data-row="2"]')
-                    ->check('input[type="checkbox"][data-row="3"]')
-                    ->click('button[title="Exportar seleccionados"]')
-                    ->pause(2000);
+                ->visit('/admin/documents')
+                ->check('input[type="checkbox"][data-row="1"]')
+                ->check('input[type="checkbox"][data-row="2"]')
+                ->check('input[type="checkbox"][data-row="3"]')
+                ->click('button[title="Exportar seleccionados"]')
+                ->pause(2000);
 
             // Debería exportar solo 3 documentos
         });
@@ -207,7 +207,7 @@ class ExportFeaturesTest extends DuskTestCase
         $category = Category::factory()->create(['company_id' => $company->id]);
         $status = Status::factory()->create(['company_id' => $company->id]);
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         Document::factory()->create([
@@ -227,11 +227,11 @@ class ExportFeaturesTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/documents')
-                    ->type('input[type="search"]', 'Especial')
-                    ->pause(1000)
-                    ->click('button[title="Exportar"]')
-                    ->pause(2000);
+                ->visit('/admin/documents')
+                ->type('input[type="search"]', 'Especial')
+                ->pause(1000)
+                ->click('button[title="Exportar"]')
+                ->pause(2000);
 
             // Debería exportar solo el documento que coincide con la búsqueda
         });

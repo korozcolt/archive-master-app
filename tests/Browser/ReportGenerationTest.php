@@ -2,16 +2,16 @@
 
 namespace Tests\Browser;
 
-use App\Models\User;
+use App\Models\Category;
 use App\Models\Company;
 use App\Models\Document;
-use App\Models\Category;
-use App\Models\Status;
 use App\Models\Report;
+use App\Models\Status;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Laravel\Dusk\Browser;
-use Tests\DuskTestCase;
 use Spatie\Permission\Models\Role;
+use Tests\DuskTestCase;
 
 class ReportGenerationTest extends DuskTestCase
 {
@@ -24,14 +24,14 @@ class ReportGenerationTest extends DuskTestCase
     {
         $company = Company::factory()->create();
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/reports')
-                    ->assertSee('Reportes')
-                    ->pause(500);
+                ->visit('/admin/reports')
+                ->assertSee('Reportes')
+                ->pause(500);
         });
     }
 
@@ -44,7 +44,7 @@ class ReportGenerationTest extends DuskTestCase
         $category = Category::factory()->create(['company_id' => $company->id]);
         $status = Status::factory()->create(['company_id' => $company->id]);
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         Document::factory()->count(10)->create([
@@ -56,11 +56,11 @@ class ReportGenerationTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/reports/create')
-                    ->select('select[name="type"]', 'documents')
-                    ->select('select[name="format"]', 'pdf')
-                    ->press('Generar reporte')
-                    ->pause(3000);
+                ->visit('/admin/reports/create')
+                ->select('select[name="type"]', 'documents')
+                ->select('select[name="format"]', 'pdf')
+                ->press('Generar reporte')
+                ->pause(3000);
 
             // El reporte PDF debe descargarse
         });
@@ -75,7 +75,7 @@ class ReportGenerationTest extends DuskTestCase
         $category = Category::factory()->create(['company_id' => $company->id]);
         $status = Status::factory()->create(['company_id' => $company->id]);
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name'] => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
         $admin->assignRole($adminRole);
 
         Document::factory()->count(10)->create([
@@ -87,11 +87,11 @@ class ReportGenerationTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/reports/create')
-                    ->select('select[name="type"]', 'documents')
-                    ->select('select[name="format"]', 'xlsx')
-                    ->press('Generar reporte')
-                    ->pause(3000);
+                ->visit('/admin/reports/create')
+                ->select('select[name="type"]', 'documents')
+                ->select('select[name="format"]', 'xlsx')
+                ->press('Generar reporte')
+                ->pause(3000);
         });
     }
 
@@ -102,16 +102,16 @@ class ReportGenerationTest extends DuskTestCase
     {
         $company = Company::factory()->create();
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/reports/create')
-                    ->type('input[name="start_date"]', '2025-01-01')
-                    ->type('input[name="end_date"]', '2025-12-31')
-                    ->press('Generar reporte')
-                    ->pause(2000);
+                ->visit('/admin/reports/create')
+                ->type('input[name="start_date"]', '2025-01-01')
+                ->type('input[name="end_date"]', '2025-12-31')
+                ->press('Generar reporte')
+                ->pause(2000);
         });
     }
 
@@ -122,7 +122,7 @@ class ReportGenerationTest extends DuskTestCase
     {
         $company = Company::factory()->create();
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         Report::factory()->count(5)->create([
@@ -132,9 +132,9 @@ class ReportGenerationTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/reports')
-                    ->assertSee('Historial de reportes')
-                    ->assertPresent('table');
+                ->visit('/admin/reports')
+                ->assertSee('Historial de reportes')
+                ->assertPresent('table');
         });
     }
 
@@ -146,15 +146,15 @@ class ReportGenerationTest extends DuskTestCase
         $company = Company::factory()->create();
         $category = Category::factory()->create(['company_id' => $company->id, 'name' => 'Contratos']);
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $this->browse(function (Browser $browser) use ($admin, $category) {
             $browser->loginAs($admin)
-                    ->visit('/admin/reports/create')
-                    ->select('select[name="category_id"]', $category->id)
-                    ->press('Generar reporte')
-                    ->pause(2000);
+                ->visit('/admin/reports/create')
+                ->select('select[name="category_id"]', $category->id)
+                ->press('Generar reporte')
+                ->pause(2000);
         });
     }
 
@@ -166,15 +166,15 @@ class ReportGenerationTest extends DuskTestCase
         $company = Company::factory()->create();
         $status = Status::factory()->create(['company_id' => $company->id, 'name' => 'Aprobado']);
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $this->browse(function (Browser $browser) use ($admin, $status) {
             $browser->loginAs($admin)
-                    ->visit('/admin/reports/create')
-                    ->select('select[name="status_id"]', $status->id)
-                    ->press('Generar reporte')
-                    ->pause(2000);
+                ->visit('/admin/reports/create')
+                ->select('select[name="status_id"]', $status->id)
+                ->press('Generar reporte')
+                ->pause(2000);
         });
     }
 
@@ -203,7 +203,7 @@ class ReportGenerationTest extends DuskTestCase
     {
         $company = Company::factory()->create();
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $report = Report::factory()->create([
@@ -214,9 +214,9 @@ class ReportGenerationTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin, $report) {
             $browser->loginAs($admin)
-                    ->visit('/admin/reports')
-                    ->click('a[href*="/reports/' . $report->id . '/download"]')
-                    ->pause(2000);
+                ->visit('/admin/reports')
+                ->click('a[href*="/reports/'.$report->id.'/download"]')
+                ->pause(2000);
         });
     }
 }

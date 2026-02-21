@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\ResourceAccess;
 use App\Filament\Resources\PhysicalLocationResource\Pages;
 use App\Filament\Resources\PhysicalLocationResource\RelationManagers;
 use App\Models\PhysicalLocation;
@@ -10,14 +11,13 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
 
 class PhysicalLocationResource extends Resource
 {
@@ -30,6 +30,23 @@ class PhysicalLocationResource extends Resource
     protected static ?string $navigationGroup = 'Gestión Documental';
 
     protected static ?int $navigationSort = 9;
+
+    public static function canViewAny(): bool
+    {
+        return ResourceAccess::allows(roles: [
+            'admin',
+            'branch_admin',
+            'office_manager',
+            'archive_manager',
+            'receptionist',
+            'regular_user',
+        ]);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
 
     public static function getNavigationBadge(): ?string
     {
@@ -52,9 +69,8 @@ class PhysicalLocationResource extends Resource
                             ->live(),
                         Forms\Components\Select::make('template_id')
                             ->label('Plantilla de estructura')
-                            ->relationship('template', 'name', fn (Builder $query, Get $get) =>
-                                $query->where('company_id', $get('company_id'))
-                                    ->where('is_active', true)
+                            ->relationship('template', 'name', fn (Builder $query, Get $get) => $query->where('company_id', $get('company_id'))
+                                ->where('is_active', true)
                             )
                             ->required()
                             ->searchable()
@@ -76,7 +92,7 @@ class PhysicalLocationResource extends Resource
                             ->label('Niveles de ubicación')
                             ->schema(function (Get $get) {
                                 $templateId = $get('../../template_id');
-                                if (!$templateId) {
+                                if (! $templateId) {
                                     return [
                                         Forms\Components\Placeholder::make('select_template')
                                             ->label('Selecciona una plantilla primero')
@@ -85,7 +101,7 @@ class PhysicalLocationResource extends Resource
                                 }
 
                                 $template = PhysicalLocationTemplate::find($templateId);
-                                if (!$template || !$template->levels) {
+                                if (! $template || ! $template->levels) {
                                     return [];
                                 }
 
@@ -175,14 +191,13 @@ class PhysicalLocationResource extends Resource
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('capacity')
                     ->label('Capacidad')
-                    ->formatStateUsing(fn ($record) =>
-                        $record->capacity_total
+                    ->formatStateUsing(fn ($record) => $record->capacity_total
                             ? "{$record->capacity_used}/{$record->capacity_total} ({$record->getCapacityPercentage()}%)"
                             : 'Sin límite'
                     )
                     ->badge()
                     ->color(fn ($record) => match (true) {
-                        !$record->capacity_total => 'gray',
+                        ! $record->capacity_total => 'gray',
                         $record->getCapacityPercentage() >= 90 => 'danger',
                         $record->getCapacityPercentage() >= 70 => 'warning',
                         default => 'success',
@@ -239,8 +254,7 @@ class PhysicalLocationResource extends Resource
                     ->label('Generar Etiqueta')
                     ->icon('heroicon-o-qr-code')
                     ->color('info')
-                    ->url(fn (PhysicalLocation $record): string =>
-                        route('stickers.locations.download', ['location' => $record->id])
+                    ->url(fn (PhysicalLocation $record): string => route('stickers.locations.download', ['location' => $record->id])
                     )
                     ->openUrlInNewTab(),
                 Tables\Actions\DeleteAction::make(),
@@ -302,7 +316,7 @@ class PhysicalLocationResource extends Resource
             ]);
 
         // Filtrar por empresa si no es super admin
-        if (!Auth::user()->hasRole('super_admin')) {
+        if (! Auth::user()->hasRole('super_admin')) {
             $query->where('company_id', Auth::user()->company_id);
         }
 

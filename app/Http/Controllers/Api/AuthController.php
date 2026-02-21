@@ -3,12 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\User;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\ValidationException;
 
 class AuthController extends BaseApiController
 {
@@ -18,19 +16,25 @@ class AuthController extends BaseApiController
      *     tags={"Authentication"},
      *     summary="Iniciar sesión",
      *     description="Autenticar usuario y obtener token de acceso",
+     *
      *     @OA\RequestBody(
      *         required=true,
+     *
      *         @OA\JsonContent(
      *             required={"email","password"},
+     *
      *             @OA\Property(property="email", type="string", format="email", example="admin@archivemaster.com"),
      *             @OA\Property(property="password", type="string", format="password", example="password123"),
      *             @OA\Property(property="remember", type="boolean", example=false, description="Recordar sesión")
      *         )
      *     ),
+     *
      *     @OA\Response(
      *         response=200,
      *         description="Login exitoso",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="success", type="boolean", example=true),
      *             @OA\Property(property="message", type="string", example="Login exitoso"),
      *             @OA\Property(
@@ -51,19 +55,25 @@ class AuthController extends BaseApiController
      *             @OA\Property(property="timestamp", type="string", format="date-time")
      *         )
      *     ),
+     *
      *     @OA\Response(
      *         response=401,
      *         description="Credenciales inválidas",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="success", type="boolean", example=false),
      *             @OA\Property(property="message", type="string", example="Credenciales inválidas"),
      *             @OA\Property(property="timestamp", type="string", format="date-time")
      *         )
      *     ),
+     *
      *     @OA\Response(
      *         response=422,
      *         description="Errores de validación",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="success", type="boolean", example=false),
      *             @OA\Property(property="message", type="string", example="Errores de validación"),
      *             @OA\Property(
@@ -72,9 +82,11 @@ class AuthController extends BaseApiController
      *                 @OA\Property(
      *                     property="email",
      *                     type="array",
+     *
      *                     @OA\Items(type="string", example="El campo email es obligatorio")
      *                 )
      *             ),
+     *
      *             @OA\Property(property="timestamp", type="string", format="date-time")
      *         )
      *     )
@@ -85,7 +97,7 @@ class AuthController extends BaseApiController
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
             'password' => 'required|string|min:6',
-            'remember' => 'boolean'
+            'remember' => 'boolean',
         ]);
 
         if ($validator->fails()) {
@@ -94,11 +106,11 @@ class AuthController extends BaseApiController
 
         $credentials = $request->only('email', 'password');
 
-        if (!Auth::attempt($credentials)) {
+        if (! Auth::guard('web')->attempt($credentials)) {
             return $this->errorResponse('Credenciales inválidas', 401);
         }
 
-        $user = Auth::user();
+        $user = Auth::guard('web')->user();
         $user->update(['last_login_at' => now()]);
 
         $token = $user->createToken('API Token')->plainTextToken;
@@ -114,7 +126,7 @@ class AuthController extends BaseApiController
                 'company_id' => $user->company_id,
                 'roles' => $user->roles->pluck('name'),
                 'permissions' => $user->getAllPermissions()->pluck('name'),
-            ]
+            ],
         ], 'Login exitoso');
     }
 
@@ -125,19 +137,25 @@ class AuthController extends BaseApiController
      *     summary="Cerrar sesión",
      *     description="Revocar token de acceso actual",
      *     security={{"bearerAuth":{}}},
+     *
      *     @OA\Response(
      *         response=200,
      *         description="Logout exitoso",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="success", type="boolean", example=true),
      *             @OA\Property(property="message", type="string", example="Logout exitoso"),
      *             @OA\Property(property="timestamp", type="string", format="date-time")
      *         )
      *     ),
+     *
      *     @OA\Response(
      *         response=401,
      *         description="No autenticado",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="success", type="boolean", example=false),
      *             @OA\Property(property="message", type="string", example="No autenticado"),
      *             @OA\Property(property="timestamp", type="string", format="date-time")
@@ -159,10 +177,13 @@ class AuthController extends BaseApiController
      *     summary="Obtener información del usuario actual",
      *     description="Retorna la información del usuario autenticado",
      *     security={{"bearerAuth":{}}},
+     *
      *     @OA\Response(
      *         response=200,
      *         description="Información del usuario",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="success", type="boolean", example=true),
      *             @OA\Property(property="message", type="string", example="Success"),
      *             @OA\Property(
@@ -182,10 +203,13 @@ class AuthController extends BaseApiController
      *             @OA\Property(property="timestamp", type="string", format="date-time")
      *         )
      *     ),
+     *
      *     @OA\Response(
      *         response=401,
      *         description="No autenticado",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="success", type="boolean", example=false),
      *             @OA\Property(property="message", type="string", example="No autenticado"),
      *             @OA\Property(property="timestamp", type="string", format="date-time")
@@ -232,10 +256,13 @@ class AuthController extends BaseApiController
      *     summary="Renovar token de acceso",
      *     description="Generar un nuevo token de acceso",
      *     security={{"bearerAuth":{}}},
+     *
      *     @OA\Response(
      *         response=200,
      *         description="Token renovado exitosamente",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="success", type="boolean", example=true),
      *             @OA\Property(property="message", type="string", example="Token renovado exitosamente"),
      *             @OA\Property(

@@ -2,8 +2,8 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\ResourceAccess;
 use App\Filament\Resources\DepartmentResource\Pages;
-use App\Filament\Resources\DepartmentResource\RelationManagers;
 use App\Filament\Resources\DepartmentResource\RelationManagers\ChildrenRelationManager;
 use App\Filament\Resources\DepartmentResource\RelationManagers\DocumentsRelationManager;
 use App\Filament\Resources\DepartmentResource\RelationManagers\UsersRelationManager;
@@ -11,16 +11,17 @@ use App\Models\Department;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Collection;
+use Filament\Resources\Concerns\Translatable;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Filament\Resources\Concerns\Translatable;
 
 class DepartmentResource extends Resource
 {
     use Translatable;
+
     protected static ?string $model = Department::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-building-office-2';
@@ -30,6 +31,19 @@ class DepartmentResource extends Resource
     protected static ?string $navigationGroup = 'Administración';
 
     protected static ?int $navigationSort = 3;
+
+    public static function canViewAny(): bool
+    {
+        return ResourceAccess::allows(permissions: [
+            'manage-departments',
+            'manage-department',
+        ]);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
 
     public static function getNavigationBadge(): ?string
     {
@@ -52,8 +66,7 @@ class DepartmentResource extends Resource
                             ->afterStateUpdated(fn (Forms\Set $set) => $set('branch_id', null)),
                         Forms\Components\Select::make('branch_id')
                             ->label('Sucursal')
-                            ->relationship('branch', 'name', fn (Builder $query, Forms\Get $get) =>
-                                $query->where('company_id', $get('company_id'))
+                            ->relationship('branch', 'name', fn (Builder $query, Forms\Get $get) => $query->where('company_id', $get('company_id'))
                             )
                             ->searchable()
                             ->preload()
@@ -74,11 +87,9 @@ class DepartmentResource extends Resource
                     ->schema([
                         Forms\Components\Select::make('parent_id')
                             ->label('Departamento padre')
-                            ->relationship('parent', 'name', fn (Builder $query, Forms\Get $get) =>
-                                $query->where('company_id', $get('company_id'))
-                                    ->when($get('branch_id'), fn ($query) =>
-                                        $query->where('branch_id', $get('branch_id'))
-                                    )
+                            ->relationship('parent', 'name', fn (Builder $query, Forms\Get $get) => $query->where('company_id', $get('company_id'))
+                                ->when($get('branch_id'), fn ($query) => $query->where('branch_id', $get('branch_id'))
+                                )
                             )
                             ->searchable()
                             ->preload()
@@ -120,6 +131,7 @@ class DepartmentResource extends Resource
                         if (is_array($state)) {
                             return $record->company->getTranslation('name', app()->getLocale());
                         }
+
                         return $state;
                     }),
                 Tables\Columns\TextColumn::make('branch.name')
@@ -130,6 +142,7 @@ class DepartmentResource extends Resource
                         if ($record->branch && is_array($state)) {
                             return $record->branch->getTranslation('name', app()->getLocale());
                         }
+
                         return $state;
                     }),
                 Tables\Columns\TextColumn::make('name')
@@ -140,6 +153,7 @@ class DepartmentResource extends Resource
                         if (is_array($state)) {
                             return $record->getTranslation('name', app()->getLocale());
                         }
+
                         return $state;
                     }),
                 Tables\Columns\TextColumn::make('code')

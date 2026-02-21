@@ -2,17 +2,17 @@
 
 namespace Tests\Browser;
 
-use App\Models\User;
+use App\Models\Category;
 use App\Models\Company;
 use App\Models\Document;
 use App\Models\DocumentVersion;
-use App\Models\Category;
 use App\Models\Status;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Dusk\Browser;
-use Tests\DuskTestCase;
 use Spatie\Permission\Models\Role;
+use Tests\DuskTestCase;
 
 class DocumentVersioningTest extends DuskTestCase
 {
@@ -37,7 +37,7 @@ class DocumentVersioningTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         $document = Document::factory()->create([
@@ -56,10 +56,10 @@ class DocumentVersioningTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user, $document) {
             $browser->loginAs($user)
-                    ->visit('/admin/documents/' . $document->id)
-                    ->assertSee('Versiones')
-                    ->assertSee('Historial de versiones')
-                    ->pause(500);
+                ->visit('/admin/documents/'.$document->id)
+                ->assertSee('Versiones')
+                ->assertSee('Historial de versiones')
+                ->pause(500);
 
             // Verificar en base de datos
             $this->assertEquals(3, DocumentVersion::where('document_id', $document->id)->count());
@@ -79,7 +79,7 @@ class DocumentVersioningTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         $document = Document::factory()->create([
@@ -91,9 +91,9 @@ class DocumentVersioningTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user, $document) {
             $browser->loginAs($user)
-                    ->visit('/admin/documents/' . $document->id)
-                    ->clickLink('Nueva versión')
-                    ->pause(500);
+                ->visit('/admin/documents/'.$document->id)
+                ->clickLink('Nueva versión')
+                ->pause(500);
 
             // Crear versión manualmente
             DocumentVersion::create([
@@ -180,7 +180,7 @@ class DocumentVersioningTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         $document = Document::factory()->create([
@@ -199,9 +199,9 @@ class DocumentVersioningTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user, $document, $version) {
             $browser->loginAs($user)
-                    ->visit('/admin/documents/' . $document->id)
-                    ->assertSee('Versión ' . $version->version_number)
-                    ->assertSee('Actualización importante de contenido');
+                ->visit('/admin/documents/'.$document->id)
+                ->assertSee('Versión '.$version->version_number)
+                ->assertSee('Actualización importante de contenido');
         });
     }
 
@@ -218,7 +218,7 @@ class DocumentVersioningTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         $document = Document::factory()->create([
@@ -247,8 +247,8 @@ class DocumentVersioningTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user, $document, $oldVersion) {
             $browser->loginAs($user)
-                    ->visit('/admin/documents/' . $document->id)
-                    ->pause(500);
+                ->visit('/admin/documents/'.$document->id)
+                ->pause(500);
 
             // Restaurar versión 1
             // La implementación exacta depende de tu UI
@@ -260,7 +260,7 @@ class DocumentVersioningTest extends DuskTestCase
                 'file_path' => $oldVersion->file_path,
                 'file_name' => $oldVersion->file_name,
                 'created_by' => $user->id,
-                'changes_description' => 'Restaurada desde versión ' . $oldVersion->version_number,
+                'changes_description' => 'Restaurada desde versión '.$oldVersion->version_number,
             ]);
 
             // Verificar restauración
@@ -325,7 +325,7 @@ class DocumentVersioningTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         $document = Document::factory()->create([
@@ -351,8 +351,8 @@ class DocumentVersioningTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user, $document) {
             $browser->loginAs($user)
-                    ->visit('/admin/documents/' . $document->id)
-                    ->pause(500);
+                ->visit('/admin/documents/'.$document->id)
+                ->pause(500);
 
             // Comparar versiones
             // La implementación exacta depende de tu UI
@@ -446,7 +446,7 @@ class DocumentVersioningTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         $document = Document::factory()->create([
@@ -464,10 +464,10 @@ class DocumentVersioningTest extends DuskTestCase
             'created_by' => $user->id,
         ]);
 
-        $this->browse(function (Browser $browser) use ($user, $document, $version) {
+        $this->browse(function (Browser $browser) use ($user, $document) {
             $browser->loginAs($user)
-                    ->visit('/admin/documents/' . $document->id)
-                    ->pause(500);
+                ->visit('/admin/documents/'.$document->id)
+                ->pause(500);
 
             // Click en descargar versión
             // La implementación exacta depende de tu UI
@@ -488,7 +488,7 @@ class DocumentVersioningTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         $document = Document::factory()->create([
@@ -513,8 +513,8 @@ class DocumentVersioningTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user, $document, $latestVersion) {
             $browser->loginAs($user)
-                    ->visit('/admin/documents/' . $document->id)
-                    ->assertSee('Versión ' . $latestVersion->version_number);
+                ->visit('/admin/documents/'.$document->id)
+                ->assertSee('Versión '.$latestVersion->version_number);
         });
 
         // Verificar que la versión más reciente es la 3

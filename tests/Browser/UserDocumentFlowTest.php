@@ -29,7 +29,7 @@ class UserDocumentFlowTest extends DuskTestCase
         $department = Department::factory()->create(['branch_id' => $branch->id]);
 
         // Crear rol de usuario regular
-        $role = Role::create(['name' => 'regular_user', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'regular_user', 'guard_name' => 'web']);
 
         // Crear usuario regular
         $user = User::factory()->create([
@@ -66,7 +66,7 @@ class UserDocumentFlowTest extends DuskTestCase
         $branch = Branch::factory()->create(['company_id' => $company->id]);
         $department = Department::factory()->create(['branch_id' => $branch->id]);
 
-        $role = Role::create(['name' => 'admin', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
 
         $admin = User::factory()->create([
             'email' => 'admin@test.com',
@@ -96,7 +96,7 @@ class UserDocumentFlowTest extends DuskTestCase
         $branch = Branch::factory()->create(['company_id' => $company->id]);
         $department = Department::factory()->create(['branch_id' => $branch->id]);
 
-        $role = Role::create(['name' => 'regular_user', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'regular_user', 'guard_name' => 'web']);
 
         $user = User::factory()->create([
             'email' => 'user@test.com',
@@ -162,7 +162,7 @@ class UserDocumentFlowTest extends DuskTestCase
         $branch = Branch::factory()->create(['company_id' => $company->id]);
         $department = Department::factory()->create(['branch_id' => $branch->id]);
 
-        $role = Role::create(['name' => 'regular_user', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'regular_user', 'guard_name' => 'web']);
 
         $user = User::factory()->create([
             'email' => 'user@test.com',
@@ -196,7 +196,7 @@ class UserDocumentFlowTest extends DuskTestCase
         $branch = Branch::factory()->create(['company_id' => $company->id]);
         $department = Department::factory()->create(['branch_id' => $branch->id]);
 
-        $role = Role::create(['name' => 'regular_user', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'regular_user', 'guard_name' => 'web']);
 
         $user = User::factory()->create([
             'email' => 'user@test.com',
@@ -239,7 +239,7 @@ class UserDocumentFlowTest extends DuskTestCase
         $branch = Branch::factory()->create(['company_id' => $company->id]);
         $department = Department::factory()->create(['branch_id' => $branch->id]);
 
-        $role = Role::create(['name' => 'regular_user', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'regular_user', 'guard_name' => 'web']);
 
         $user = User::factory()->create([
             'email' => 'user@test.com',
@@ -292,7 +292,7 @@ class UserDocumentFlowTest extends DuskTestCase
         $branch = Branch::factory()->create(['company_id' => $company->id]);
         $department = Department::factory()->create(['branch_id' => $branch->id]);
 
-        $role = Role::create(['name' => 'regular_user', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'regular_user', 'guard_name' => 'web']);
 
         $user = User::factory()->create([
             'email' => 'user@test.com',
@@ -343,7 +343,7 @@ class UserDocumentFlowTest extends DuskTestCase
         $branch = Branch::factory()->create(['company_id' => $company->id]);
         $department = Department::factory()->create(['branch_id' => $branch->id]);
 
-        $role = Role::create(['name' => 'regular_user', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'regular_user', 'guard_name' => 'web']);
 
         $user = User::factory()->create([
             'email' => 'user@test.com',
@@ -393,7 +393,7 @@ class UserDocumentFlowTest extends DuskTestCase
         $branch1 = Branch::factory()->create(['company_id' => $company1->id]);
         $department1 = Department::factory()->create(['branch_id' => $branch1->id]);
 
-        $role = Role::create(['name' => 'regular_user', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'regular_user', 'guard_name' => 'web']);
 
         $user1 = User::factory()->create([
             'email' => 'user1@test.com',

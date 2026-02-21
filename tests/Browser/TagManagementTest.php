@@ -2,16 +2,16 @@
 
 namespace Tests\Browser;
 
-use App\Models\User;
-use App\Models\Company;
-use App\Models\Tag;
-use App\Models\Document;
 use App\Models\Category;
+use App\Models\Company;
+use App\Models\Document;
 use App\Models\Status;
+use App\Models\Tag;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Laravel\Dusk\Browser;
-use Tests\DuskTestCase;
 use Spatie\Permission\Models\Role;
+use Tests\DuskTestCase;
 
 class TagManagementTest extends DuskTestCase
 {
@@ -24,16 +24,16 @@ class TagManagementTest extends DuskTestCase
     {
         $company = Company::factory()->create();
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         Tag::factory()->count(5)->create(['company_id' => $company->id]);
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/tags')
-                    ->assertSee('Etiquetas')
-                    ->assertPresent('table');
+                ->visit('/admin/tags')
+                ->assertSee('Etiquetas')
+                ->assertPresent('table');
         });
     }
 
@@ -44,16 +44,16 @@ class TagManagementTest extends DuskTestCase
     {
         $company = Company::factory()->create();
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/tags/create')
-                    ->type('input[name="name"]', 'Urgente')
-                    ->type('input[name="color"]', '#FF0000')
-                    ->press('Crear')
-                    ->pause(1000);
+                ->visit('/admin/tags/create')
+                ->type('input[name="name"]', 'Urgente')
+                ->type('input[name="color"]', '#FF0000')
+                ->press('Crear')
+                ->pause(1000);
 
             $this->assertDatabaseHas('tags', [
                 'name' => 'Urgente',
@@ -195,7 +195,7 @@ class TagManagementTest extends DuskTestCase
     {
         $company = Company::factory()->create();
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $tag = Tag::factory()->create([
@@ -205,11 +205,11 @@ class TagManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin, $tag) {
             $browser->loginAs($admin)
-                    ->visit('/admin/tags/' . $tag->id . '/edit')
-                    ->clear('input[name="name"]')
-                    ->type('input[name="name"]', 'Modificado')
-                    ->press('Guardar cambios')
-                    ->pause(1000);
+                ->visit('/admin/tags/'.$tag->id.'/edit')
+                ->clear('input[name="name"]')
+                ->type('input[name="name"]', 'Modificado')
+                ->press('Guardar cambios')
+                ->pause(1000);
 
             $tag->refresh();
             $this->assertEquals('Modificado', $tag->name);
@@ -239,7 +239,7 @@ class TagManagementTest extends DuskTestCase
         $status = Status::factory()->create(['company_id' => $company->id]);
         $user = User::factory()->create(['company_id' => $company->id]);
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $urgentTag = Tag::factory()->create(['company_id' => $company->id, 'name' => 'Urgente']);
@@ -266,8 +266,8 @@ class TagManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/documents')
-                    ->pause(500);
+                ->visit('/admin/documents')
+                ->pause(500);
 
             // Aplicar filtro por tag
             // La implementación exacta depende de tu UI

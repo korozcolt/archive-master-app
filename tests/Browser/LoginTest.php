@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Company;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Laravel\Dusk\Browser;
+use Spatie\Permission\Models\Role;
 use Tests\DuskTestCase;
 
 class LoginTest extends DuskTestCase
@@ -29,6 +30,8 @@ class LoginTest extends DuskTestCase
             'password' => bcrypt('password'),
             'company_id' => $company->id,
         ]);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
+        $user->assignRole($adminRole);
 
         $this->browse(function (Browser $browser) use ($user) {
             $browser->visit('/admin/login')
@@ -64,6 +67,8 @@ class LoginTest extends DuskTestCase
         $user = User::factory()->create([
             'company_id' => $company->id,
         ]);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
+        $user->assignRole($adminRole);
 
         $this->browse(function (Browser $browser) use ($user) {
             $browser->loginAs($user)

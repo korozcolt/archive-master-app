@@ -8,12 +8,11 @@ use App\Models\DocumentLocationHistory;
 use App\Models\PhysicalLocation;
 use App\Models\Status;
 use App\Models\User;
-use App\Notifications\DocumentStatusChanged;
 use App\Notifications\DocumentAssigned;
+use App\Notifications\DocumentStatusChanged;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Notification;
 
 class DocumentObserver
 {
@@ -23,25 +22,25 @@ class DocumentObserver
     public function creating(Document $document): void
     {
         // Asignar valores por defecto si no están establecidos
-        if (!$document->document_number) {
+        if (! $document->document_number) {
             $document->document_number = $this->generateDocumentNumber($document);
         }
 
-        if (!$document->created_by && Auth::check()) {
+        if (! $document->created_by && Auth::check()) {
             $document->created_by = Auth::id();
         }
 
-        if (!$document->company_id && Auth::check()) {
+        if (! $document->company_id && Auth::check()) {
             $document->company_id = Auth::user()->company_id;
         }
 
         // Establecer prioridad por defecto
-        if (!$document->priority) {
+        if (! $document->priority) {
             $document->priority = 'medium';
         }
 
         // Establecer tipo de documento digital por defecto
-        if (!$document->digital_document_type) {
+        if (! $document->digital_document_type) {
             $document->digital_document_type = 'copia';
         }
 
@@ -49,7 +48,7 @@ class DocumentObserver
         // Por defecto es null para que el usuario decida
 
         // Generar código de tracking público si está habilitado
-        if ($document->tracking_enabled && !$document->public_tracking_code) {
+        if ($document->tracking_enabled && ! $document->public_tracking_code) {
             $document->public_tracking_code = $document->generatePublicTrackingCode();
         }
     }
@@ -59,17 +58,18 @@ class DocumentObserver
      */
     public function created(Document $document): void
     {
-        // Log de actividad
-        activity()
-            ->performedOn($document)
-            ->causedBy(Auth::user())
-            ->withProperties([
-                'document_number' => $document->document_number,
-                'title' => $document->title,
-                'category_id' => $document->category_id,
-                'status_id' => $document->status_id,
-            ])
-            ->log('created');
+        if ($this->shouldLogActivity()) {
+            activity()
+                ->performedOn($document)
+                ->causedBy(Auth::user())
+                ->withProperties([
+                    'document_number' => $document->document_number,
+                    'title' => $document->title,
+                    'category_id' => $document->category_id,
+                    'status_id' => $document->status_id,
+                ])
+                ->log('created');
+        }
 
         Log::info('Documento creado', [
             'document_id' => $document->id,
@@ -96,35 +96,35 @@ class DocumentObserver
         if ($document->isDirty('status_id')) {
             $importantChanges['status'] = [
                 'old' => $document->getOriginal('status_id'),
-                'new' => $document->status_id
+                'new' => $document->status_id,
             ];
         }
 
         if ($document->isDirty('assigned_to')) {
             $importantChanges['assignee'] = [
                 'old' => $document->getOriginal('assigned_to'),
-                'new' => $document->assigned_to
+                'new' => $document->assigned_to,
             ];
         }
 
         if ($document->isDirty('priority')) {
             $importantChanges['priority'] = [
                 'old' => $document->getOriginal('priority'),
-                'new' => $document->priority
+                'new' => $document->priority,
             ];
         }
 
         if ($document->isDirty('due_at')) {
             $importantChanges['due_date'] = [
                 'old' => $document->getOriginal('due_at'),
-                'new' => $document->due_at
+                'new' => $document->due_at,
             ];
         }
 
         if ($document->isDirty('physical_location_id')) {
             $importantChanges['physical_location'] = [
                 'old' => $document->getOriginal('physical_location_id'),
-                'new' => $document->physical_location_id
+                'new' => $document->physical_location_id,
             ];
         }
 
@@ -146,7 +146,7 @@ class DocumentObserver
         $importantChanges = static::$pendingChanges[$document->id] ?? [];
 
         // Log de actividad para cambios importantes
-        if (!empty($importantChanges)) {
+        if (! empty($importantChanges) && $this->shouldLogActivity()) {
             activity()
                 ->performedOn($document)
                 ->causedBy(Auth::user())
@@ -158,7 +158,7 @@ class DocumentObserver
         }
 
         // Disparar evento DocumentUpdated para notificaciones automáticas
-        if (!empty($importantChanges) && Auth::check()) {
+        if (! empty($importantChanges) && Auth::check()) {
             event(new DocumentUpdated(
                 $document,
                 Auth::user(),
@@ -208,16 +208,17 @@ class DocumentObserver
      */
     public function deleted(Document $document): void
     {
-        // Log de actividad
-        activity()
-            ->performedOn($document)
-            ->causedBy(Auth::user())
-            ->withProperties([
-                'document_number' => $document->document_number,
-                'title' => $document->title,
-                'status_id' => $document->status_id,
-            ])
-            ->log('deleted');
+        if ($this->shouldLogActivity()) {
+            activity()
+                ->performedOn($document)
+                ->causedBy(Auth::user())
+                ->withProperties([
+                    'document_number' => $document->document_number,
+                    'title' => $document->title,
+                    'status_id' => $document->status_id,
+                ])
+                ->log('deleted');
+        }
 
         Log::warning('Documento eliminado', [
             'document_id' => $document->id,
@@ -232,15 +233,16 @@ class DocumentObserver
      */
     public function restored(Document $document): void
     {
-        // Log de actividad
-        activity()
-            ->performedOn($document)
-            ->causedBy(Auth::user())
-            ->withProperties([
-                'document_number' => $document->document_number,
-                'title' => $document->title,
-            ])
-            ->log('restored');
+        if ($this->shouldLogActivity()) {
+            activity()
+                ->performedOn($document)
+                ->causedBy(Auth::user())
+                ->withProperties([
+                    'document_number' => $document->document_number,
+                    'title' => $document->title,
+                ])
+                ->log('restored');
+        }
 
         Log::info('Documento restaurado', [
             'document_id' => $document->id,
@@ -269,12 +271,17 @@ class DocumentObserver
         if ($lastDocument && $lastDocument->document_number) {
             // Extraer el número secuencial del último documento
             preg_match('/(\d+)$/', $lastDocument->document_number, $matches);
-            if (!empty($matches)) {
+            if (! empty($matches)) {
                 $sequence = intval($matches[1]) + 1;
             }
         }
 
         return sprintf('%s-%s%s-%04d', $prefix, $year, $month, $sequence);
+    }
+
+    private function shouldLogActivity(): bool
+    {
+        return ! app()->environment('testing');
     }
 
     /**
@@ -286,12 +293,13 @@ class DocumentObserver
         $newStatus = Status::find($statusChange['new']);
 
         // Verificar que ambos estados existan antes de proceder
-        if (!$newStatus) {
+        if (! $newStatus) {
             Log::warning('Status not found for document status change', [
                 'document_id' => $document->id,
                 'old_status_id' => $statusChange['old'],
-                'new_status_id' => $statusChange['new']
+                'new_status_id' => $statusChange['new'],
             ]);
+
             return;
         }
 

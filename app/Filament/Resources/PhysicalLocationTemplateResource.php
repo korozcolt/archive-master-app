@@ -2,16 +2,17 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\ResourceAccess;
 use App\Filament\Resources\PhysicalLocationTemplateResource\Pages;
 use App\Filament\Resources\PhysicalLocationTemplateResource\RelationManagers;
 use App\Models\PhysicalLocationTemplate;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 
@@ -26,6 +27,20 @@ class PhysicalLocationTemplateResource extends Resource
     protected static ?string $navigationGroup = 'Gestión Documental';
 
     protected static ?int $navigationSort = 8;
+
+    public static function canViewAny(): bool
+    {
+        return ResourceAccess::allows(roles: [
+            'admin',
+            'branch_admin',
+            'archive_manager',
+        ]);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
 
     public static function getNavigationBadge(): ?string
     {
@@ -168,7 +183,7 @@ class PhysicalLocationTemplateResource extends Resource
                     ->color('warning')
                     ->action(function (PhysicalLocationTemplate $record): void {
                         $newTemplate = $record->replicate();
-                        $newTemplate->name = $record->name . ' (Copia)';
+                        $newTemplate->name = $record->name.' (Copia)';
                         $newTemplate->is_active = false;
                         $newTemplate->created_by = Auth::id();
                         $newTemplate->save();
@@ -233,7 +248,7 @@ class PhysicalLocationTemplateResource extends Resource
         $query = parent::getEloquentQuery();
 
         // Filtrar por empresa si no es super admin
-        if (!Auth::user()->hasRole('super_admin')) {
+        if (! Auth::user()->hasRole('super_admin')) {
             $query->where('company_id', Auth::user()->company_id);
         }
 

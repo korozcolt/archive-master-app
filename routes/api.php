@@ -1,7 +1,5 @@
 <?php
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\CompanyController;
@@ -13,6 +11,8 @@ use App\Http\Controllers\Api\StatusController;
 use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WebhookController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -49,7 +49,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/', [PhysicalLocationController::class, 'index']);
         Route::get('/search', [PhysicalLocationController::class, 'search']);
         Route::get('/available', [PhysicalLocationController::class, 'available']);
-        Route::get('/{code}/by-code', [PhysicalLocationController::class, 'findByCode']);
+        Route::get('/{code}/by-code', [PhysicalLocationController::class, 'findByCode'])
+            ->where('code', '.*');
         Route::get('/{id}', [PhysicalLocationController::class, 'show']);
         Route::post('/', [PhysicalLocationController::class, 'store']);
         Route::put('/{id}', [PhysicalLocationController::class, 'update']);

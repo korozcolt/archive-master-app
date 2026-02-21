@@ -7,6 +7,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2026-02-06
+
+- Portal Livewire `/portal` para roles operativos con dashboard y reportes personales de enviados/recibidos.
+- Navegación de portal en layout web (Documentos + Reportes).
+- Tests Feature para acceso por rol al portal y redirecciones de admin.
+- Test Feature para carga de archivo y persistencia de `file_path` en documentos.
+- Evidencias E2E del portal por rol usando Dusk (fallback).
+- Evidencias E2E del portal por rol usando Chrome DevTools MCP.
+
+### Changed - 2026-02-06
+
+- Redirecciones de acceso: roles operativos se mueven a `/portal`, roles admin permanecen en `/admin`.
+- Layout web ahora soporta contenido Livewire vía `$slot` además de `@yield('content')`.
+
+### Fixed - 2026-02-06
+
+- `tests/Browser/ReportGenerationTest.php`: corrección de sintaxis en creación de rol.
+- `app/Services/ReportService.php`: relación inexistente `user` reemplazada por `creator`.
+- `app/Services/QRCodeService.php`: compatibilidad con endroid/qr-code v6 (sin `Builder::create()`).
+- `routes/web.php`: descarga de documentos usa `file_path` correctamente.
+- `app/Http/Controllers/UserDocumentController.php`: persistencia y reemplazo de archivos vía `file_path` (portal).
+- `app/Policies/DocumentPolicy.php`: autorización de vista consistente con reglas de acceso.
+- `bootstrap/app.php`: exclusión de CSRF para tracking público.
+- `app/Providers/Filament/AdminPanelProvider.php`: theme por Vite evita 404 de assets CSS.
+- `resources/views/livewire/portal/reports.blade.php`: inputs con `id`/`name` para accesibilidad.
+- `app/Models/User.php`: acceso a Filament por rol (super_admin/admin/branch_admin) vía `FilamentUser`.
+- `app/Filament/Resources/AdvancedSearchResource.php`: acceso admin por rol en búsqueda avanzada.
+- `database/migrations/2025_08_02_200000_add_performance_indexes.php`: rollback omitido en `local` para evitar errores Dusk.
+- `tests/DuskTestCase.php`: seed de permisos Spatie en Dusk.
+- `tests/Browser/AdvancedSearchTest.php`: validación de “No se encontraron registros”.
+- `.env`, `.env.dusk.local`, `phpunit.dusk.xml`: entorno local + MySQL para Dusk.
+
+### Added - 2026-02-05
+
+#### Plan Maestro por Fases + Trazabilidad Operativa
+
+- **Nuevo documento:** `PLAN_DESARROLLO_FASES.md`
+  - Plan completo de desarrollo en 5 bloques:
+    - Fase 0: Estabilización base
+    - Fase 1: Seguridad y acceso por roles
+    - Fase 2: Pruebas E2E con Chrome DevTools MCP
+    - Fase 3: Cierre de brechas funcionales
+    - Fase 4: Calidad continua y hardening
+  - Checklist ejecutable por fase para ir marcando avances
+  - Cobertura explícita de pruebas por rol/tipo de usuario:
+    - `super_admin`, `admin`, `branch_admin`, `office_manager`, `archive_manager`, `receptionist`, `regular_user`, `guest`, `anónimo`
+  - Sección de bitácora (`Registro de Avance`) para control de cambios con evidencia
+  - Definición de estados de seguimiento: pendiente, en progreso, completado
+
+#### E2E Evidencias Iniciales (Chrome DevTools MCP)
+
+- Evidencias de login + dashboard + documentos por rol en `e2e/evidence/*.png`
+- Registro de estado en `E2E_CHROME_DEVTOOLS.md`
+
+#### Columnas de SLA y vencimiento
+
+- Migración `2026_02_05_020000_add_due_date_to_documents_table.php`
+- Migración `2026_02_05_030000_add_sla_due_date_to_documents_table.php`
+- Tests de sincronización de fechas: `tests/Feature/DueDateSyncTest.php`
+
+### Fixed - 2026-02-05
+
+- `app/Filament/Resources/DocumentResource/Pages/ViewDocument.php`: vista estable y descarga basada en `file_path` (sin error 500).
+- `tests/Feature/Filament/DocumentResourceTest.php`: nuevo test para renderizar la vista de documento.
+- Evidencias E2E adicionales en `e2e/evidence/admin-document-content.png` y `e2e/evidence/admin-document-download.png`.
+- Menú Filament por rol: navegación condicionada por permisos/roles en recursos clave.
+
+### Changed - 2026-02-05
+
+- `app/Models/Document.php`: sincronización bidireccional `due_date` ↔ `due_at` y cast para `sla_due_date`
+
 ### Added - 2025-12-26
 
 #### Sistema Completo de Plantillas de Documentos

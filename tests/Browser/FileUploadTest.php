@@ -2,17 +2,17 @@
 
 namespace Tests\Browser;
 
-use App\Models\User;
+use App\Models\Category;
 use App\Models\Company;
 use App\Models\Document;
-use App\Models\Category;
 use App\Models\Status;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Dusk\Browser;
-use Tests\DuskTestCase;
 use Spatie\Permission\Models\Role;
+use Tests\DuskTestCase;
 
 class FileUploadTest extends DuskTestCase
 {
@@ -37,14 +37,14 @@ class FileUploadTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         $this->browse(function (Browser $browser) use ($user) {
             $browser->loginAs($user)
-                    ->visit('/admin/documents/create')
-                    ->assertSee('Crear documento')
-                    ->assertPresent('input[type="file"]');
+                ->visit('/admin/documents/create')
+                ->assertSee('Crear documento')
+                ->assertPresent('input[type="file"]');
         });
     }
 
@@ -61,7 +61,7 @@ class FileUploadTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         // Crear archivo PDF fake
@@ -69,9 +69,9 @@ class FileUploadTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user, $file) {
             $browser->loginAs($user)
-                    ->visit('/admin/documents/create')
-                    ->attach('input[type="file"]', storage_path('app/' . $file->path()))
-                    ->pause(1000);
+                ->visit('/admin/documents/create')
+                ->attach('input[type="file"]', storage_path('app/'.$file->path()))
+                ->pause(1000);
 
             // Verificar que el archivo fue procesado
             // La implementación exacta depende de tu sistema de carga
@@ -91,7 +91,7 @@ class FileUploadTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         // Crear imagen fake
@@ -99,9 +99,9 @@ class FileUploadTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user, $file) {
             $browser->loginAs($user)
-                    ->visit('/admin/documents/create')
-                    ->attach('input[type="file"]', storage_path('app/' . $file->path()))
-                    ->pause(1000);
+                ->visit('/admin/documents/create')
+                ->attach('input[type="file"]', storage_path('app/'.$file->path()))
+                ->pause(1000);
         });
     }
 
@@ -116,7 +116,7 @@ class FileUploadTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         // Crear archivo muy grande (>10MB)
@@ -124,9 +124,9 @@ class FileUploadTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user, $largeFile) {
             $browser->loginAs($user)
-                    ->visit('/admin/documents/create')
-                    ->attach('input[type="file"]', storage_path('app/' . $largeFile->path()))
-                    ->pause(1000);
+                ->visit('/admin/documents/create')
+                ->attach('input[type="file"]', storage_path('app/'.$largeFile->path()))
+                ->pause(1000);
 
             // Debería mostrar error de tamaño
             // La implementación exacta depende de tu validación
@@ -144,7 +144,7 @@ class FileUploadTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         // Crear archivo no permitido (.exe)
@@ -152,9 +152,9 @@ class FileUploadTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user, $invalidFile) {
             $browser->loginAs($user)
-                    ->visit('/admin/documents/create')
-                    ->attach('input[type="file"]', storage_path('app/' . $invalidFile->path()))
-                    ->pause(1000);
+                ->visit('/admin/documents/create')
+                ->attach('input[type="file"]', storage_path('app/'.$invalidFile->path()))
+                ->pause(1000);
 
             // Debería mostrar error de tipo no permitido
         });
@@ -205,14 +205,14 @@ class FileUploadTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         $this->browse(function (Browser $browser) use ($user) {
             $browser->loginAs($user)
-                    ->visit('/admin/documents/create')
-                    ->assertPresent('input[type="file"]')
-                    ->pause(500);
+                ->visit('/admin/documents/create')
+                ->assertPresent('input[type="file"]')
+                ->pause(500);
 
             // Verificar que existe indicador de progreso
             // La implementación exacta depende de tu UI
@@ -232,7 +232,7 @@ class FileUploadTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         // Crear múltiples archivos
@@ -298,7 +298,7 @@ class FileUploadTest extends DuskTestCase
             'company_id' => $company->id,
         ]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $user->assignRole($adminRole);
 
         $file = UploadedFile::fake()->create('to-delete.pdf', 1024, 'application/pdf');
@@ -315,8 +315,8 @@ class FileUploadTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user, $document) {
             $browser->loginAs($user)
-                    ->visit('/admin/documents/' . $document->id . '/edit')
-                    ->pause(500);
+                ->visit('/admin/documents/'.$document->id.'/edit')
+                ->pause(500);
 
             // Eliminar archivo
             Storage::disk('public')->delete($document->file_path);

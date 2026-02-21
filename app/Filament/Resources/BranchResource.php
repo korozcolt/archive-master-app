@@ -2,22 +2,24 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\ResourceAccess;
 use App\Filament\Resources\BranchResource\Pages;
 use App\Filament\Resources\BranchResource\RelationManagers;
 use App\Models\Branch;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Collection;
+use Filament\Resources\Concerns\Translatable;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Filament\Resources\Concerns\Translatable;
 
 class BranchResource extends Resource
 {
     use Translatable;
+
     protected static ?string $model = Branch::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-building-storefront';
@@ -27,6 +29,19 @@ class BranchResource extends Resource
     protected static ?string $navigationGroup = 'Administración';
 
     protected static ?int $navigationSort = 2;
+
+    public static function canViewAny(): bool
+    {
+        return ResourceAccess::allows(permissions: [
+            'manage-branches',
+            'manage-branch',
+        ]);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
 
     public static function getNavigationBadge(): ?string
     {
@@ -103,7 +118,7 @@ class BranchResource extends Resource
                             ->default(true),
                         Forms\Components\Textarea::make('settings')
                             ->label('Configuración adicional (JSON)')
-                            ->helperText('Configuración en formato JSON. Dejar vacío si no es necesario.')
+                            ->helperText('Configuración en formato JSON. Dejar vacío si no es necesario.'),
                     ]),
             ]);
     }
@@ -120,6 +135,7 @@ class BranchResource extends Resource
                         if (is_array($state)) {
                             return $record->company->getTranslation('name', app()->getLocale());
                         }
+
                         return $state;
                     }),
                 Tables\Columns\TextColumn::make('name')
@@ -130,6 +146,7 @@ class BranchResource extends Resource
                         if (is_array($state)) {
                             return $record->getTranslation('name', app()->getLocale());
                         }
+
                         return $state;
                     }),
                 Tables\Columns\TextColumn::make('code')

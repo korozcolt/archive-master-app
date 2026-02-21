@@ -4,11 +4,10 @@ namespace App\Filament\Resources\DocumentResource\Pages;
 
 use App\Filament\Resources\DocumentResource;
 use Filament\Actions;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Database\Eloquent\Builder;
-use App\Models\Document;
 use Illuminate\Support\Facades\Auth;
-use Filament\Notifications\Notification;
 
 class ListDocuments extends ListRecords
 {
@@ -54,7 +53,7 @@ class ListDocuments extends ListRecords
                 ->label('Importar')
                 ->icon('heroicon-o-arrow-up-tray')
                 ->form([
-                    \Filament\Forms\Components\FileUpload::make('file')
+                    \Filament\Forms\Components\FileUpload::make('file_path')
                         ->label('Archivo CSV')
                         ->acceptedFileTypes(['text/csv', 'application/vnd.ms-excel'])
                         ->required(),
@@ -66,8 +65,7 @@ class ListDocuments extends ListRecords
                         ->preload(),
                     \Filament\Forms\Components\Select::make('branch_id')
                         ->label('Sucursal')
-                        ->relationship('branch', 'name', fn (Builder $query, \Filament\Forms\Get $get) =>
-                            $query->where('company_id', $get('company_id'))
+                        ->relationship('branch', 'name', fn (Builder $query, \Filament\Forms\Get $get) => $query->where('company_id', $get('company_id'))
                         )
                         ->searchable()
                         ->preload(),
@@ -88,7 +86,7 @@ class ListDocuments extends ListRecords
                         ->success()
                         ->send();
                 })
-                ->visible(fn() => Auth::user()->hasRole(['admin', 'super_admin', 'branch_admin'])),
+                ->visible(fn () => Auth::user()->hasRole(['admin', 'super_admin', 'branch_admin'])),
         ];
     }
 
@@ -101,7 +99,7 @@ class ListDocuments extends ListRecords
         $user = Auth::user();
 
         // If not super admin, limit to documents from their company
-        if ($user && !$user->hasRole('super_admin') && $user->company_id) {
+        if ($user && ! $user->hasRole('super_admin') && $user->company_id) {
             $query->where('company_id', $user->company_id);
 
             // If branch admin, limit to their branch
@@ -116,9 +114,9 @@ class ListDocuments extends ListRecords
 
             // If regular user, only show assigned documents or created by them
             if ($user->hasRole('regular_user')) {
-                $query->where(function($query) use ($user) {
+                $query->where(function ($query) use ($user) {
                     $query->where('assigned_to', $user->id)
-                          ->orWhere('created_by', $user->id);
+                        ->orWhere('created_by', $user->id);
                 });
             }
         }

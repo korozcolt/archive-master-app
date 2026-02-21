@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Role;
 use App\Models\Document;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
@@ -18,16 +18,26 @@ class DashboardController extends Controller
         $user = Auth::user();
 
         // Si es administrador, redirigir al panel de Filament
-        if ($user->hasAnyRole(['admin', 'super_admin', 'branch_admin', 'office_manager'])) {
+        if ($user->hasAnyRole([Role::SuperAdmin->value, Role::Admin->value, Role::BranchAdmin->value])) {
             return redirect('/admin');
         }
 
-        // Para usuarios regulares, mostrar dashboard simple
+        // Para usuarios de portal, redirigir al portal
+        if ($user->hasAnyRole([
+            Role::OfficeManager->value,
+            Role::ArchiveManager->value,
+            Role::Receptionist->value,
+            Role::RegularUser->value,
+        ])) {
+            return redirect('/portal');
+        }
+
+        // Para usuarios sin rol, mostrar dashboard simple
         // Query base para los documentos del usuario
         $baseQuery = Document::where('company_id', $user->company_id)
-            ->where(function($query) use ($user) {
+            ->where(function ($query) use ($user) {
                 $query->where('assigned_to', $user->id)
-                      ->orWhere('created_by', $user->id);
+                    ->orWhere('created_by', $user->id);
             });
 
         // Documentos recientes
@@ -41,14 +51,14 @@ class DashboardController extends Controller
         $totalDocuments = (clone $baseQuery)->count();
 
         $pendingDocuments = (clone $baseQuery)
-            ->whereHas('status', function($query) {
+            ->whereHas('status', function ($query) {
                 $query->where('name', 'En Proceso')
-                      ->orWhere('name', 'Pendiente');
+                    ->orWhere('name', 'Pendiente');
             })
             ->count();
 
         $completedDocuments = (clone $baseQuery)
-            ->whereHas('status', function($query) {
+            ->whereHas('status', function ($query) {
                 $query->where('name', 'Completado');
             })
             ->count();

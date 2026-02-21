@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Enums\Role;
+use App\Filament\ResourceAccess;
 use App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource\RelationManagers\AssignedDocumentsRelationManager;
 use App\Filament\Resources\UserResource\RelationManagers\DocumentsRelationManager;
@@ -10,13 +11,12 @@ use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Collection;
-use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 class UserResource extends Resource
 {
@@ -29,6 +29,20 @@ class UserResource extends Resource
     protected static ?string $navigationGroup = 'Administration';
 
     protected static ?int $navigationSort = 3;
+
+    public static function canViewAny(): bool
+    {
+        return ResourceAccess::allows(roles: [
+            'admin',
+            'branch_admin',
+            'office_manager',
+        ]);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
 
     public static function getNavigationBadge(): ?string
     {
@@ -72,7 +86,7 @@ class UserResource extends Resource
                                     ->preload()
                                     ->required()
                                     ->default(fn () => Auth::user()->hasRole('super_admin') ? null : Auth::user()->company_id)
-                                    ->disabled(fn () => !Auth::user()->hasRole('super_admin') && Auth::user()->company_id)
+                                    ->disabled(fn () => ! Auth::user()->hasRole('super_admin') && Auth::user()->company_id)
                                     ->reactive(),
                                 Forms\Components\Select::make('branch_id')
                                     ->label('Branch')
@@ -81,6 +95,7 @@ class UserResource extends Resource
                                         if ($companyId) {
                                             $query->where('company_id', $companyId);
                                         }
+
                                         return $query;
                                     })
                                     ->searchable()
@@ -93,6 +108,7 @@ class UserResource extends Resource
                                         if ($companyId) {
                                             $query->where('company_id', $companyId);
                                         }
+
                                         return $query;
                                     })
                                     ->searchable()
@@ -231,13 +247,13 @@ class UserResource extends Resource
                     ->label('Roles')
                     ->formatStateUsing(fn (string $state): string => Role::tryFrom($state)?->getLabel() ?? $state)
                     ->badge()
-                    ->icon(fn (string $state): string => match($state) {
+                    ->icon(fn (string $state): string => match ($state) {
                         Role::SuperAdmin->value => 'heroicon-o-shield-check',
                         Role::Admin->value => 'heroicon-o-user-circle',
                         Role::RegularUser->value => 'heroicon-o-user',
                         default => 'heroicon-o-user',
                     })
-                    ->color(fn (string $state): string => match($state) {
+                    ->color(fn (string $state): string => match ($state) {
                         Role::SuperAdmin->value => 'danger',
                         Role::Admin->value => 'warning',
                         Role::RegularUser->value => 'success',
@@ -265,7 +281,7 @@ class UserResource extends Resource
                 Tables\Filters\SelectFilter::make('company')
                     ->label('Company')
                     ->relationship('company', 'name')
-                    ->visible(fn() => Auth::user()->hasRole('super_admin')),
+                    ->visible(fn () => Auth::user()->hasRole('super_admin')),
                 Tables\Filters\SelectFilter::make('branch')
                     ->label('Branch')
                     ->relationship('branch', 'name'),
@@ -347,7 +363,7 @@ class UserResource extends Resource
         $query = parent::getEloquentQuery();
 
         // Si no es super_admin, solo mostrar usuarios de su empresa
-        if (!Auth::user()->hasRole('super_admin')) {
+        if (! Auth::user()->hasRole('super_admin')) {
             $query->where('company_id', Auth::user()->company_id);
         }
 

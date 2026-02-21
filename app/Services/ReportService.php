@@ -2,16 +2,16 @@
 
 namespace App\Services;
 
-use App\Models\Document;
-use App\Models\User;
+use App\Exports\DocumentsExport;
 use App\Models\Department;
+use App\Models\Document;
 use App\Models\Status;
+use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Exports\DocumentsExport;
 
 class ReportService
 {
@@ -20,7 +20,7 @@ class ReportService
      */
     public function documentsByStatus(array $filters = []): Collection
     {
-        $query = Document::with(['status', 'category', 'user', 'department'])
+        $query = Document::with(['status', 'category', 'creator', 'department'])
             ->select('documents.*', DB::raw('count(*) as total'))
             ->groupBy('status_id');
 
@@ -28,7 +28,7 @@ class ReportService
         if (isset($filters['date_from'])) {
             $query->where('created_at', '>=', $filters['date_from']);
         }
-        
+
         if (isset($filters['date_to'])) {
             $query->where('created_at', '<=', $filters['date_to']);
         }
@@ -46,7 +46,7 @@ class ReportService
      */
     public function slaComplianceReport(array $filters = []): Collection
     {
-        $query = Document::with(['status', 'category', 'user', 'department'])
+        $query = Document::with(['status', 'category', 'creator', 'department'])
             ->select(
                 'documents.*',
                 DB::raw('CASE 
@@ -61,7 +61,7 @@ class ReportService
         if (isset($filters['date_from'])) {
             $query->where('created_at', '>=', $filters['date_from']);
         }
-        
+
         if (isset($filters['date_to'])) {
             $query->where('created_at', '<=', $filters['date_to']);
         }
@@ -90,7 +90,7 @@ class ReportService
                     $query->whereHas('status', function ($q) {
                         $q->where('name', '!=', 'Completed');
                     });
-                }
+                },
             ]);
 
         // Apply date filters for document creation
@@ -145,10 +145,10 @@ class ReportService
             'data' => $data,
             'filters' => $filters,
             'generated_at' => now(),
-            'title' => $this->getReportTitle($reportType)
+            'title' => $this->getReportTitle($reportType),
         ]);
 
-        return $pdf->download("{$reportType}_" . now()->format('Y-m-d_H-i-s') . '.pdf');
+        return $pdf->download("{$reportType}_".now()->format('Y-m-d_H-i-s').'.pdf');
     }
 
     /**
@@ -158,7 +158,7 @@ class ReportService
     {
         return Excel::download(
             new DocumentsExport($data, $reportType),
-            "{$reportType}_" . now()->format('Y-m-d_H-i-s') . '.xlsx'
+            "{$reportType}_".now()->format('Y-m-d_H-i-s').'.xlsx'
         );
     }
 
@@ -173,12 +173,12 @@ class ReportService
         return [
             'total_documents' => Document::whereBetween('created_at', [$dateFrom, $dateTo])->count(),
             'completed_documents' => Document::whereBetween('created_at', [$dateFrom, $dateTo])
-                ->whereHas('status', fn($q) => $q->where('name', 'Completed'))->count(),
+                ->whereHas('status', fn ($q) => $q->where('name', 'Completed'))->count(),
             'overdue_documents' => Document::where('due_date', '<', now())
-                ->whereHas('status', fn($q) => $q->where('name', '!=', 'Completed'))->count(),
+                ->whereHas('status', fn ($q) => $q->where('name', '!=', 'Completed'))->count(),
             'avg_processing_time' => $this->getAverageProcessingTime($dateFrom, $dateTo),
             'documents_by_status' => $this->getDocumentsByStatusChart($dateFrom, $dateTo),
-            'monthly_trends' => $this->getMonthlyTrends($dateFrom, $dateTo)
+            'monthly_trends' => $this->getMonthlyTrends($dateFrom, $dateTo),
         ];
     }
 
@@ -188,7 +188,7 @@ class ReportService
     private function getAverageProcessingTime(Carbon $dateFrom, Carbon $dateTo): float
     {
         $completedDocs = Document::whereBetween('created_at', [$dateFrom, $dateTo])
-            ->whereHas('status', fn($q) => $q->where('name', 'Completed'))
+            ->whereHas('status', fn ($q) => $q->where('name', 'Completed'))
             ->whereNotNull('updated_at')
             ->get();
 
@@ -234,7 +234,7 @@ class ReportService
             ->map(function ($item) {
                 return [
                     'period' => Carbon::create($item->year, $item->month)->format('Y-m'),
-                    'total' => $item->total
+                    'total' => $item->total,
                 ];
             })
             ->toArray();

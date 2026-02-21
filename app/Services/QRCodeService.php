@@ -11,8 +11,8 @@ use Endroid\QrCode\Label\LabelAlignment;
 use Endroid\QrCode\RoundBlockSizeMode;
 use Endroid\QrCode\Writer\PngWriter;
 use Endroid\QrCode\Writer\SvgWriter;
-use Illuminate\Support\Facades\Storage;
 use Exception;
+use Illuminate\Support\Facades\Storage;
 
 class QRCodeService
 {
@@ -86,7 +86,7 @@ class QRCodeService
         ?string $label = null,
         string $errorCorrectionLevel = 'high'
     ): string {
-        $writer = $format === 'svg' ? new SvgWriter() : new PngWriter();
+        $writer = $format === 'svg' ? new SvgWriter : new PngWriter;
 
         $errorLevel = match ($errorCorrectionLevel) {
             'low' => ErrorCorrectionLevel::Low,
@@ -96,21 +96,17 @@ class QRCodeService
             default => ErrorCorrectionLevel::High,
         };
 
-        $builder = Builder::create()
-            ->writer($writer)
-            ->data($data)
-            ->encoding(new Encoding('UTF-8'))
-            ->errorCorrectionLevel($errorLevel)
-            ->size($size)
-            ->margin(10)
-            ->roundBlockSizeMode(RoundBlockSizeMode::Margin);
-
-        if ($label) {
-            $builder->labelText($label)
-                ->labelAlignment(LabelAlignment::Center);
-        }
-
-        $result = $builder->build();
+        $result = (new Builder(
+            writer: $writer,
+            data: $data,
+            encoding: new Encoding('UTF-8'),
+            errorCorrectionLevel: $errorLevel,
+            size: $size,
+            margin: 10,
+            roundBlockSizeMode: RoundBlockSizeMode::Margin,
+            labelText: $label ?? '',
+            labelAlignment: LabelAlignment::Center,
+        ))->build();
 
         if ($format === 'base64' || $format === 'png') {
             return base64_encode($result->getString());
@@ -129,21 +125,17 @@ class QRCodeService
         int $size = 300,
         ?string $label = null
     ): string {
-        $result = Builder::create()
-            ->writer(new PngWriter())
-            ->data($data)
-            ->encoding(new Encoding('UTF-8'))
-            ->errorCorrectionLevel(ErrorCorrectionLevel::High)
-            ->size($size)
-            ->margin(10)
-            ->roundBlockSizeMode(RoundBlockSizeMode::Margin);
-
-        if ($label) {
-            $result->labelText($label)
-                ->labelAlignment(LabelAlignment::Center);
-        }
-
-        $qrCode = $result->build();
+        $qrCode = (new Builder(
+            writer: new PngWriter,
+            data: $data,
+            encoding: new Encoding('UTF-8'),
+            errorCorrectionLevel: ErrorCorrectionLevel::High,
+            size: $size,
+            margin: 10,
+            roundBlockSizeMode: RoundBlockSizeMode::Margin,
+            labelText: $label ?? '',
+            labelAlignment: LabelAlignment::Center,
+        ))->build();
 
         $path = "qrcodes/{$filename}.png";
         Storage::disk($disk)->put($path, $qrCode->getString());
@@ -159,21 +151,17 @@ class QRCodeService
         int $size = 300,
         ?string $label = null
     ): string {
-        $result = Builder::create()
-            ->writer(new PngWriter())
-            ->data($data)
-            ->encoding(new Encoding('UTF-8'))
-            ->errorCorrectionLevel(ErrorCorrectionLevel::High)
-            ->size($size)
-            ->margin(10)
-            ->roundBlockSizeMode(RoundBlockSizeMode::Margin);
-
-        if ($label) {
-            $result->labelText($label)
-                ->labelAlignment(LabelAlignment::Center);
-        }
-
-        $qrCode = $result->build();
+        $qrCode = (new Builder(
+            writer: new PngWriter,
+            data: $data,
+            encoding: new Encoding('UTF-8'),
+            errorCorrectionLevel: ErrorCorrectionLevel::High,
+            size: $size,
+            margin: 10,
+            roundBlockSizeMode: RoundBlockSizeMode::Margin,
+            labelText: $label ?? '',
+            labelAlignment: LabelAlignment::Center,
+        ))->build();
 
         return $qrCode->getDataUri();
     }

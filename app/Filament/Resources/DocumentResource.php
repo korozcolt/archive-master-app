@@ -3,11 +3,10 @@
 namespace App\Filament\Resources;
 
 use App\Enums\Priority;
+use App\Filament\ResourceAccess;
 use App\Filament\Resources\DocumentResource\Pages;
 use App\Filament\Resources\DocumentResource\RelationManagers;
-use App\Models\Branch;
 use App\Models\Category;
-use App\Models\Department;
 use App\Models\Document;
 use App\Models\DocumentTemplate;
 use App\Models\PhysicalLocation;
@@ -27,7 +26,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
 
 class DocumentResource extends Resource
 {
@@ -40,6 +38,28 @@ class DocumentResource extends Resource
     protected static ?string $navigationGroup = 'Gestión Documental';
 
     protected static ?int $navigationSort = 5;
+
+    public static function canViewAny(): bool
+    {
+        return ResourceAccess::allows(roles: [
+            'admin',
+            'branch_admin',
+        ], permissions: [
+            'manage-documents',
+            'view-documents',
+            'view-own-documents',
+            'create-documents',
+            'update-documents',
+            'manage-archives',
+            'archive-documents',
+            'assign-documents',
+        ]);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
 
     public static function getNavigationBadge(): ?string
     {
@@ -61,6 +81,7 @@ class DocumentResource extends Resource
                                             ->label('Plantilla')
                                             ->options(function (Get $get) {
                                                 $companyId = $get('company_id') ?? Auth::user()->company_id;
+
                                                 return DocumentTemplate::where('company_id', $companyId)
                                                     ->where('is_active', true)
                                                     ->orderBy('usage_count', 'desc')
@@ -70,10 +91,14 @@ class DocumentResource extends Resource
                                             ->preload()
                                             ->live()
                                             ->afterStateUpdated(function (Set $set, Get $get, $state) {
-                                                if (!$state) return;
+                                                if (! $state) {
+                                                    return;
+                                                }
 
                                                 $template = DocumentTemplate::find($state);
-                                                if (!$template) return;
+                                                if (! $template) {
+                                                    return;
+                                                }
 
                                                 // Aplicar configuraciones por defecto
                                                 if ($template->default_category_id) {
@@ -106,7 +131,7 @@ class DocumentResource extends Resource
                                             ->suffixIconColor('success'),
                                     ])
                                     ->collapsible()
-                                    ->collapsed(fn (Get $get) => !$get('template_id')),
+                                    ->collapsed(fn (Get $get) => ! $get('template_id')),
                                 Forms\Components\Group::make()
                                     ->schema([
                                         Forms\Components\Hidden::make('created_by')
@@ -121,8 +146,7 @@ class DocumentResource extends Resource
                                             ->afterStateUpdated(fn (Set $set) => $set('branch_id', null)),
                                         Forms\Components\Select::make('branch_id')
                                             ->label('Sucursal')
-                                            ->relationship('branch', 'name', fn (Builder $query, Get $get) =>
-                                                $query->where('company_id', $get('company_id'))
+                                            ->relationship('branch', 'name', fn (Builder $query, Get $get) => $query->where('company_id', $get('company_id'))
                                             )
                                             ->searchable()
                                             ->preload()
@@ -130,37 +154,31 @@ class DocumentResource extends Resource
                                             ->afterStateUpdated(fn (Set $set) => $set('department_id', null)),
                                         Forms\Components\Select::make('department_id')
                                             ->label('Departamento')
-                                            ->relationship('department', 'name', fn (Builder $query, Get $get) =>
-                                                $query->where('company_id', $get('company_id'))
-                                                    ->when($get('branch_id'), fn ($query, $branchId) =>
-                                                        $query->where('branch_id', $branchId)
-                                                    )
+                                            ->relationship('department', 'name', fn (Builder $query, Get $get) => $query->where('company_id', $get('company_id'))
+                                                ->when($get('branch_id'), fn ($query, $branchId) => $query->where('branch_id', $branchId)
+                                                )
                                             )
                                             ->searchable()
                                             ->preload(),
                                         Forms\Components\Select::make('category_id')
                                             ->label('Categoría')
-                                            ->relationship('category', 'name', fn (Builder $query, Get $get) =>
-                                                $query->where('company_id', $get('company_id'))
+                                            ->relationship('category', 'name', fn (Builder $query, Get $get) => $query->where('company_id', $get('company_id'))
                                             )
                                             ->searchable()
                                             ->preload(),
                                         Forms\Components\Select::make('status_id')
                                             ->label('Estado')
-                                            ->relationship('status', 'name', fn (Builder $query, Get $get) =>
-                                                $query->where('company_id', $get('company_id'))
-                                                    ->where('is_initial', true)
+                                            ->relationship('status', 'name', fn (Builder $query, Get $get) => $query->where('company_id', $get('company_id'))
+                                                ->where('is_initial', true)
                                             )
                                             ->searchable()
                                             ->preload()
                                             ->required(),
                                         Forms\Components\Select::make('assigned_to')
                                             ->label('Asignado a')
-                                            ->relationship('assignee', 'name', fn (Builder $query, Get $get) =>
-                                                $query->where('company_id', $get('company_id'))
-                                                    ->when($get('department_id'), fn ($query, $departmentId) =>
-                                                        $query->where('department_id', $departmentId)
-                                                    )
+                                            ->relationship('assignee', 'name', fn (Builder $query, Get $get) => $query->where('company_id', $get('company_id'))
+                                                ->when($get('department_id'), fn ($query, $departmentId) => $query->where('department_id', $departmentId)
+                                                )
                                             )
                                             ->searchable()
                                             ->preload(),
@@ -188,10 +206,14 @@ class DocumentResource extends Resource
 
                         Forms\Components\Tabs\Tab::make('Contenido')
                             ->schema([
-                                Forms\Components\FileUpload::make('file')
+                                Forms\Components\FileUpload::make('file_path')
                                     ->label('Archivo')
                                     ->directory('documents')
                                     ->preserveFilenames()
+                                    ->saveUploadedFileUsing(function ($file) {
+                                        return app(\App\Services\DocumentFileService::class)
+                                            ->storeUploadedFile($file);
+                                    })
                                     ->acceptedFileTypes(['application/pdf', 'image/*', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/plain'])
                                     ->maxSize(10240)
                                     ->columnSpanFull(),
@@ -271,9 +293,8 @@ class DocumentResource extends Resource
                                     ->schema([
                                         Forms\Components\Select::make('physical_location_id')
                                             ->label('Ubicación física')
-                                            ->relationship('physicalLocation', 'full_path', fn (Builder $query, Get $get) =>
-                                                $query->where('company_id', $get('company_id'))
-                                                    ->where('is_active', true)
+                                            ->relationship('physicalLocation', 'full_path', fn (Builder $query, Get $get) => $query->where('company_id', $get('company_id'))
+                                                ->where('is_active', true)
                                             )
                                             ->searchable()
                                             ->preload()
@@ -326,12 +347,12 @@ class DocumentResource extends Resource
                                             ->label('')
                                             ->content(function (Get $get) {
                                                 $templateId = $get('template_id');
-                                                if (!$templateId) {
+                                                if (! $templateId) {
                                                     return 'No se ha seleccionado ninguna plantilla';
                                                 }
 
                                                 $template = DocumentTemplate::find($templateId);
-                                                if (!$template || !$template->custom_fields) {
+                                                if (! $template || ! $template->custom_fields) {
                                                     return 'Esta plantilla no tiene campos personalizados definidos';
                                                 }
 
@@ -339,8 +360,8 @@ class DocumentResource extends Resource
                                                 $count = $fields->count();
                                                 $required = $fields->where('required', true)->count();
 
-                                                return "Esta plantilla tiene {$count} campo(s) personalizado(s)" .
-                                                       ($required > 0 ? ", {$required} requerido(s)" : "");
+                                                return "Esta plantilla tiene {$count} campo(s) personalizado(s)".
+                                                       ($required > 0 ? ", {$required} requerido(s)" : '');
                                             }),
                                         Forms\Components\KeyValue::make('custom_data')
                                             ->label('Datos personalizados')
@@ -348,14 +369,17 @@ class DocumentResource extends Resource
                                             ->valueLabel('Valor')
                                             ->helperText(function (Get $get) {
                                                 $templateId = $get('template_id');
-                                                if (!$templateId) return '';
+                                                if (! $templateId) {
+                                                    return '';
+                                                }
 
                                                 $template = DocumentTemplate::find($templateId);
-                                                if (!$template || !$template->custom_fields) return '';
+                                                if (! $template || ! $template->custom_fields) {
+                                                    return '';
+                                                }
 
                                                 $fields = collect($template->custom_fields)
-                                                    ->map(fn ($field) =>
-                                                        "{$field['label']}" . ($field['required'] ?? false ? ' (requerido)' : '')
+                                                    ->map(fn ($field) => "{$field['label']}".($field['required'] ?? false ? ' (requerido)' : '')
                                                     )
                                                     ->join(', ');
 
@@ -547,7 +571,9 @@ class DocumentResource extends Resource
                             ->label('Nuevo Estado')
                             ->options(function (Document $record): array {
                                 // Obtener estados válidos para transiciones
-                                if (!$record->status_id) return [];
+                                if (! $record->status_id) {
+                                    return [];
+                                }
 
                                 // Obtener definiciones de workflow que salen del estado actual
                                 $definitions = \App\Models\WorkflowDefinition::where('company_id', $record->company_id)
@@ -556,7 +582,9 @@ class DocumentResource extends Resource
                                     ->with('toStatus')
                                     ->get();
 
-                                if ($definitions->isEmpty()) return [];
+                                if ($definitions->isEmpty()) {
+                                    return [];
+                                }
 
                                 return $definitions->pluck('toStatus.name', 'toStatus.id')
                                     ->toArray();
@@ -570,7 +598,9 @@ class DocumentResource extends Resource
                     ->action(function (Document $record, array $data): void {
                         // Obtener el estado de destino
                         $toStatus = Status::find($data['to_status_id']);
-                        if (!$toStatus) return;
+                        if (! $toStatus) {
+                            return;
+                        }
 
                         // Cambiar el estado del documento
                         $record->changeStatus($toStatus, Auth::user(), $data['comments'] ?? null);
@@ -621,7 +651,7 @@ class DocumentResource extends Resource
                             ->success()
                             ->send();
                     })
-                    ->hidden(fn (Document $record): bool => !$record->is_archived),
+                    ->hidden(fn (Document $record): bool => ! $record->is_archived),
                 Tables\Actions\Action::make('generateSticker')
                     ->label('Generar Etiqueta')
                     ->icon('heroicon-o-qr-code')
@@ -695,13 +725,13 @@ class DocumentResource extends Resource
 
                             Notification::make()
                                 ->title('Etiquetas generadas')
-                                ->body('Se están generando ' . count($documentIds) . ' etiquetas...')
+                                ->body('Se están generando '.count($documentIds).' etiquetas...')
                                 ->success()
                                 ->send();
 
                             // TODO: Implement batch download with POST request
                             // For now, redirect to first document
-                            if (!empty($documentIds)) {
+                            if (! empty($documentIds)) {
                                 redirect(route('stickers.documents.download', [
                                     'document' => $documentIds[0],
                                     'template' => $data['template'] ?? 'standard',
@@ -870,7 +900,7 @@ class DocumentResource extends Resource
                                         ->where('is_active', true)
                                         ->get()
                                         ->mapWithKeys(function ($location) {
-                                            return [$location->id => $location->full_path . " ({$location->code})"];
+                                            return [$location->id => $location->full_path." ({$location->code})"];
                                         });
                                 })
                                 ->required()
@@ -898,7 +928,7 @@ class DocumentResource extends Resource
                         ->action(function (Collection $records, array $data): void {
                             $count = 0;
                             foreach ($records as $record) {
-                                if (!$record->public_tracking_code) {
+                                if (! $record->public_tracking_code) {
                                     $record->public_tracking_code = $record->generatePublicTrackingCode();
                                 }
                                 $record->tracking_enabled = true;

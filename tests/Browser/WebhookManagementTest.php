@@ -2,8 +2,8 @@
 
 namespace Tests\Browser;
 
-use App\Models\User;
 use App\Models\Company;
+use App\Models\User;
 use App\Models\Webhook;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Laravel\Dusk\Browser;
@@ -32,7 +32,7 @@ class WebhookManagementTest extends DuskTestCase
         ]);
 
         // Asignar rol de admin
-        $admin->assignRole('Super Admin');
+        $admin->assignRole('super_admin');
 
         // Crear algunos webhooks de prueba
         Webhook::factory()->count(3)->create([
@@ -42,9 +42,9 @@ class WebhookManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin, 'web')
-                    ->visit('/admin')
-                    ->waitFor('@filament-navigation', 10)
-                    ->assertSee($admin->name);
+                ->visit('/admin')
+                ->waitFor('@filament-navigation', 10)
+                ->assertSee($admin->name);
 
             // Verificar que el sistema está funcionando
             $browser->assertAuthenticated();
@@ -66,14 +66,14 @@ class WebhookManagementTest extends DuskTestCase
             'is_active' => true,
         ]);
 
-        $user->assignRole('Admin');
+        $user->assignRole('admin');
 
         // Verificar que el usuario puede autenticarse
         $this->browse(function (Browser $browser) use ($user) {
             $browser->loginAs($user, 'web')
-                    ->visit('/admin')
-                    ->waitFor('@filament-navigation', 10)
-                    ->assertAuthenticated();
+                ->visit('/admin')
+                ->waitFor('@filament-navigation', 10)
+                ->assertAuthenticated();
         });
 
         // Verificar que puede crear webhook vía API
@@ -85,7 +85,7 @@ class WebhookManagementTest extends DuskTestCase
             'name' => 'Test Webhook from Browser',
             'active' => true,
         ], [
-            'Authorization' => 'Bearer ' . $token,
+            'Authorization' => 'Bearer '.$token,
             'Accept' => 'application/json',
         ]);
 
@@ -108,7 +108,7 @@ class WebhookManagementTest extends DuskTestCase
             'password' => bcrypt('password'),
             'company_id' => $company1->id,
         ]);
-        $user1->assignRole('Admin');
+        $user1->assignRole('admin');
 
         // Empresa 2
         $company2 = Company::factory()->create(['name' => 'Company 2']);
@@ -117,7 +117,7 @@ class WebhookManagementTest extends DuskTestCase
             'password' => bcrypt('password'),
             'company_id' => $company2->id,
         ]);
-        $user2->assignRole('Admin');
+        $user2->assignRole('admin');
 
         // Crear webhooks para cada empresa
         $webhook1 = Webhook::factory()->create([
@@ -135,7 +135,7 @@ class WebhookManagementTest extends DuskTestCase
         // Usuario 1 solo debe ver sus webhooks
         $token1 = $user1->createToken('test')->plainTextToken;
         $response1 = $this->getJson('/api/webhooks', [
-            'Authorization' => 'Bearer ' . $token1,
+            'Authorization' => 'Bearer '.$token1,
         ]);
 
         $response1->assertStatus(200);
@@ -147,7 +147,7 @@ class WebhookManagementTest extends DuskTestCase
         // Usuario 2 solo debe ver sus webhooks
         $token2 = $user2->createToken('test')->plainTextToken;
         $response2 = $this->getJson('/api/webhooks', [
-            'Authorization' => 'Bearer ' . $token2,
+            'Authorization' => 'Bearer '.$token2,
         ]);
 
         $response2->assertStatus(200);
@@ -168,7 +168,7 @@ class WebhookManagementTest extends DuskTestCase
             'password' => bcrypt('password'),
             'company_id' => $company->id,
         ]);
-        $user->assignRole('Admin');
+        $user->assignRole('admin');
 
         $webhook = Webhook::factory()->create([
             'company_id' => $company->id,
@@ -184,7 +184,7 @@ class WebhookManagementTest extends DuskTestCase
             'name' => 'New Name',
             'events' => ['document.created'],
         ], [
-            'Authorization' => 'Bearer ' . $token,
+            'Authorization' => 'Bearer '.$token,
         ]);
 
         $response->assertStatus(200);
@@ -207,7 +207,7 @@ class WebhookManagementTest extends DuskTestCase
             'password' => bcrypt('password'),
             'company_id' => $company->id,
         ]);
-        $user->assignRole('Admin');
+        $user->assignRole('admin');
 
         $webhook = Webhook::factory()->create([
             'company_id' => $company->id,
@@ -217,7 +217,7 @@ class WebhookManagementTest extends DuskTestCase
         $token = $user->createToken('test')->plainTextToken;
 
         $response = $this->deleteJson("/api/webhooks/{$webhook->id}", [], [
-            'Authorization' => 'Bearer ' . $token,
+            'Authorization' => 'Bearer '.$token,
         ]);
 
         $response->assertStatus(200);

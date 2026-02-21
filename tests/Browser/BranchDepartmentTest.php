@@ -2,17 +2,17 @@
 
 namespace Tests\Browser;
 
-use App\Models\User;
-use App\Models\Company;
 use App\Models\Branch;
+use App\Models\Category;
+use App\Models\Company;
 use App\Models\Department;
 use App\Models\Document;
-use App\Models\Category;
 use App\Models\Status;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Laravel\Dusk\Browser;
-use Tests\DuskTestCase;
 use Spatie\Permission\Models\Role;
+use Tests\DuskTestCase;
 
 class BranchDepartmentTest extends DuskTestCase
 {
@@ -25,16 +25,16 @@ class BranchDepartmentTest extends DuskTestCase
     {
         $company = Company::factory()->create();
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         Branch::factory()->count(5)->create(['company_id' => $company->id]);
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/branches')
-                    ->assertSee('Sucursales')
-                    ->assertPresent('table');
+                ->visit('/admin/branches')
+                ->assertSee('Sucursales')
+                ->assertPresent('table');
         });
     }
 
@@ -45,17 +45,17 @@ class BranchDepartmentTest extends DuskTestCase
     {
         $company = Company::factory()->create();
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/admin/branches/create')
-                    ->type('input[name="name"]', 'Sucursal Principal')
-                    ->type('input[name="address"]', 'Av. Principal 123')
-                    ->type('input[name="phone"]', '+1234567890')
-                    ->press('Crear')
-                    ->pause(1000);
+                ->visit('/admin/branches/create')
+                ->type('input[name="name"]', 'Sucursal Principal')
+                ->type('input[name="address"]', 'Av. Principal 123')
+                ->type('input[name="phone"]', '+1234567890')
+                ->press('Crear')
+                ->pause(1000);
 
             $this->assertDatabaseHas('branches', [
                 'name' => 'Sucursal Principal',
@@ -75,7 +75,7 @@ class BranchDepartmentTest extends DuskTestCase
         $admin1 = User::factory()->create(['company_id' => $company1->id]);
         $admin2 = User::factory()->create(['company_id' => $company2->id]);
 
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin1->assignRole($adminRole);
         $admin2->assignRole($adminRole);
 
@@ -84,9 +84,9 @@ class BranchDepartmentTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin1) {
             $browser->loginAs($admin1)
-                    ->visit('/admin/branches')
-                    ->assertSee('Branch Company 1')
-                    ->assertDontSee('Branch Company 2');
+                ->visit('/admin/branches')
+                ->assertSee('Branch Company 1')
+                ->assertDontSee('Branch Company 2');
         });
     }
 
@@ -98,16 +98,16 @@ class BranchDepartmentTest extends DuskTestCase
         $company = Company::factory()->create();
         $branch = Branch::factory()->create(['company_id' => $company->id]);
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $this->browse(function (Browser $browser) use ($admin, $branch) {
             $browser->loginAs($admin)
-                    ->visit('/admin/departments/create')
-                    ->type('input[name="name"]', 'Departamento TI')
-                    ->select('select[name="branch_id"]', $branch->id)
-                    ->press('Crear')
-                    ->pause(1000);
+                ->visit('/admin/departments/create')
+                ->type('input[name="name"]', 'Departamento TI')
+                ->select('select[name="branch_id"]', $branch->id)
+                ->press('Crear')
+                ->pause(1000);
 
             $this->assertDatabaseHas('departments', [
                 'name' => 'Departamento TI',
@@ -227,7 +227,7 @@ class BranchDepartmentTest extends DuskTestCase
     {
         $company = Company::factory()->create();
         $admin = User::factory()->create(['company_id' => $company->id]);
-        $adminRole = Role::create(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $admin->assignRole($adminRole);
 
         $branch = Branch::factory()->create([
@@ -237,11 +237,11 @@ class BranchDepartmentTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin, $branch) {
             $browser->loginAs($admin)
-                    ->visit('/admin/branches/' . $branch->id . '/edit')
-                    ->clear('input[name="name"]')
-                    ->type('input[name="name"]', 'Nombre Actualizado')
-                    ->press('Guardar cambios')
-                    ->pause(1000);
+                ->visit('/admin/branches/'.$branch->id.'/edit')
+                ->clear('input[name="name"]')
+                ->type('input[name="name"]', 'Nombre Actualizado')
+                ->press('Guardar cambios')
+                ->pause(1000);
 
             $branch->refresh();
             $this->assertEquals('Nombre Actualizado', $branch->name);

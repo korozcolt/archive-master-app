@@ -22,11 +22,6 @@ class UserDashboardSimpleTest extends DuskTestCase
     {
         parent::setUp();
 
-        // Configurar el entorno para tests
-        config(['app.env' => 'testing']);
-        // Don't override session driver - use 'file' from .env.dusk.local for persistence
-        // config(['session.driver' => 'array']);
-
         // Limpiar cache de permisos de Spatie
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
     }
@@ -44,7 +39,7 @@ class UserDashboardSimpleTest extends DuskTestCase
             'branch_id' => $branch->id
         ]);
 
-        $role = Role::create(['name' => 'regular_user', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'regular_user', 'guard_name' => 'web']);
 
         $user = User::factory()->create([
             'company_id' => $company->id,
@@ -82,7 +77,7 @@ class UserDashboardSimpleTest extends DuskTestCase
             'branch_id' => $branch->id
         ]);
 
-        $role = Role::create(['name' => 'regular_user', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'regular_user', 'guard_name' => 'web']);
 
         $user = User::factory()->create([
             'company_id' => $company->id,
@@ -132,7 +127,7 @@ class UserDashboardSimpleTest extends DuskTestCase
             'branch_id' => $branch->id
         ]);
 
-        $role = Role::create(['name' => 'regular_user', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'regular_user', 'guard_name' => 'web']);
 
         $user = User::factory()->create([
             'company_id' => $company->id,
@@ -172,7 +167,7 @@ class UserDashboardSimpleTest extends DuskTestCase
             'branch_id' => $branch->id
         ]);
 
-        $role = Role::create(['name' => 'regular_user', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'regular_user', 'guard_name' => 'web']);
 
         $user = User::factory()->create([
             'company_id' => $company->id,
@@ -232,7 +227,7 @@ class UserDashboardSimpleTest extends DuskTestCase
             'branch_id' => $branch->id
         ]);
 
-        $role = Role::create(['name' => 'admin', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
 
         $admin = User::factory()->create([
             'company_id' => $company->id,

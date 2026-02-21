@@ -4,16 +4,17 @@ namespace App\Providers;
 
 use App\Models\Category;
 use App\Models\Company;
+use App\Models\Document;
 use App\Models\Status;
 use App\Models\Tag;
 use App\Models\User;
 use App\Policies\CategoryPolicy;
 use App\Policies\CompanyPolicy;
+use App\Policies\DocumentPolicy;
 use App\Policies\StatusPolicy;
 use App\Policies\TagPolicy;
 use App\Policies\UserPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
-use Illuminate\Support\Facades\Gate;
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -25,6 +26,7 @@ class AuthServiceProvider extends ServiceProvider
     protected $policies = [
         Category::class => CategoryPolicy::class,
         Company::class => CompanyPolicy::class,
+        Document::class => DocumentPolicy::class,
         Status::class => StatusPolicy::class,
         Tag::class => TagPolicy::class,
         User::class => UserPolicy::class,

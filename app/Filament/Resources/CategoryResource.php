@@ -2,23 +2,25 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\ResourceAccess;
 use App\Filament\Resources\CategoryResource\Pages;
 use App\Filament\Resources\CategoryResource\RelationManagers;
 use App\Models\Category;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Collection;
+use Filament\Resources\Concerns\Translatable;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Str;
-use Filament\Resources\Concerns\Translatable;
 
 class CategoryResource extends Resource
 {
     use Translatable;
+
     protected static ?string $model = Category::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
@@ -28,6 +30,19 @@ class CategoryResource extends Resource
     protected static ?string $navigationGroup = 'Gestión Documental';
 
     protected static ?int $navigationSort = 1;
+
+    public static function canViewAny(): bool
+    {
+        return ResourceAccess::allows(
+            roles: ['admin', 'archive_manager'],
+            permissions: ['manage-categories']
+        );
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
 
     public static function getNavigationBadge(): ?string
     {
@@ -59,8 +74,7 @@ class CategoryResource extends Resource
                             ->unique(ignoreRecord: true),
                         Forms\Components\Select::make('parent_id')
                             ->label('Categoría padre')
-                            ->relationship('parent', 'name', fn (Builder $query, Forms\Get $get) =>
-                                $query->where('company_id', $get('company_id'))
+                            ->relationship('parent', 'name', fn (Builder $query, Forms\Get $get) => $query->where('company_id', $get('company_id'))
                             )
                             ->searchable()
                             ->preload()
@@ -117,6 +131,7 @@ class CategoryResource extends Resource
                         if (is_array($state)) {
                             return $record->company->getTranslation('name', app()->getLocale());
                         }
+
                         return $state;
                     }),
                 Tables\Columns\TextColumn::make('name')
@@ -127,6 +142,7 @@ class CategoryResource extends Resource
                         if (is_array($state)) {
                             return $record->getTranslation('name', app()->getLocale());
                         }
+
                         return $state;
                     }),
                 Tables\Columns\TextColumn::make('slug')
@@ -143,6 +159,7 @@ class CategoryResource extends Resource
                         if ($record->parent && is_array($state)) {
                             return $record->parent->getTranslation('name', app()->getLocale());
                         }
+
                         return $state;
                     }),
                 Tables\Columns\ColorColumn::make('color')

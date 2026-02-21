@@ -2,24 +2,25 @@
 
 namespace App\Filament\Resources;
 
-use App\Enums\DocumentStatus;
+use App\Filament\ResourceAccess;
 use App\Filament\Resources\StatusResource\Pages;
 use App\Filament\Resources\StatusResource\RelationManagers;
 use App\Models\Status;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Collection;
+use Filament\Resources\Concerns\Translatable;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Str;
-use Filament\Resources\Concerns\Translatable;
 
 class StatusResource extends Resource
 {
     use Translatable;
+
     protected static ?string $model = Status::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-flag';
@@ -29,6 +30,19 @@ class StatusResource extends Resource
     protected static ?string $navigationGroup = 'Gestión Documental';
 
     protected static ?int $navigationSort = 2;
+
+    public static function canViewAny(): bool
+    {
+        return ResourceAccess::allows(
+            roles: ['admin', 'archive_manager'],
+            permissions: ['manage-categories']
+        );
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
 
     public static function getNavigationBadge(): ?string
     {
@@ -116,6 +130,7 @@ class StatusResource extends Resource
                         if (is_array($state)) {
                             return $record->company->getTranslation('name', app()->getLocale());
                         }
+
                         return $state;
                     }),
                 Tables\Columns\TextColumn::make('name')
@@ -126,6 +141,7 @@ class StatusResource extends Resource
                         if (is_array($state)) {
                             return $record->getTranslation('name', app()->getLocale());
                         }
+
                         return $state;
                     }),
                 Tables\Columns\TextColumn::make('slug')

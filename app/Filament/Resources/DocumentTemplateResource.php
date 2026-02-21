@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\ResourceAccess;
 use App\Filament\Resources\DocumentTemplateResource\Pages;
 use App\Models\Category;
 use App\Models\DocumentTemplate;
@@ -11,6 +12,8 @@ use App\Models\Tag;
 use App\Models\WorkflowDefinition;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Infolist;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -31,6 +34,16 @@ class DocumentTemplateResource extends Resource
     protected static ?string $navigationGroup = 'Gestión Documental';
 
     protected static ?int $navigationSort = 3;
+
+    public static function canViewAny(): bool
+    {
+        return ResourceAccess::allows(roles: ['admin', 'archive_manager']);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
 
     public static function getNavigationBadge(): ?string
     {
@@ -147,7 +160,7 @@ class DocumentTemplateResource extends Resource
                                     ->where('is_active', true)
                                     ->get()
                                     ->mapWithKeys(function ($location) {
-                                        return [$location->id => $location->full_path . " ({$location->code})"];
+                                        return [$location->id => $location->full_path." ({$location->code})"];
                                     });
                             })
                             ->searchable()
@@ -274,6 +287,15 @@ class DocumentTemplateResource extends Resource
             ]);
     }
 
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                TextEntry::make('name')
+                    ->label('Nombre de la Plantilla'),
+            ]);
+    }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -363,7 +385,6 @@ class DocumentTemplateResource extends Resource
                 Tables\Filters\Filter::make('is_active')
                     ->label('Solo activas')
                     ->query(fn (Builder $query): Builder => $query->where('is_active', true))
-                    ->default()
                     ->toggle(),
                 Tables\Filters\Filter::make('most_used')
                     ->label('Más usadas')
@@ -381,7 +402,7 @@ class DocumentTemplateResource extends Resource
                         ->color('info')
                         ->action(function (DocumentTemplate $record): void {
                             $newTemplate = $record->replicate();
-                            $newTemplate->name = $record->name . ' (Copia)';
+                            $newTemplate->name = $record->name.' (Copia)';
                             $newTemplate->is_active = false;
                             $newTemplate->usage_count = 0;
                             $newTemplate->last_used_at = null;
@@ -457,7 +478,7 @@ class DocumentTemplateResource extends Resource
             ]);
 
         // Filtrar por empresa si no es super admin
-        if (!Auth::user()->hasRole('super_admin')) {
+        if (! Auth::user()->hasRole('super_admin')) {
             $query->where('company_id', Auth::user()->company_id);
         }
 

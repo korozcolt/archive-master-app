@@ -2,26 +2,17 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\ResourceAccess;
 use App\Filament\Resources\AdvancedSearchResource\Pages;
 use App\Models\Document;
-use App\Models\Category;
-use App\Models\Company;
-use App\Models\Status;
-use App\Models\User;
-use App\Models\Tag;
-use App\Enums\Priority;
-use App\Enums\DocumentStatus;
-use App\Enums\DocumentType;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
-use Filament\Tables\Table;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Filters\TernaryFilter;
+use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Request;
 
 class AdvancedSearchResource extends Resource
 {
@@ -38,6 +29,28 @@ class AdvancedSearchResource extends Resource
     protected static ?int $navigationSort = 2;
 
     protected static ?string $navigationGroup = 'Documentos';
+
+    public static function canViewAny(): bool
+    {
+        return ResourceAccess::allows(roles: [
+            'admin',
+            'branch_admin',
+        ], permissions: [
+            'manage-documents',
+            'view-documents',
+            'view-own-documents',
+            'create-documents',
+            'update-documents',
+            'manage-archives',
+            'archive-documents',
+            'assign-documents',
+        ]);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
 
     public static function form(Form $form): Form
     {
@@ -167,8 +180,7 @@ class AdvancedSearchResource extends Resource
                     ->label('Fecha límite')
                     ->date()
                     ->sortable()
-                    ->color(fn (Document $record): string =>
-                        $record->due_date && $record->due_date->isPast() ? 'danger' : 'gray'
+                    ->color(fn (Document $record): string => $record->due_date && $record->due_date->isPast() ? 'danger' : 'gray'
                     ),
 
                 Tables\Columns\TextColumn::make('created_at')
@@ -206,15 +218,13 @@ class AdvancedSearchResource extends Resource
 
                 Filter::make('overdue')
                     ->label('Documentos vencidos')
-                    ->query(fn (Builder $query): Builder =>
-                        $query->where('due_date', '<', now())
+                    ->query(fn (Builder $query): Builder => $query->where('due_date', '<', now())
                     )
                     ->toggle(),
 
                 Filter::make('recent')
                     ->label('Actividad reciente')
-                    ->query(fn (Builder $query): Builder =>
-                        $query->where('updated_at', '>=', now()->subDays(7))
+                    ->query(fn (Builder $query): Builder => $query->where('updated_at', '>=', now()->subDays(7))
                     )
                     ->toggle(),
 
@@ -292,14 +302,14 @@ class AdvancedSearchResource extends Resource
             $searchResults = Document::search($searchQuery)->get();
             $documentIds = $searchResults->pluck('id')->toArray();
 
-            if (!empty($documentIds)) {
+            if (! empty($documentIds)) {
                 $query->whereIn('id', $documentIds);
             } else {
                 // Si no hay resultados en Scout, usar búsqueda tradicional como fallback
                 $query->where(function ($q) use ($searchQuery) {
                     $q->where('title', 'like', "%{$searchQuery}%")
-                      ->orWhere('description', 'like', "%{$searchQuery}%")
-                      ->orWhere('content', 'like', "%{$searchQuery}%");
+                        ->orWhere('description', 'like', "%{$searchQuery}%")
+                        ->orWhere('content', 'like', "%{$searchQuery}%");
                 });
             }
         }
