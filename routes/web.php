@@ -8,9 +8,9 @@ use App\Models\DocumentVersion;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-// Ruta principal - Página de bienvenida con React
+// Ruta principal - Selector de acceso Portal/Admin
 Route::get('/', function () {
-    return view('welcome');
+    return view('auth.entry-selector');
 })->name('welcome');
 
 Route::get('/login', [App\Http\Controllers\PortalAuthController::class, 'showLoginForm'])->name('login');

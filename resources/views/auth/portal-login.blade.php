@@ -30,6 +30,14 @@
                             <p><span class="font-semibold text-white">Usuario final:</span> acceso por número de recibido y OTP.</p>
                         </div>
                     </div>
+                    <div class="mt-8 rounded-xl border border-white/10 bg-white/5 p-4">
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">Acceso alterno</p>
+                        <a href="{{ url('/admin/login') }}"
+                            class="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-amber-200 transition hover:text-amber-100">
+                            Ir a Administrador
+                            <span aria-hidden="true">→</span>
+                        </a>
+                    </div>
                 </div>
 
                 <div class="rounded-2xl border border-white/10 bg-white/8 p-6 shadow-2xl backdrop-blur-xl">
@@ -65,6 +73,12 @@
                             Ingresar con contraseña
                         </button>
                     </form>
+                    <div class="mt-5 border-t border-white/10 pt-4 text-sm text-slate-300">
+                        ¿Buscas acceso de administración?
+                        <a href="{{ url('/admin/login') }}" class="font-semibold text-amber-200 transition hover:text-amber-100">
+                            Ir a Administrador
+                        </a>
+                    </div>
                 </div>
 
                 <div class="rounded-2xl border border-white/10 bg-white/8 p-6 shadow-2xl backdrop-blur-xl">

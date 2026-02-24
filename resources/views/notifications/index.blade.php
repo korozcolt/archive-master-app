@@ -52,9 +52,10 @@
                         <div class="space-y-3">
                             @foreach($notifications as $notification)
                                 @php
+                                    $ui = $presentedNotifications[$notification->id] ?? null;
                                     $data = $notification->data;
                                     $isUnread = is_null($notification->read_at);
-                                    $color = $data['color'] ?? 'gray';
+                                    $color = $ui['color'] ?? $data['color'] ?? 'gray';
 
                                     $colorClasses = [
                                         'blue' => 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800',
@@ -81,17 +82,21 @@
                                             <!-- Icon -->
                                             <div class="flex-shrink-0">
                                                 <div class="w-12 h-12 rounded-full flex items-center justify-center {{ $iconColorClasses[$color] ?? $iconColorClasses['gray'] }}">
-                                                    @if(($data['icon'] ?? 'bell') === 'document')
+                                                    @if((($ui['icon'] ?? null) ?? ($data['icon'] ?? 'bell')) === 'document')
                                                         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                                                             <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
                                                         </svg>
-                                                    @elseif(($data['icon'] ?? 'bell') === 'clock')
+                                                    @elseif((($ui['icon'] ?? null) ?? ($data['icon'] ?? 'bell')) === 'clock')
                                                         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                                                             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
                                                         </svg>
-                                                    @elseif(($data['icon'] ?? 'bell') === 'refresh')
+                                                    @elseif((($ui['icon'] ?? null) ?? ($data['icon'] ?? 'bell')) === 'refresh')
                                                         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                                                             <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"></path>
+                                                        </svg>
+                                                    @elseif((($ui['icon'] ?? null) ?? ($data['icon'] ?? 'bell')) === 'warning')
+                                                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.72-1.36 3.486 0l6.518 11.591c.75 1.334-.213 2.99-1.742 2.99H3.48c-1.53 0-2.492-1.656-1.743-2.99L8.257 3.1zM11 14a1 1 0 10-2 0 1 1 0 002 0zm-1-7a1 1 0 00-1 1v3a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>
                                                         </svg>
                                                     @else
                                                         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
@@ -106,7 +111,7 @@
                                                 <div class="flex items-start justify-between">
                                                     <div>
                                                         <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">
-                                                            {{ $data['title'] ?? 'Notificación' }}
+                                                            {{ $ui['title'] ?? $data['title'] ?? 'Notificación' }}
                                                             @if($isUnread)
                                                                 <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                                                                     Nuevo
@@ -114,7 +119,7 @@
                                                             @endif
                                                         </h3>
                                                         <p class="mt-1 text-sm text-gray-700 dark:text-gray-300">
-                                                            {{ $data['message'] ?? '' }}
+                                                            {{ $ui['message'] ?? $data['message'] ?? '' }}
                                                         </p>
 
                                                         <!-- Additional Info -->
@@ -122,6 +127,15 @@
                                                             <p class="mt-2 text-xs text-gray-600 dark:text-gray-400">
                                                                 <span class="font-medium">Documento:</span> {{ $data['document_number'] }}
                                                             </p>
+                                                        @endif
+                                                        @if(!empty($ui['meta']) && is_array($ui['meta']))
+                                                            <div class="mt-2 flex flex-wrap gap-2">
+                                                                @foreach($ui['meta'] as $metaKey => $metaValue)
+                                                                    <span class="inline-flex items-center rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[11px] text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                                                                        <span class="mr-1 font-semibold">{{ $metaKey }}:</span>{{ $metaValue }}
+                                                                    </span>
+                                                                @endforeach
+                                                            </div>
                                                         @endif
 
                                                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-500">
@@ -132,8 +146,8 @@
 
                                                 <!-- Actions -->
                                                 <div class="mt-3 flex items-center space-x-3">
-                                                    @if(isset($data['action_url']))
-                                                        <a href="{{ $data['action_url'] }}" class="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+                                                    @if(isset($ui['action_url']) || isset($data['action_url']))
+                                                        <a href="{{ $ui['action_url'] ?? $data['action_url'] }}" class="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
                                                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>

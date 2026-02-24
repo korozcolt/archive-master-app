@@ -852,6 +852,77 @@ class DocumentTest extends TestCase
         ]);
     }
 
+    public function test_office_manager_can_respond_with_uploaded_official_document()
+    {
+        Storage::fake('local');
+        Notification::fake();
+
+        $officeRole = SpatieRole::firstOrCreate(['name' => 'office_manager', 'guard_name' => 'web']);
+        $receptionRole = SpatieRole::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'web']);
+
+        $departmentReception = Department::factory()->create(['company_id' => $this->company->id]);
+        $departmentOffice = Department::factory()->create(['company_id' => $this->company->id]);
+
+        $receptionist = User::factory()->create([
+            'company_id' => $this->company->id,
+            'department_id' => $departmentReception->id,
+        ]);
+        $receptionist->assignRole($receptionRole);
+
+        $officeManager = User::factory()->create([
+            'company_id' => $this->company->id,
+            'department_id' => $departmentOffice->id,
+            'branch_id' => $this->user->branch_id,
+        ]);
+        $officeManager->assignRole($officeRole);
+
+        $incomingDocument = Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $this->status->id,
+            'category_id' => $this->category->id,
+            'created_by' => $receptionist->id,
+            'assigned_to' => $receptionist->id,
+            'department_id' => $departmentReception->id,
+        ]);
+
+        $distribution = $incomingDocument->distributions()->create([
+            'company_id' => $this->company->id,
+            'created_by' => $receptionist->id,
+            'status' => 'open',
+            'sent_at' => now(),
+        ]);
+
+        $target = $distribution->targets()->create([
+            'department_id' => $departmentOffice->id,
+            'status' => 'in_review',
+            'response_type' => 'none',
+            'sent_at' => now(),
+            'last_activity_at' => now(),
+            'last_updated_by' => $officeManager->id,
+        ]);
+
+        $response = $this->actingAs($officeManager)->post(route('documents.distribution-targets.update', [$incomingDocument, $target]), [
+            'action' => 'respond_document',
+            'response_document_title' => 'Respuesta Oficial RH',
+            'note' => '<p><strong>Concepto</strong> emitido por la oficina.</p>',
+            'response_file' => UploadedFile::fake()->create('respuesta-rh.pdf', 120, 'application/pdf'),
+        ]);
+
+        $response->assertRedirect(route('documents.show', $incomingDocument));
+
+        $target->refresh();
+        $responseDocument = Document::find($target->response_document_id);
+
+        expect($target->status)->toBe('responded')
+            ->and($target->response_type)->toBe('outgoing_document')
+            ->and($responseDocument)->not->toBeNull()
+            ->and($responseDocument->title)->toBe('Respuesta Oficial RH')
+            ->and($responseDocument->department_id)->toBe($departmentOffice->id)
+            ->and($responseDocument->metadata['response_to_document_id'] ?? null)->toBe($incomingDocument->id);
+
+        Notification::assertSentTo($receptionist, DocumentDistributionTargetUpdatedNotification::class);
+    }
+
     public function test_cannot_distribute_document_again_to_an_already_distributed_department()
     {
         $receptionRole = SpatieRole::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'web']);

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\NotificationPresenter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -27,8 +28,10 @@ class NotificationController extends Controller
 
         $notifications = $query->paginate(20);
         $unreadCount = $user->unreadNotifications()->count();
+        $presentedNotifications = $notifications->getCollection()
+            ->mapWithKeys(fn ($notification): array => [$notification->id => NotificationPresenter::present($notification)]);
 
-        return view('notifications.index', compact('notifications', 'unreadCount'));
+        return view('notifications.index', compact('notifications', 'unreadCount', 'presentedNotifications'));
     }
 
     /**
@@ -42,18 +45,7 @@ class NotificationController extends Controller
             ->take(10)
             ->get()
             ->map(function ($notification) {
-                $data = $notification->data;
-                return [
-                    'id' => $notification->id,
-                    'type' => $data['type'] ?? 'info',
-                    'title' => $data['title'] ?? 'Notificación',
-                    'message' => $data['message'] ?? '',
-                    'action_url' => $data['action_url'] ?? '#',
-                    'icon' => $data['icon'] ?? 'bell',
-                    'color' => $data['color'] ?? 'gray',
-                    'created_at' => $notification->created_at->diffForHumans(),
-                    'read_at' => $notification->read_at,
-                ];
+                return NotificationPresenter::present($notification);
             });
 
         return response()->json([

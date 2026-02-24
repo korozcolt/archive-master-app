@@ -597,19 +597,19 @@
                                         @if($target->follow_up_note)
                                             <div class="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">
                                                 <div class="mb-1 text-[10px] font-bold uppercase tracking-[0.14em]">Seguimiento</div>
-                                                <div>{{ $target->follow_up_note }}</div>
+                                                <div class="prose prose-sm max-w-none dark:prose-invert">{!! $target->follow_up_note !!}</div>
                                             </div>
                                         @endif
                                         @if($target->response_note)
                                             <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-200">
                                                 <div class="mb-1 text-[10px] font-bold uppercase tracking-[0.14em]">Respuesta</div>
-                                                <div>{{ $target->response_note }}</div>
+                                                <div class="prose prose-sm max-w-none dark:prose-invert">{!! $target->response_note !!}</div>
                                             </div>
                                         @endif
                                         @if($target->rejected_reason)
                                             <div class="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-2 text-rose-800 dark:border-rose-900/40 dark:bg-rose-900/20 dark:text-rose-200">
                                                 <div class="mb-1 text-[10px] font-bold uppercase tracking-[0.14em]">Motivo de rechazo</div>
-                                                <div>{{ $target->rejected_reason }}</div>
+                                                <div class="prose prose-sm max-w-none dark:prose-invert">{!! $target->rejected_reason !!}</div>
                                             </div>
                                         @endif
                                         @if($target->responseDocument)
@@ -627,9 +627,33 @@
                                 </td>
                                 <td class="px-3 py-4 align-top">
                                     @if($canUpdateTarget)
-                                        <form method="POST" action="{{ route('documents.distribution-targets.update', [$document, $target]) }}" class="space-y-2">
+                                        <form method="POST"
+                                              action="{{ route('documents.distribution-targets.update', [$document, $target]) }}"
+                                              class="space-y-2"
+                                              enctype="multipart/form-data"
+                                              x-data="{
+                                                actionType: 'received',
+                                                htmlNote: '',
+                                                syncNote() {
+                                                    this.$refs.noteInput.value = this.htmlNote;
+                                                },
+                                                apply(command) {
+                                                    document.execCommand(command, false, null);
+                                                    this.htmlNote = this.$refs.editor.innerHTML;
+                                                    this.syncNote();
+                                                },
+                                                applyLink() {
+                                                    const url = window.prompt('URL del enlace');
+                                                    if (!url) return;
+                                                    document.execCommand('createLink', false, url);
+                                                    this.htmlNote = this.$refs.editor.innerHTML;
+                                                    this.syncNote();
+                                                }
+                                              }"
+                                              @submit="htmlNote = $refs.editor.innerHTML; syncNote()">
                                             @csrf
                                             <select name="action"
+                                                    x-model="actionType"
                                                     class="block h-9 w-full rounded-lg border border-slate-300 bg-white px-2 text-xs text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
                                                 <option value="received">Marcar recibido</option>
                                                 <option value="in_review">Marcar en revisión</option>
@@ -638,11 +662,36 @@
                                                 <option value="reject">Rechazar (no corresponde)</option>
                                                 <option value="close">Cerrar</option>
                                             </select>
-                                            <textarea name="note" rows="2"
-                                                      class="block w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                                                      placeholder="Comentario, motivo de rechazo o nota de respuesta..."></textarea>
+                                            <div class="rounded-lg border border-slate-300 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                                                <div class="flex flex-wrap gap-1 border-b border-slate-200 p-2 dark:border-slate-700">
+                                                    <button type="button" @click="apply('bold')" class="rounded border border-slate-200 px-2 py-1 text-xs dark:border-slate-600">B</button>
+                                                    <button type="button" @click="apply('italic')" class="rounded border border-slate-200 px-2 py-1 text-xs italic dark:border-slate-600">I</button>
+                                                    <button type="button" @click="apply('underline')" class="rounded border border-slate-200 px-2 py-1 text-xs underline dark:border-slate-600">U</button>
+                                                    <button type="button" @click="apply('justifyLeft')" class="rounded border border-slate-200 px-2 py-1 text-xs dark:border-slate-600">Izq</button>
+                                                    <button type="button" @click="apply('justifyCenter')" class="rounded border border-slate-200 px-2 py-1 text-xs dark:border-slate-600">Centro</button>
+                                                    <button type="button" @click="apply('insertUnorderedList')" class="rounded border border-slate-200 px-2 py-1 text-xs dark:border-slate-600">Lista</button>
+                                                    <button type="button" @click="applyLink()" class="rounded border border-slate-200 px-2 py-1 text-xs dark:border-slate-600">Enlace</button>
+                                                </div>
+                                                <div x-ref="editor"
+                                                     contenteditable="true"
+                                                     @input="htmlNote = $refs.editor.innerHTML; syncNote()"
+                                                     class="min-h-32 w-full rounded-b-lg px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-sky-400/20 dark:text-white"
+                                                     style="white-space: pre-wrap;"
+                                                     data-placeholder="Comentario, motivo de rechazo o respuesta (con formato)..."></div>
+                                                <input type="hidden" name="note" x-ref="noteInput" value="">
+                                            </div>
+                                            <div x-show="actionType === 'respond_document'" x-cloak class="space-y-2">
+                                                <input type="text" name="response_document_title"
+                                                       class="block h-9 w-full rounded-lg border border-slate-300 bg-white px-2 text-xs text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                                       placeholder="Título del documento de respuesta (si vas a subir archivo)">
+                                                <input type="file" name="response_file"
+                                                       class="block w-full rounded-lg border border-dashed border-slate-300 bg-white px-2 py-2 text-xs text-slate-700 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                                                <p class="text-[11px] text-slate-500 dark:text-slate-400">Puedes cargar un archivo de respuesta oficial o seleccionar un documento existente de tu oficina.</p>
+                                            </div>
                                             @if(($distributionResponseDocumentOptions ?? collect())->isNotEmpty())
                                                 <select name="response_document_id"
+                                                        x-show="actionType === 'respond_document'"
+                                                        x-cloak
                                                         class="block h-9 w-full rounded-lg border border-slate-300 bg-white px-2 text-xs text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
                                                     <option value="">Documento de respuesta (solo para 'Responder con documento')</option>
                                                     @foreach($distributionResponseDocumentOptions as $responseDocId => $responseDocLabel)

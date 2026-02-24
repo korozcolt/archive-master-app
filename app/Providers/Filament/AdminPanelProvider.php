@@ -12,6 +12,7 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\SpatieLaravelTranslatablePlugin;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Filament\Widgets;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -81,6 +82,16 @@ class AdminPanelProvider extends PanelProvider
                 Authenticate::class,
                 RedirectBasedOnRole::class,
             ])
+            ->renderHook(
+                PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
+                fn (): string => Blade::render(<<<'BLADE'
+                    <div class="mt-4 text-center">
+                        <a href="{{ route('login') }}" class="text-sm font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300">
+                            Ir a Portal
+                        </a>
+                    </div>
+                BLADE)
+            )
             ->renderHook(
                 'panels::body.end',
                 fn (): string => Blade::render('<x-quick-search />')

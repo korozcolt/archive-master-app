@@ -1002,8 +1002,10 @@ class UserDocumentController extends Controller
 
         $validated = $request->validate([
             'action' => 'required|in:received,in_review,close,reject,respond_comment,respond_document',
-            'note' => 'nullable|string|max:2000',
+            'note' => 'nullable|string|max:15000',
             'response_document_id' => 'nullable|integer|exists:documents,id',
+            'response_file' => 'nullable|file',
+            'response_document_title' => 'nullable|string|max:255',
         ]);
 
         $isDepartmentManager = $user->hasRole(Role::OfficeManager->value) && (int) $user->department_id === (int) $target->department_id;
@@ -1015,6 +1017,7 @@ class UserDocumentController extends Controller
 
         $action = (string) $validated['action'];
         $note = isset($validated['note']) ? trim((string) $validated['note']) : null;
+        $note = $note !== null && $note !== '' ? $this->sanitizeDistributionNote($note) : null;
 
         $target->last_updated_by = $user->id;
         $target->last_activity_at = now();
@@ -1064,22 +1067,52 @@ class UserDocumentController extends Controller
 
         if ($action === 'respond_document') {
             $responseDocumentId = (int) ($validated['response_document_id'] ?? 0);
+            $responseDocument = null;
 
-            if ($responseDocumentId <= 0) {
-                return back()->withErrors(['response_document_id' => 'Selecciona un documento de respuesta.'])->withInput();
-            }
+            if ($request->hasFile('response_file')) {
+                $responseTitle = trim((string) ($validated['response_document_title'] ?? ''));
+                if ($responseTitle === '') {
+                    $responseTitle = 'Respuesta a '.$document->title;
+                }
 
-            $responseDocument = Document::query()
-                ->where('company_id', $document->company_id)
-                ->where('id', $responseDocumentId)
-                ->first();
+                $responseDocument = Document::create([
+                    'company_id' => $document->company_id,
+                    'branch_id' => $user->branch_id,
+                    'department_id' => $user->department_id,
+                    'category_id' => $document->category_id,
+                    'status_id' => $document->status_id,
+                    'created_by' => $user->id,
+                    'assigned_to' => $user->id,
+                    'title' => $responseTitle,
+                    'description' => $note ? trim(strip_tags($note)) : null,
+                    'content' => $note,
+                    'file_path' => $this->documentFileService->storeUploadedFile($request->file('response_file')),
+                    'priority' => $document->priority?->value ?? (string) ($document->priority ?? 'medium'),
+                    'is_confidential' => (bool) $document->is_confidential,
+                    'metadata' => array_filter([
+                        'response_to_document_id' => $document->id,
+                        'response_to_document_number' => $document->document_number,
+                        'response_to_distribution_target_id' => $target->id,
+                        'generated_as_office_response' => true,
+                    ]),
+                ]);
+            } else {
+                if ($responseDocumentId <= 0) {
+                    return back()->withErrors(['response_document_id' => 'Selecciona un documento de respuesta o carga un archivo de respuesta.'])->withInput();
+                }
 
-            if (! $responseDocument) {
-                return back()->withErrors(['response_document_id' => 'El documento de respuesta no pertenece a la empresa.'])->withInput();
-            }
+                $responseDocument = Document::query()
+                    ->where('company_id', $document->company_id)
+                    ->where('id', $responseDocumentId)
+                    ->first();
 
-            if ($isDepartmentManager && (int) $responseDocument->department_id !== (int) $user->department_id) {
-                return back()->withErrors(['response_document_id' => 'Solo puedes responder con documentos de tu oficina.'])->withInput();
+                if (! $responseDocument) {
+                    return back()->withErrors(['response_document_id' => 'El documento de respuesta no pertenece a la empresa.'])->withInput();
+                }
+
+                if ($isDepartmentManager && (int) $responseDocument->department_id !== (int) $user->department_id) {
+                    return back()->withErrors(['response_document_id' => 'Solo puedes responder con documentos de tu oficina.'])->withInput();
+                }
             }
 
             $target->status = 'responded';
@@ -1104,6 +1137,14 @@ class UserDocumentController extends Controller
 
         return redirect()->route('documents.show', $document)
             ->with('success', 'Seguimiento de oficina actualizado.');
+    }
+
+    private function sanitizeDistributionNote(string $note): string
+    {
+        $allowedTags = '<p><br><strong><b><em><i><u><ul><ol><li><blockquote><h3><h4><a>';
+        $sanitized = strip_tags($note, $allowedTags);
+
+        return trim($sanitized);
     }
 
     /**

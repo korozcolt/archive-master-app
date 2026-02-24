@@ -3,10 +3,12 @@
 namespace App\Services;
 
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
+use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DocumentFileService
 {
@@ -102,7 +104,7 @@ class DocumentFileService
         return Storage::disk($this->getStorageDisk())->exists($path);
     }
 
-    public function downloadResponse(string $path)
+    public function downloadResponse(string $path): StreamedResponse
     {
         $disk = $this->getStorageDisk();
 
@@ -118,19 +120,35 @@ class DocumentFileService
         }, $filename);
     }
 
-    public function inlineResponse(string $path)
+    public function inlineResponse(string $path): Response|StreamedResponse
     {
         $disk = $this->getStorageDisk();
         $filename = basename($path);
-        $mimeType = Storage::disk($disk)->mimeType($path) ?: 'application/octet-stream';
+        $mimeType = $this->resolveMimeType($disk, $path);
 
         if (! $this->isEncryptionEnabled()) {
-            return Storage::disk($disk)->response(
-                $path,
-                $filename,
-                ['Content-Type' => $mimeType],
-                'inline'
-            );
+            try {
+                return Storage::disk($disk)->response(
+                    $path,
+                    $filename,
+                    ['Content-Type' => $mimeType],
+                    'inline'
+                );
+            } catch (\Throwable) {
+                return response()->stream(function () use ($disk, $path) {
+                    $stream = Storage::disk($disk)->readStream($path);
+
+                    if (! is_resource($stream)) {
+                        throw new FileNotFoundException('No se pudo abrir el archivo para previsualización.');
+                    }
+
+                    fpassthru($stream);
+                    fclose($stream);
+                }, 200, [
+                    'Content-Type' => $mimeType,
+                    'Content-Disposition' => 'inline; filename="'.$filename.'"',
+                ]);
+            }
         }
 
         $contents = $this->decryptStoredFile($disk, $path);
@@ -139,6 +157,36 @@ class DocumentFileService
             'Content-Type' => $mimeType,
             'Content-Disposition' => 'inline; filename="'.$filename.'"',
         ]);
+    }
+
+    private function resolveMimeType(string $disk, string $path): string
+    {
+        try {
+            return Storage::disk($disk)->mimeType($path) ?: $this->guessMimeTypeFromExtension($path);
+        } catch (\Throwable) {
+            return $this->guessMimeTypeFromExtension($path);
+        }
+    }
+
+    private function guessMimeTypeFromExtension(string $path): string
+    {
+        return match (strtolower((string) pathinfo($path, PATHINFO_EXTENSION))) {
+            'pdf' => 'application/pdf',
+            'png' => 'image/png',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'svg' => 'image/svg+xml',
+            'txt' => 'text/plain',
+            'html', 'htm' => 'text/html',
+            'doc' => 'application/msword',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls' => 'application/vnd.ms-excel',
+            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'ppt' => 'application/vnd.ms-powerpoint',
+            'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            default => 'application/octet-stream',
+        };
     }
 
     private function encryptStoredFile(string $disk, string $path): void
