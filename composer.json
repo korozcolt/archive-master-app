@@ -27,7 +27,6 @@
         "maatwebsite/excel": "*",
         "meilisearch/meilisearch-php": "^1.15",
         "opcodesio/log-viewer": "^3.15",
-        "owenvoke/blade-fontawesome": "^3.2",
         "picqer/php-barcode-generator": "^3.2",
         "predis/predis": "^3.1",
         "spatie/laravel-activitylog": "^4.10",

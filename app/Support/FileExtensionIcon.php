@@ -16,14 +16,14 @@ class FileExtensionIcon
 
         return match ($ext) {
             'pdf' => [
-                'icon' => self::resolveIcon('far-file-pdf', 'heroicon-o-document-text'),
+                'icon' => self::resolveIcon('tni-pdf-o', 'heroicon-o-document-text'),
                 'bg' => 'bg-rose-100 dark:bg-rose-900/30',
                 'fg' => 'text-rose-600 dark:text-rose-300',
                 'badge' => 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-900/20 dark:text-rose-300',
                 'label' => 'PDF',
             ],
             'doc', 'docx', 'odt', 'rtf', 'pages' => [
-                'icon' => self::resolveIcon('tni-doc-o', 'far-file-word', 'heroicon-o-document-text'),
+                'icon' => self::resolveIcon('tni-doc-o', 'heroicon-o-document-text'),
                 'bg' => 'bg-sky-100 dark:bg-sky-900/30',
                 'fg' => 'text-sky-600 dark:text-sky-300',
                 'badge' => 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/40 dark:bg-sky-900/20 dark:text-sky-300',
@@ -31,7 +31,7 @@ class FileExtensionIcon
             ],
             'xls', 'xlsx', 'csv', 'ods', 'numbers' => [
                 'icon' => self::resolveIcon(
-                    in_array($ext, ['csv'], true) ? 'tni-csv-o' : 'far-file-excel',
+                    in_array($ext, ['csv'], true) ? 'tni-csv-o' : 'tni-xls-o',
                     'heroicon-o-table-cells'
                 ),
                 'bg' => 'bg-emerald-100 dark:bg-emerald-900/30',
@@ -40,7 +40,7 @@ class FileExtensionIcon
                 'label' => strtoupper($ext),
             ],
             'ppt', 'pptx', 'odp', 'key' => [
-                'icon' => self::resolveIcon('far-file-powerpoint', 'heroicon-o-presentation-chart-bar'),
+                'icon' => self::resolveIcon('tni-ppt-o', 'heroicon-o-presentation-chart-bar'),
                 'bg' => 'bg-amber-100 dark:bg-amber-900/30',
                 'fg' => 'text-amber-600 dark:text-amber-300',
                 'badge' => 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300',
@@ -51,7 +51,7 @@ class FileExtensionIcon
                     match ($ext) {
                         'png' => 'tni-png-o',
                         'jpg', 'jpeg' => 'tni-jpg-o',
-                        default => 'far-file-image',
+                        default => 'tni-img-o',
                     },
                     'heroicon-o-photo'
                 ),
@@ -61,35 +61,35 @@ class FileExtensionIcon
                 'label' => strtoupper($ext),
             ],
             'zip', 'rar', '7z', 'tar', 'gz', 'tgz', 'bz2', 'xz' => [
-                'icon' => self::resolveIcon('tni-zip-o', 'far-file-archive', 'heroicon-o-archive-box'),
+                'icon' => self::resolveIcon('tni-zip-o', 'heroicon-o-archive-box'),
                 'bg' => 'bg-violet-100 dark:bg-violet-900/30',
                 'fg' => 'text-violet-600 dark:text-violet-300',
                 'badge' => 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/40 dark:bg-violet-900/20 dark:text-violet-300',
                 'label' => strtoupper($ext),
             ],
             'txt', 'md', 'log', 'ini', 'env', 'conf' => [
-                'icon' => self::resolveIcon('far-file-lines', 'heroicon-o-document'),
+                'icon' => self::resolveIcon('tni-txt-o', 'heroicon-o-document'),
                 'bg' => 'bg-slate-100 dark:bg-slate-800',
                 'fg' => 'text-slate-600 dark:text-slate-300',
                 'badge' => 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200',
                 'label' => strtoupper($ext),
             ],
             'json', 'xml', 'yml', 'yaml', 'sql', 'js', 'ts', 'jsx', 'tsx', 'php', 'py', 'java', 'kt', 'go', 'rs', 'c', 'cpp', 'h', 'hpp', 'css', 'scss', 'sass', 'html', 'htm', 'vue', 'blade.php' => [
-                'icon' => self::resolveIcon('far-file-code', 'heroicon-o-code-bracket'),
+                'icon' => self::resolveIcon('tni-code-o', 'heroicon-o-code-bracket'),
                 'bg' => 'bg-cyan-100 dark:bg-cyan-900/30',
                 'fg' => 'text-cyan-600 dark:text-cyan-300',
                 'badge' => 'border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-900/40 dark:bg-cyan-900/20 dark:text-cyan-300',
                 'label' => strtoupper($ext),
             ],
             'mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac' => [
-                'icon' => self::resolveIcon('far-file-audio', 'heroicon-o-musical-note'),
+                'icon' => self::resolveIcon('tni-music-o', 'heroicon-o-musical-note'),
                 'bg' => 'bg-pink-100 dark:bg-pink-900/30',
                 'fg' => 'text-pink-600 dark:text-pink-300',
                 'badge' => 'border-pink-200 bg-pink-50 text-pink-700 dark:border-pink-900/40 dark:bg-pink-900/20 dark:text-pink-300',
                 'label' => strtoupper($ext),
             ],
             'mp4', 'mov', 'avi', 'mkv', 'webm', 'wmv', 'm4v' => [
-                'icon' => self::resolveIcon('tni-mp4-o', 'far-file-video', 'heroicon-o-film'),
+                'icon' => self::resolveIcon('tni-mp4-o', 'heroicon-o-film'),
                 'bg' => 'bg-indigo-100 dark:bg-indigo-900/30',
                 'fg' => 'text-indigo-600 dark:text-indigo-300',
                 'badge' => 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900/40 dark:bg-indigo-900/20 dark:text-indigo-300',
@@ -103,14 +103,14 @@ class FileExtensionIcon
                 'label' => strtoupper($ext),
             ],
             'ai', 'psd', 'fig', 'sketch', 'xd' => [
-                'icon' => self::resolveIcon('far-file-image', 'heroicon-o-swatch'),
+                'icon' => self::resolveIcon('tni-img-o', 'heroicon-o-swatch'),
                 'bg' => 'bg-purple-100 dark:bg-purple-900/30',
                 'fg' => 'text-purple-600 dark:text-purple-300',
                 'badge' => 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-900/40 dark:bg-purple-900/20 dark:text-purple-300',
                 'label' => strtoupper($ext),
             ],
             default => [
-                'icon' => self::resolveIcon('far-file-lines', 'heroicon-o-document'),
+                'icon' => self::resolveIcon('tni-file-o', 'heroicon-o-document'),
                 'bg' => 'bg-slate-100 dark:bg-slate-800',
                 'fg' => 'text-slate-600 dark:text-slate-300',
                 'badge' => 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200',
