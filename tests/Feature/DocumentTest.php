@@ -4,14 +4,17 @@ namespace Tests\Feature;
 
 use App\Models\Category;
 use App\Models\Company;
+use App\Models\Department;
 use App\Models\Document;
 use App\Models\DocumentUploadDraft;
+use App\Models\DocumentVersion;
 use App\Models\Status;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Activity;
+use Spatie\Permission\Models\Role as SpatieRole;
 use Tests\TestCase;
 
 class DocumentTest extends TestCase
@@ -58,6 +61,36 @@ class DocumentTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertViewIs('documents.index');
+    }
+
+    public function test_documents_index_uses_latest_version_extension_for_icon_when_document_file_path_is_empty()
+    {
+        $document = Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $this->status->id,
+            'category_id' => $this->category->id,
+            'created_by' => $this->user->id,
+            'assigned_to' => $this->user->id,
+            'file_path' => null,
+            'title' => 'Documento con versión PDF',
+        ]);
+
+        DocumentVersion::create([
+            'document_id' => $document->id,
+            'created_by' => $this->user->id,
+            'version_number' => 2,
+            'file_path' => 'documents/versiones/documento-prueba.pdf',
+            'file_name' => 'documento-prueba.pdf',
+            'is_current' => true,
+            'change_summary' => 'Versión con archivo',
+            'metadata' => [],
+        ]);
+
+        $response = $this->actingAs($this->user)->get('/documents');
+
+        $response->assertSuccessful()
+            ->assertSee('Documento con versión PDF')
+            ->assertSee('data-file-ext="pdf"', false);
     }
 
     /**
@@ -111,6 +144,30 @@ class DocumentTest extends TestCase
 
         expect($document->file_path)->not->toBeNull();
         Storage::disk('local')->assertExists($document->file_path);
+    }
+
+    public function test_portal_does_not_apply_ten_mb_validation_limit_anymore()
+    {
+        Storage::fake('local');
+
+        $largeFile = UploadedFile::fake()->create('archivo_grande.pdf', 15000, 'application/pdf');
+
+        $response = $this->actingAs($this->user)
+            ->post('/documents', [
+                'title' => 'Documento grande',
+                'document_number' => 'FILE-XL-001',
+                'description' => 'Archivo superior a 10MB',
+                'status_id' => $this->status->id,
+                'category_id' => $this->category->id,
+                'priority' => 'medium',
+                'file' => $largeFile,
+            ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('documents', [
+            'document_number' => 'FILE-XL-001',
+            'title' => 'Documento grande',
+        ]);
     }
 
     /**
@@ -328,6 +385,165 @@ class DocumentTest extends TestCase
         }
     }
 
+    public function test_receptionist_can_distribute_document_to_multiple_departments()
+    {
+        $receptionRole = SpatieRole::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'web']);
+        $receptionist = User::factory()->create([
+            'company_id' => $this->company->id,
+            'branch_id' => $this->user->branch_id,
+            'department_id' => $this->user->department_id,
+        ]);
+        $receptionist->assignRole($receptionRole);
+
+        $departmentOne = Department::factory()->create(['company_id' => $this->company->id]);
+        $departmentTwo = Department::factory()->create(['company_id' => $this->company->id]);
+
+        $document = Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $this->status->id,
+            'category_id' => $this->category->id,
+            'created_by' => $receptionist->id,
+            'assigned_to' => $receptionist->id,
+        ]);
+
+        $response = $this->actingAs($receptionist)->post(route('documents.distributions.store', $document), [
+            'department_ids' => [$departmentOne->id, $departmentTwo->id],
+            'routing_note' => 'Revisar y responder por favor',
+        ]);
+
+        $response->assertRedirect(route('documents.show', $document));
+
+        $this->assertDatabaseHas('document_distributions', [
+            'document_id' => $document->id,
+            'company_id' => $this->company->id,
+            'created_by' => $receptionist->id,
+            'status' => 'open',
+        ]);
+
+        $this->assertDatabaseHas('document_distribution_targets', [
+            'department_id' => $departmentOne->id,
+            'status' => 'sent',
+        ]);
+
+        $this->assertDatabaseHas('document_distribution_targets', [
+            'department_id' => $departmentTwo->id,
+            'status' => 'sent',
+        ]);
+    }
+
+    public function test_office_manager_can_view_and_update_distribution_target_for_their_department()
+    {
+        $officeRole = SpatieRole::firstOrCreate(['name' => 'office_manager', 'guard_name' => 'web']);
+        $receptionRole = SpatieRole::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'web']);
+
+        $departmentOffice = Department::factory()->create(['company_id' => $this->company->id]);
+        $departmentOther = Department::factory()->create(['company_id' => $this->company->id]);
+
+        $receptionist = User::factory()->create([
+            'company_id' => $this->company->id,
+            'department_id' => $departmentOther->id,
+        ]);
+        $receptionist->assignRole($receptionRole);
+
+        $officeManager = User::factory()->create([
+            'company_id' => $this->company->id,
+            'department_id' => $departmentOffice->id,
+        ]);
+        $officeManager->assignRole($officeRole);
+
+        $document = Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $this->status->id,
+            'category_id' => $this->category->id,
+            'created_by' => $receptionist->id,
+            'assigned_to' => $receptionist->id,
+        ]);
+
+        $distribution = $document->distributions()->create([
+            'company_id' => $this->company->id,
+            'created_by' => $receptionist->id,
+            'status' => 'open',
+            'sent_at' => now(),
+        ]);
+
+        $target = $distribution->targets()->create([
+            'department_id' => $departmentOffice->id,
+            'status' => 'sent',
+            'sent_at' => now(),
+            'last_activity_at' => now(),
+            'last_updated_by' => $receptionist->id,
+        ]);
+
+        $listResponse = $this->actingAs($officeManager)->get('/documents');
+        $listResponse->assertOk();
+        $listResponse->assertSee($document->title);
+
+        $updateResponse = $this->actingAs($officeManager)->post(route('documents.distribution-targets.update', [$document, $target]), [
+            'status' => 'responded',
+            'note' => 'Revisado por oficina y respuesta emitida.',
+        ]);
+
+        $updateResponse->assertRedirect(route('documents.show', $document));
+
+        $this->assertDatabaseHas('document_distribution_targets', [
+            'id' => $target->id,
+            'status' => 'responded',
+            'response_note' => 'Revisado por oficina y respuesta emitida.',
+            'last_updated_by' => $officeManager->id,
+        ]);
+    }
+
+    public function test_cannot_distribute_document_again_to_an_already_distributed_department()
+    {
+        $receptionRole = SpatieRole::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'web']);
+        $receptionist = User::factory()->create([
+            'company_id' => $this->company->id,
+            'branch_id' => $this->user->branch_id,
+            'department_id' => $this->user->department_id,
+        ]);
+        $receptionist->assignRole($receptionRole);
+
+        $department = Department::factory()->create(['company_id' => $this->company->id]);
+
+        $document = Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $this->status->id,
+            'category_id' => $this->category->id,
+            'created_by' => $receptionist->id,
+            'assigned_to' => $receptionist->id,
+        ]);
+
+        $distribution = $document->distributions()->create([
+            'company_id' => $this->company->id,
+            'created_by' => $receptionist->id,
+            'status' => 'open',
+            'sent_at' => now(),
+        ]);
+
+        $distribution->targets()->create([
+            'department_id' => $department->id,
+            'status' => 'sent',
+            'sent_at' => now(),
+            'last_activity_at' => now(),
+            'last_updated_by' => $receptionist->id,
+        ]);
+
+        $response = $this->actingAs($receptionist)
+            ->from(route('documents.show', $document))
+            ->post(route('documents.distributions.store', $document), [
+                'department_ids' => [$department->id],
+                'routing_note' => 'Intento duplicado',
+            ]);
+
+        $response->assertRedirect(route('documents.show', $document));
+        $response->assertSessionHasErrors('department_ids');
+
+        $this->assertSame(
+            1,
+            $document->distributions()->withCount('targets')->get()->sum('targets_count')
+        );
+    }
+
     /**
      * Test que un usuario puede ver un documento
      */
@@ -344,6 +560,26 @@ class DocumentTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertViewIs('documents.show');
+    }
+
+    public function test_document_preview_route_returns_inline_response_for_previewable_files()
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('documents/test-preview.pdf', 'fake-pdf-content');
+
+        $document = Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $this->status->id,
+            'category_id' => $this->category->id,
+            'created_by' => $this->user->id,
+            'assigned_to' => $this->user->id,
+            'file_path' => 'documents/test-preview.pdf',
+        ]);
+
+        $response = $this->actingAs($this->user)->get(route('documents.preview', $document->id));
+
+        $response->assertOk();
+        $this->assertStringContainsString('inline', (string) $response->headers->get('content-disposition'));
     }
 
     public function test_document_activity_log_shows_human_readable_values()
@@ -520,6 +756,7 @@ class DocumentTest extends TestCase
         $response->assertSee('Borrador');
         $response->assertDontSee('{"es":"Documentos Legales"}');
         $response->assertDontSee('{"es":"Borrador"}');
+        $response->assertDontSee('<label for="file" class="block">', false);
     }
 
     /**

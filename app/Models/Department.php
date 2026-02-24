@@ -13,7 +13,7 @@ use Spatie\Translatable\HasTranslations;
 
 class Department extends Model
 {
-    use HasFactory, LogsActivity, SoftDeletes, HasTranslations;
+    use HasFactory, HasTranslations, LogsActivity, SoftDeletes;
 
     protected $fillable = [
         'company_id',
@@ -30,7 +30,7 @@ class Department extends Model
         'name',
         'description',
     ];
-    
+
     protected $casts = [
         'active' => 'boolean',
         'settings' => 'json',
@@ -67,6 +67,11 @@ class Department extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(Document::class);
+    }
+
+    public function distributionTargets(): HasMany
+    {
+        return $this->hasMany(DocumentDistributionTarget::class);
     }
 
     public function users(): HasMany

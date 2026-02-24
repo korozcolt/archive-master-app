@@ -21,7 +21,13 @@ class Dashboard extends Component
             });
 
         $recentDocuments = (clone $baseQuery)
-            ->with(['status', 'category', 'creator', 'assignee'])
+            ->with([
+                'status',
+                'category',
+                'creator',
+                'assignee',
+                'versions' => fn ($query) => $query->latest()->limit(1),
+            ])
             ->latest()
             ->limit(5)
             ->get();

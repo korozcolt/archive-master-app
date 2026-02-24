@@ -131,6 +131,59 @@ Separar el acceso de roles operativos del panel admin y habilitar un portal prop
 
 ---
 
+## Fase 2.2 - Distribución Multi-Oficina y Seguimiento (Atomic Execution) (2026-03-27 a 2026-04-10)
+
+### Objetivo
+Permitir que `receptionist` distribuya un documento a una o varias oficinas/departamentos y que exista seguimiento por destinatario (revisado, en gestión, respuesta), con trazabilidad visible en portal.
+
+### Diagnóstico (confirmado)
+- [x] Revisar `WorkflowDefinition`, `WorkflowHistory` y `WorkflowService` para validar si soportan distribución múltiple por oficina.
+- [x] Confirmar limitación: el workflow actual cubre transiciones/aprobaciones, pero **no modela múltiples destinatarios con estados independientes por oficina**.
+- [x] Decidir implementación de módulo específico de distribución (no solo configuración de workflow).
+
+### Atomic Execution por tareas
+
+#### A. Modelo y persistencia (core)
+- [ ] A.1 Crear `document_distributions` (cabecera de envío)
+- [ ] A.2 Crear `document_distribution_targets` (una fila por oficina/destinatario)
+- [ ] A.3 Modelos Eloquent + relaciones en `Document`, `Department`, `User`
+- [ ] A.4 Estados por destinatario (`sent`, `received`, `in_review`, `responded`, `closed`)
+- [ ] A.5 Timestamps por acción (`received_at`, `reviewed_at`, `responded_at`, `closed_at`)
+
+#### B. Envío desde recepción (portal)
+- [ ] B.1 Acción portal “Enviar a oficinas” en detalle de documento
+- [ ] B.2 Selección múltiple de oficinas/departamentos destino
+- [ ] B.3 (Opcional MVP) asignar usuario responsable por destinatario
+- [ ] B.4 Validaciones de empresa/sucursal/departamento
+- [ ] B.5 Registrar evento de distribución en auditoría
+
+#### C. Seguimiento por oficina (portal)
+- [ ] C.1 Panel “Distribución y Seguimiento” en `documents.show`
+- [ ] C.2 Tabla por destinatario (oficina, responsable, estado, última actividad)
+- [ ] C.3 Acciones para `office_manager`: marcar recibido / en revisión / responder / cerrar
+- [ ] C.4 Comentario/nota de seguimiento por destinatario
+- [ ] C.5 Mostrar respuesta/observación en el detalle para recepción
+
+#### D. Notificaciones y deduplicación
+- [ ] D.1 Notificar al destinatario/oficina cuando se distribuye un documento
+- [ ] D.2 Notificar al dueño/creador cuando una oficina actualiza seguimiento
+- [ ] D.3 Deduplicar notificaciones por mismo evento/acción
+- [ ] D.4 Registrar en changelog de notificaciones (documento y destinatario)
+
+#### E. Pruebas y regresión
+- [ ] E.1 Feature tests envío multi-oficina desde `receptionist`
+- [ ] E.2 Feature tests seguimiento por `office_manager`
+- [ ] E.3 Feature tests de visibilidad/permisos por rol
+- [ ] E.4 Validación visual portal (`chrome-devtools` / Dusk) del flujo completo
+
+### Criterio de salida
+- [ ] Recepción puede distribuir a múltiples oficinas en una sola acción
+- [ ] Cada oficina tiene estado independiente y trazable
+- [ ] Recepción puede ver seguimiento consolidado por destinatario
+- [ ] Notificaciones al dueño no se duplican por un mismo evento
+
+---
+
 ## Fase 3 - Cierre de Brechas Funcionales (2026-03-16 a 2026-04-03)
 
 ### Objetivo
@@ -254,6 +307,7 @@ Usar esta sección para trazabilidad diaria/semanal.
 | 2026-02-21 | Fase IA | Fase 5 | UI admin en `CompanyResource` para provider/key/límites + acciones `Test key` y `Run sample` + guardado seguro de key | `php artisan test tests/Feature/Filament/CompanyAiSettingsTest.php tests/Feature/Filament/CompanyResourceTest.php` | Completado |
 | 2026-02-21 | Fase IA | Fase 6 | Panel IA en vista de documento (resumen/sugerencias) + acciones portal `Regenerar IA`, `Aplicar sugerencias` y `Marcar incorrecto` + visibilidad de entidades/confianza por rol | `php artisan test tests/Feature/DocumentAiPortalActionsTest.php` | Completado |
 | 2026-02-21 | Fase IA | Fase 7 (parcial) | Redacción PII + throttling portal + budget mensual + circuit breaker (incluye pruebas con fallos reales del gateway) + observabilidad admin (métricas rápidas, página dedicada por empresa y export CSV) | `php artisan test tests/Feature/AiGatewayTest.php tests/Feature/AiPipelineTest.php tests/Feature/DocumentAiPortalActionsTest.php tests/Feature/Filament/CompanyAiSettingsTest.php` | En progreso |
+| 2026-02-23 | Fase 2.2 | Diagnóstico inicial distribución multi-oficina | Se valida que workflows/aprobaciones no cubren múltiples destinatarios con seguimiento independiente; se abre fase atómica de implementación | `PLAN_DESARROLLO_FASES.md`, revisión de `WorkflowDefinition/WorkflowHistory/WorkflowService` | Completado |
 
 ---
 

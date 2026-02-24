@@ -33,7 +33,7 @@ class UpdateDocumentRequest extends FormRequest
             'priority' => 'nullable|in:low,medium,high,urgent',
             'confidentiality_level' => 'nullable|in:public,internal,confidential,restricted',
             'metadata' => 'nullable|array',
-            'file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,txt,jpg,jpeg,png,gif|max:10240', // 10MB max
+            'file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,txt,jpg,jpeg,png,gif',
             'tags' => 'nullable|array',
             'tags.*' => 'exists:tags,id',
             'is_archived' => 'nullable|boolean',
@@ -56,7 +56,6 @@ class UpdateDocumentRequest extends FormRequest
             'priority.in' => 'La prioridad debe ser: low, medium, high o urgent.',
             'confidentiality_level.in' => 'El nivel de confidencialidad debe ser: public, internal, confidential o restricted.',
             'file.mimes' => 'El archivo debe ser de tipo: pdf, doc, docx, xls, xlsx, ppt, pptx, txt, jpg, jpeg, png, gif.',
-            'file.max' => 'El archivo no puede exceder 10MB.',
             'tags.*.exists' => 'Una o más etiquetas seleccionadas no existen.',
         ];
     }

@@ -118,6 +118,29 @@ class DocumentFileService
         }, $filename);
     }
 
+    public function inlineResponse(string $path)
+    {
+        $disk = $this->getStorageDisk();
+        $filename = basename($path);
+        $mimeType = Storage::disk($disk)->mimeType($path) ?: 'application/octet-stream';
+
+        if (! $this->isEncryptionEnabled()) {
+            return Storage::disk($disk)->response(
+                $path,
+                $filename,
+                ['Content-Type' => $mimeType],
+                'inline'
+            );
+        }
+
+        $contents = $this->decryptStoredFile($disk, $path);
+
+        return response($contents, 200, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+        ]);
+    }
+
     private function encryptStoredFile(string $disk, string $path): void
     {
         $contents = Storage::disk($disk)->get($path);

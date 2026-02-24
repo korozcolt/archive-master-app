@@ -75,6 +75,45 @@ it('creates receipt and regular user when receptionist creates a document', func
     ]);
 });
 
+it('does not block receipt creation when recipient email exists in another company', function () {
+    $receptionist = createReceptionistUserForReceiptFlow();
+    $category = Category::factory()->create(['company_id' => $receptionist->company_id]);
+    $status = Status::factory()->create(['company_id' => $receptionist->company_id]);
+
+    $otherCompany = Company::factory()->create();
+    $otherBranch = Branch::factory()->create(['company_id' => $otherCompany->id]);
+    $otherDepartment = Department::factory()->create([
+        'company_id' => $otherCompany->id,
+        'branch_id' => $otherBranch->id,
+    ]);
+
+    User::factory()->create([
+        'company_id' => $otherCompany->id,
+        'branch_id' => $otherBranch->id,
+        'department_id' => $otherDepartment->id,
+        'email' => 'duplicado@cliente.test',
+    ]);
+
+    $response = $this->actingAs($receptionist)
+        ->post(route('documents.store'), [
+            'title' => 'Documento con conflicto',
+            'description' => 'Prueba de validación',
+            'category_id' => $category->id,
+            'status_id' => $status->id,
+            'priority' => 'medium',
+            'recipient_name' => 'Cliente Duplicado',
+            'recipient_email' => 'duplicado@cliente.test',
+            'recipient_phone' => '3001234567',
+        ]);
+
+    $response->assertRedirect();
+
+    $receipt = Receipt::query()->latest()->first();
+    expect($receipt)->not->toBeNull()
+        ->and($receipt->recipient_email)->toBe('duplicado@cliente.test')
+        ->and($receipt->recipient_user_id)->toBeNull();
+});
+
 it('generates otp from receipt data and allows portal login', function () {
     $company = Company::factory()->create();
     $branch = Branch::factory()->create(['company_id' => $company->id]);

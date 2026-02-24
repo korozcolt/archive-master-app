@@ -206,6 +206,11 @@ class Document extends Model
         return $this->hasMany(Receipt::class);
     }
 
+    public function distributions(): HasMany
+    {
+        return $this->hasMany(DocumentDistribution::class);
+    }
+
     public function aiRuns(): HasMany
     {
         return $this->hasMany(DocumentAiRun::class);

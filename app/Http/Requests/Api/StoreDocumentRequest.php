@@ -33,7 +33,7 @@ class StoreDocumentRequest extends FormRequest
             'priority' => 'nullable|in:low,medium,high,urgent',
             'confidentiality_level' => 'nullable|in:public,internal,confidential,restricted',
             'metadata' => 'nullable|array',
-            'file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,txt,jpg,jpeg,png,gif|max:10240', // 10MB max
+            'file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,txt,jpg,jpeg,png,gif',
             'tags' => 'nullable|array',
             'tags.*' => 'exists:tags,id',
         ];
@@ -55,7 +55,6 @@ class StoreDocumentRequest extends FormRequest
             'priority.in' => 'La prioridad debe ser: low, medium, high o urgent.',
             'confidentiality_level.in' => 'El nivel de confidencialidad debe ser: public, internal, confidential o restricted.',
             'file.mimes' => 'El archivo debe ser de tipo: pdf, doc, docx, xls, xlsx, ppt, pptx, txt, jpg, jpeg, png, gif.',
-            'file.max' => 'El archivo no puede exceder 10MB.',
             'tags.*.exists' => 'Una o más etiquetas seleccionadas no existen.',
         ];
     }
@@ -66,24 +65,24 @@ class StoreDocumentRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         // Set default status if not provided
-        if (!$this->has('status_id')) {
+        if (! $this->has('status_id')) {
             $defaultStatus = \App\Models\Status::where('company_id', Auth::user()->company_id)
                 ->where('is_active', true)
                 ->orderBy('sort_order')
                 ->first();
-            
+
             if ($defaultStatus) {
                 $this->merge(['status_id' => $defaultStatus->id]);
             }
         }
 
         // Set default priority if not provided
-        if (!$this->has('priority')) {
+        if (! $this->has('priority')) {
             $this->merge(['priority' => 'medium']);
         }
 
         // Set default confidentiality level if not provided
-        if (!$this->has('confidentiality_level')) {
+        if (! $this->has('confidentiality_level')) {
             $this->merge(['confidentiality_level' => 'internal']);
         }
     }

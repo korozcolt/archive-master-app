@@ -82,6 +82,73 @@ class DocumentResourceTest extends TestCase
     }
 
     /** @test */
+    public function documents_list_is_sorted_newest_first_by_default()
+    {
+        $this->actingAs($this->admin);
+
+        $older = Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $this->status->id,
+            'category_id' => $this->category->id,
+            'created_by' => $this->admin->id,
+            'created_at' => now()->subDays(2),
+            'updated_at' => now()->subDays(2),
+            'title' => 'Documento Antiguo',
+        ]);
+
+        $newer = Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $this->status->id,
+            'category_id' => $this->category->id,
+            'created_by' => $this->admin->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+            'title' => 'Documento Nuevo',
+        ]);
+
+        $component = Livewire::test(DocumentResource\Pages\ListDocuments::class)
+            ->assertSuccessful();
+
+        $records = $component->instance()->getTableRecords();
+
+        $this->assertSame($newer->id, $records->first()->id);
+        $this->assertSame($older->id, $records->last()->id);
+    }
+
+    /** @test */
+    public function documents_list_shows_translated_category_and_status_instead_of_json()
+    {
+        $this->actingAs($this->admin);
+
+        $category = Category::factory()->create([
+            'company_id' => $this->company->id,
+            'name' => ['es' => 'Correspondencia', 'en' => 'Correspondence'],
+        ]);
+
+        $status = Status::factory()->create([
+            'company_id' => $this->company->id,
+            'is_initial' => true,
+            'name' => ['es' => 'En Proceso', 'en' => 'In Progress'],
+        ]);
+
+        Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $status->id,
+            'category_id' => $category->id,
+            'created_by' => $this->admin->id,
+            'title' => 'Documento Traducción Filament',
+        ]);
+
+        Livewire::test(DocumentResource\Pages\ListDocuments::class)
+            ->assertSuccessful()
+            ->assertSee('Documento Traducción Filament')
+            ->assertSee('Correspondencia')
+            ->assertSee('En Proceso')
+            ->assertDontSee('{"es":"Correspondencia"}')
+            ->assertDontSee('{"es":"En Proceso"}');
+    }
+
+    /** @test */
     public function can_search_documents_by_title()
     {
         $this->actingAs($this->admin);

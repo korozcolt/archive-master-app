@@ -33,6 +33,7 @@
     };
 
     $hasAttachment = filled($document->file_path);
+    $documentFileExtension = \App\Support\FileExtensionIcon::extensionFromPath($document->file_path);
 @endphp
 
 <div class="space-y-6">
@@ -160,7 +161,7 @@
                     <div class="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/40">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div class="flex items-center gap-3">
-                                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">📎</div>
+                                <x-file-extension-icon :extension="$documentFileExtension" class="h-10 w-10" size="h-5 w-5" />
                                 <div>
                                     <p class="text-sm font-semibold text-slate-900 dark:text-white">Archivo actual adjunto</p>
                                     <p class="text-xs text-slate-500 dark:text-slate-400">{{ basename((string) $document->file_path) }}</p>
@@ -173,15 +174,15 @@
                     </div>
                 @endif
 
-                <label for="file" class="block">
-                    <span class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">
+                <div>
+                    <label for="file" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">
                         {{ $hasAttachment ? 'Reemplazar archivo adjunto' : 'Archivo adjunto' }}
-                    </span>
+                    </label>
                     <div class="rounded-xl border-2 border-dashed border-sky-300/40 bg-slate-50/70 p-4 transition dark:border-sky-700/40 dark:bg-slate-950/30">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <p class="text-sm font-semibold text-slate-900 dark:text-white">Selecciona un archivo para cargar</p>
-                                <p class="text-xs text-slate-500 dark:text-slate-400">PDF, DOC, DOCX, XLS, XLSX, JPG, JPEG, PNG (máx. 10MB)</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">PDF, DOC, DOCX, XLS, XLSX, JPG, JPEG, PNG (límite según configuración del servidor)</p>
                                 @if($hasAttachment)
                                     <p class="mt-1 text-xs text-amber-600 dark:text-amber-300">Si seleccionas un archivo nuevo, reemplazará el adjunto actual.</p>
                                 @endif
@@ -196,7 +197,7 @@
                                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
                                class="mt-4 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 file:mr-4 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-slate-700 hover:file:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:file:bg-slate-700 dark:file:text-slate-200">
                     </div>
-                </label>
+                </div>
                 @error('file')
                     <p class="mt-1.5 text-sm text-rose-600 dark:text-rose-300">{{ $message }}</p>
                 @enderror

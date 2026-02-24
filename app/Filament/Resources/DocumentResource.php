@@ -23,6 +23,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -410,6 +411,7 @@ class DocumentResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->defaultSort('created_at', 'desc')
             ->columns([
                 Tables\Columns\TextColumn::make('document_number')
                     ->label('Número')
@@ -438,12 +440,30 @@ class DocumentResource extends Resource
                 Tables\Columns\TextColumn::make('category.name')
                     ->label('Categoría')
                     ->searchable()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('status.name')
-                    ->label('Estado')
                     ->sortable()
                     ->badge()
-                    ->color(fn ($record) => $record->status ? $record->status->color : 'gray'),
+                    ->color(fn (?Document $record): string => static::categoryBadgeColor($record))
+                    ->formatStateUsing(fn ($state, ?Document $record): string => static::translatedRelationName($record?->category, is_string($state) ? $state : null)),
+                Tables\Columns\TextColumn::make('status.name')
+                    ->label('Estado')
+                    ->formatStateUsing(fn ($state, ?Document $record): string => static::translatedRelationName($record?->status, is_string($state) ? $state : null))
+                    ->sortable()
+                    ->badge()
+                    ->color(function (?Document $record): string {
+                        $rawName = static::translatedRelationName($record?->status, null);
+                        $normalized = mb_strtolower($rawName);
+
+                        return match (true) {
+                            str_contains($normalized, 'aprob') => 'success',
+                            str_contains($normalized, 'proceso') => 'warning',
+                            str_contains($normalized, 'revis') => 'info',
+                            str_contains($normalized, 'rechaz') => 'danger',
+                            str_contains($normalized, 'borrador') => 'gray',
+                            str_contains($normalized, 'recib') => 'primary',
+                            str_contains($normalized, 'archiv') => 'gray',
+                            default => 'gray',
+                        };
+                    }),
                 Tables\Columns\TextColumn::make('priority')
                     ->label('Prioridad')
                     ->badge(),
@@ -1001,6 +1021,53 @@ class DocumentResource extends Resource
             RelationManagers\VersionsRelationManager::class,
             RelationManagers\WorkflowHistoryRelationManager::class,
         ];
+    }
+
+    public static function translatedRelationName(?Model $relatedRecord, ?string $fallback = null): string
+    {
+        if ($relatedRecord !== null && method_exists($relatedRecord, 'getTranslation')) {
+            $translated = $relatedRecord->getTranslation('name', app()->getLocale(), false);
+
+            if (is_string($translated) && $translated !== '') {
+                if (str_starts_with($translated, '{')) {
+                    $decoded = json_decode($translated, true);
+
+                    if (is_array($decoded)) {
+                        $locale = app()->getLocale();
+
+                        return (string) ($decoded[$locale] ?? $decoded['es'] ?? $decoded['en'] ?? reset($decoded) ?? '—');
+                    }
+                }
+
+                return $translated;
+            }
+        }
+
+        if (is_string($fallback) && str_starts_with($fallback, '{')) {
+            $decoded = json_decode($fallback, true);
+
+            if (is_array($decoded)) {
+                $locale = app()->getLocale();
+
+                return (string) ($decoded[$locale] ?? $decoded['es'] ?? $decoded['en'] ?? reset($decoded) ?? '—');
+            }
+        }
+
+        return (string) ($fallback ?? '—');
+    }
+
+    public static function categoryBadgeColor(?Document $record): string
+    {
+        $label = static::translatedRelationName($record?->category, null);
+
+        if ($label === '—') {
+            return 'gray';
+        }
+
+        $palette = ['primary', 'info', 'success', 'warning', 'danger'];
+        $index = abs(crc32(mb_strtolower($label))) % count($palette);
+
+        return $palette[$index];
     }
 
     public static function getPages(): array

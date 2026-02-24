@@ -69,10 +69,26 @@
                 </thead>
                 <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
                     @forelse ($recentDocuments as $document)
+                        @php
+                            $latestVersion = $document->versions->first();
+                            $documentFileExtension = \App\Support\FileExtensionIcon::extensionFromPath($document->file_path)
+                                ?: \App\Support\FileExtensionIcon::extensionFromPath($latestVersion?->file_path)
+                                ?: \App\Support\FileExtensionIcon::normalizeExtension($latestVersion?->file_extension);
+                        @endphp
                         <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                             <td class="px-5 py-3.5">
-                                <div class="text-sm font-medium text-slate-900 dark:text-white">{{ $document->title }}</div>
-                                <div class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{{ $document->document_number }}</div>
+                                <div class="flex items-start gap-3">
+                                    <x-file-extension-icon
+                                        :extension="$documentFileExtension"
+                                        class="mt-0.5 h-9 w-9 shrink-0 rounded-xl"
+                                        size="h-4 w-4"
+                                        :data-file-ext="$documentFileExtension"
+                                    />
+                                    <div class="min-w-0">
+                                        <div class="truncate text-sm font-medium text-slate-900 dark:text-white">{{ $document->title }}</div>
+                                        <div class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{{ $document->document_number }}</div>
+                                    </div>
+                                </div>
                             </td>
                             <td class="px-5 py-3.5 text-sm text-slate-700 dark:text-slate-300">
                                 <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">

@@ -37,6 +37,9 @@
     $statusDotClass = str_contains(mb_strtolower($statusLabel), 'aprob') ? 'bg-emerald-500' : (str_contains(mb_strtolower($statusLabel), 'proceso') ? 'bg-amber-500' : 'bg-slate-400');
     $hasPreview = filled($document->file_path);
     $latestVersion = $document->versions->sortByDesc('id')->first();
+    $documentFileExtension = \App\Support\FileExtensionIcon::extensionFromPath($document->file_path);
+    $previewableExtensions = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'];
+    $canInlinePreview = $hasPreview && in_array($documentFileExtension, $previewableExtensions, true);
 @endphp
 
 <div class="space-y-6">
@@ -75,7 +78,7 @@
         </div>
     </section>
 
-    <section class="grid grid-cols-1 gap-6 2xl:grid-cols-[minmax(0,1fr)_340px_360px]">
+    <section class="grid grid-cols-1 gap-6 2xl:grid-cols-[minmax(0,1fr)_340px]">
         <div class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
                 <div class="flex items-center gap-3">
@@ -85,23 +88,40 @@
                     @endif
                 </div>
                 @if($hasPreview)
-                    <a href="{{ route('documents.download', $document) }}" class="text-sm font-medium text-sky-700 hover:text-sky-800 dark:text-sky-300">Abrir/Descargar</a>
+                    <a href="{{ $canInlinePreview ? route('documents.preview', $document) : route('documents.download', $document) }}" target="_blank" class="text-sm font-medium text-sky-700 hover:text-sky-800 dark:text-sky-300">
+                        {{ $canInlinePreview ? 'Abrir/Descargar' : 'Descargar' }}
+                    </a>
                 @endif
             </div>
 
             <div class="bg-slate-200/70 p-4 dark:bg-slate-950/60 sm:p-6">
-                @if($hasPreview)
+                @if($canInlinePreview)
                     <div class="mx-auto flex min-h-[640px] max-w-4xl items-center justify-center rounded-lg bg-white shadow-2xl ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
                         <iframe
-                            src="{{ route('documents.download', $document) }}"
+                            src="{{ route('documents.preview', $document) }}"
                             class="h-[70vh] min-h-[620px] w-full rounded-lg"
                             title="Vista previa del documento"
                         ></iframe>
                     </div>
+                @elseif($hasPreview)
+                    <div class="mx-auto flex min-h-[500px] max-w-3xl items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-center dark:border-slate-700 dark:bg-slate-800/40">
+                        <div class="px-6">
+                            <div class="mx-auto mb-3 flex justify-center">
+                                <x-file-extension-icon :extension="$documentFileExtension" class="h-14 w-14" size="h-7 w-7" />
+                            </div>
+                            <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Previsualización no disponible para este tipo de archivo</p>
+                            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Puedes abrirlo o descargarlo para verlo en una aplicación compatible.</p>
+                            <a href="{{ route('documents.download', $document) }}" class="mt-4 inline-flex h-10 items-center justify-center rounded-xl border border-sky-300/20 bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:from-sky-400 hover:to-indigo-500">
+                                Abrir / Descargar archivo
+                            </a>
+                        </div>
+                    </div>
                 @else
                     <div class="mx-auto flex min-h-[500px] max-w-3xl items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-center dark:border-slate-700 dark:bg-slate-800/40">
                         <div class="px-6">
-                            <p class="text-3xl">📄</p>
+                            <div class="mx-auto mb-2 flex justify-center">
+                                <x-file-extension-icon :extension="$documentFileExtension" class="h-14 w-14" size="h-7 w-7" />
+                            </div>
                             <p class="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">Sin archivo adjunto</p>
                             <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Este documento no tiene archivo digital disponible para previsualización.</p>
                         </div>
@@ -113,7 +133,7 @@
         <aside class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div class="border-b border-slate-200 px-4 py-4 dark:border-slate-800">
                 <div class="mb-3 flex items-start justify-between gap-3">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-300">📄</div>
+                    <x-file-extension-icon :extension="$documentFileExtension" class="h-10 w-10" size="h-5 w-5" />
                     <div class="flex gap-1">
                         @if($hasPreview)
                             <a href="{{ route('documents.download', $document) }}" class="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200">⬇️</a>
@@ -178,13 +198,23 @@
                 @endif
             </div>
         </aside>
+    </section>
 
-        <aside class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div class="flex items-center justify-between bg-gradient-to-r from-indigo-600 to-sky-600 px-4 py-3 text-white">
-                <div class="flex items-center gap-2">
-                    <span>✨</span>
-                    <h2 class="text-sm font-semibold uppercase tracking-[0.14em]">Insights de IA</h2>
-                </div>
+    <section x-data="{ aiInsightsOpen: false }" class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div class="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-indigo-600 to-sky-600 px-4 py-3 text-white">
+            <button type="button"
+                    @click="aiInsightsOpen = !aiInsightsOpen"
+                    class="inline-flex items-center gap-2 rounded-lg px-2 py-1 text-left text-sm font-semibold uppercase tracking-[0.14em] hover:bg-white/10">
+                <span class="text-base">✨</span>
+                <span>Insights de IA</span>
+                <span class="rounded-md bg-white/10 px-2 py-0.5 text-[10px] font-bold tracking-[0.14em]" x-text="aiInsightsOpen ? 'Ocultar' : 'Mostrar'"></span>
+            </button>
+            <div class="flex items-center gap-2">
+                @if($latestAiRun)
+                    <span class="inline-flex items-center rounded-md bg-white/10 px-2 py-1 text-[11px] font-semibold">
+                        {{ strtoupper($latestAiRun->status) }}
+                    </span>
+                @endif
                 @if(Auth::user()->can('create', \App\Models\DocumentAiRun::class))
                     <form method="POST" action="{{ route('documents.ai.regenerate', $document) }}">
                         @csrf
@@ -192,8 +222,9 @@
                     </form>
                 @endif
             </div>
+        </div>
 
-            <div class="max-h-[850px] space-y-6 overflow-y-auto p-4">
+        <div x-cloak x-show="aiInsightsOpen" class="space-y-6 p-4">
                 <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/40">
                     <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Resumen ejecutivo</h3>
@@ -273,7 +304,247 @@
                     @endif
                 </div>
             </div>
-        </aside>
+    </section>
+
+    <section class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        @php
+            $distributionStatusLabel = fn (?string $status) => match ($status) {
+                'sent' => 'Enviado',
+                'received' => 'Recibido',
+                'in_review' => 'En revisión',
+                'responded' => 'Respondido',
+                'closed' => 'Cerrado',
+                default => 'Sin estado',
+            };
+
+            $distributionStatusClass = fn (?string $status) => match ($status) {
+                'sent' => 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/40 dark:bg-sky-900/20 dark:text-sky-300',
+                'received' => 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900/40 dark:bg-indigo-900/20 dark:text-indigo-300',
+                'in_review' => 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300',
+                'responded' => 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300',
+                'closed' => 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200',
+                default => 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200',
+            };
+        @endphp
+
+        <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h2 class="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">Distribución y Seguimiento</h2>
+                <p class="text-sm text-slate-600 dark:text-slate-400">Envío del documento a oficinas y seguimiento independiente por destinatario.</p>
+            </div>
+        </div>
+
+        @if((Auth::user()?->hasRole(\App\Enums\Role::Receptionist->value) || Auth::user()?->hasAnyRole(['admin', 'super_admin', 'branch_admin'])) && isset($distributionDepartmentOptions))
+            <form method="POST"
+                  action="{{ route('documents.distributions.store', $document) }}"
+                  class="mb-6 rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm dark:border-slate-700 dark:from-slate-900 dark:to-slate-900"
+                  x-data="{ selectedDepartments: [] }">
+                @csrf
+                <div class="grid grid-cols-1 gap-4 lg:grid-cols-[1.5fr_1fr]">
+                    <div class="space-y-3">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                                Oficinas destino <span class="text-rose-500">*</span>
+                            </label>
+                            <span class="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                                <span x-text="selectedDepartments.length"></span>&nbsp;seleccionada(s)
+                            </span>
+                        </div>
+
+                        <div class="grid max-h-64 grid-cols-1 gap-2 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-2 dark:border-slate-700 dark:bg-slate-900">
+                            @foreach($distributionDepartmentOptions as $departmentOption)
+                                @php
+                                    $departmentLabel = $translateName($departmentOption, 'Oficina');
+                                    $alreadyDistributed = (bool) data_get($departmentOption, 'already_distributed', false);
+                                @endphp
+                                <label class="group relative rounded-lg border p-3 transition {{ $alreadyDistributed ? 'cursor-not-allowed border-slate-200/80 bg-slate-100/80 opacity-70 dark:border-slate-700 dark:bg-slate-800/30' : 'cursor-pointer border-slate-200 bg-slate-50/80 hover:border-sky-300 hover:bg-sky-50 dark:border-slate-700 dark:bg-slate-800/40 dark:hover:border-sky-700 dark:hover:bg-sky-900/10' }}">
+                                    <input type="checkbox"
+                                           name="department_ids[]"
+                                           value="{{ $departmentOption->id }}"
+                                           class="peer sr-only"
+                                           x-model="selectedDepartments"
+                                           @disabled($alreadyDistributed)>
+                                    <div class="flex items-start gap-3">
+                                        <div class="mt-0.5 flex h-5 w-5 items-center justify-center rounded border border-slate-300 bg-white text-slate-400 transition peer-checked:border-sky-500 peer-checked:bg-sky-500 peer-checked:text-white dark:border-slate-600 dark:bg-slate-900 dark:text-slate-500">
+                                            <svg x-show="selectedDepartments.includes('{{ (string) $departmentOption->id }}')" x-cloak class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                <path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.2 7.2a1 1 0 01-1.415.005L3.29 9.205a1 1 0 111.42-1.41l4.088 4.116 6.492-6.62a1 1 0 011.414-.001z" clip-rule="evenodd"/>
+                                            </svg>
+                                            <svg x-show="!selectedDepartments.includes('{{ (string) $departmentOption->id }}')" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true">
+                                                <path d="M6 6l8 8M14 6l-8 8" stroke-width="1.75" stroke-linecap="round" />
+                                            </svg>
+                                        </div>
+                                        <div class="min-w-0">
+                                            <div class="flex items-center gap-2">
+                                                <p class="text-sm font-semibold text-slate-900 peer-checked:text-sky-700 dark:text-white dark:peer-checked:text-sky-300">
+                                                    {{ $departmentLabel }}
+                                                </p>
+                                                @if($alreadyDistributed)
+                                                    <span class="inline-flex rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-600 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                                                        Ya enviada
+                                                    </span>
+                                                @endif
+                                            </div>
+                                            <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                                                {{ $alreadyDistributed ? 'Esta oficina ya tiene un destino creado para este documento.' : 'Destino de distribución y seguimiento independiente.' }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="pointer-events-none absolute inset-0 rounded-lg ring-2 ring-transparent transition {{ $alreadyDistributed ? '' : 'peer-checked:ring-sky-400/40' }}"></div>
+                                </label>
+                            @endforeach
+                        </div>
+
+                        <p class="text-xs text-slate-500 dark:text-slate-400">
+                            Selecciona una o varias oficinas. Cada oficina tendrá seguimiento y estado independiente.
+                        </p>
+                        @error('department_ids')
+                            <p class="text-sm text-rose-600 dark:text-rose-300">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="grid grid-rows-[1fr_auto] gap-4">
+                        <label for="routing_note" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">Nota de envío</label>
+                        <textarea id="routing_note" name="routing_note" rows="4"
+                                  class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                  placeholder="Instrucciones para las oficinas destinatarias...">{{ old('routing_note') }}</textarea>
+                        <div class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                            <div class="mb-3 space-y-1">
+                                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Resumen del envío</p>
+                                <p class="text-sm text-slate-700 dark:text-slate-300">
+                                    Se crearán destinos individuales para cada oficina seleccionada.
+                                </p>
+                            </div>
+                            <button type="submit"
+                                    class="inline-flex h-11 w-full items-center justify-center rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-900/20 transition hover:from-sky-400 hover:to-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+                                    :disabled="selectedDepartments.length === 0">
+                                Enviar a oficinas
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        @endif
+
+        @if(($distributionTargets ?? collect())->isEmpty())
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
+                Este documento aún no ha sido distribuido a oficinas.
+            </div>
+        @else
+            @php
+                $distributionSummary = [
+                    'sent' => ($distributionTargets ?? collect())->where('status', 'sent')->count(),
+                    'received' => ($distributionTargets ?? collect())->where('status', 'received')->count(),
+                    'in_review' => ($distributionTargets ?? collect())->where('status', 'in_review')->count(),
+                    'responded' => ($distributionTargets ?? collect())->where('status', 'responded')->count(),
+                    'closed' => ($distributionTargets ?? collect())->where('status', 'closed')->count(),
+                ];
+            @endphp
+
+            <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
+                @foreach([
+                    ['key' => 'sent', 'label' => 'Enviadas', 'class' => 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/40 dark:bg-sky-900/20 dark:text-sky-300'],
+                    ['key' => 'received', 'label' => 'Recibidas', 'class' => 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900/40 dark:bg-indigo-900/20 dark:text-indigo-300'],
+                    ['key' => 'in_review', 'label' => 'En revisión', 'class' => 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300'],
+                    ['key' => 'responded', 'label' => 'Respondidas', 'class' => 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300'],
+                    ['key' => 'closed', 'label' => 'Cerradas', 'class' => 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'],
+                ] as $summaryCard)
+                    <div class="rounded-xl border p-3 {{ $summaryCard['class'] }}">
+                        <p class="text-[11px] font-semibold uppercase tracking-[0.14em]">{{ $summaryCard['label'] }}</p>
+                        <p class="mt-1 text-2xl font-black">{{ $distributionSummary[$summaryCard['key']] }}</p>
+                    </div>
+                @endforeach
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                <table class="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
+                    <thead class="bg-slate-50/70 dark:bg-slate-950/60">
+                        <tr class="text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                            <th class="px-3 py-3">Oficina</th>
+                            <th class="px-3 py-3">Estado</th>
+                            <th class="px-3 py-3">Última actividad</th>
+                            <th class="px-3 py-3">Seguimiento / Respuesta</th>
+                            <th class="px-3 py-3">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                        @foreach($distributionTargets as $target)
+                            @php
+                                $canUpdateTarget = Auth::user()?->hasAnyRole(['admin', 'super_admin', 'branch_admin'])
+                                    || (Auth::user()?->hasRole(\App\Enums\Role::OfficeManager->value) && (int) Auth::user()->department_id === (int) $target->department_id);
+                            @endphp
+                            <tr class="bg-white align-top dark:bg-slate-900">
+                                <td class="px-3 py-4 align-top">
+                                    <div class="font-medium text-slate-900 dark:text-white">{{ $translateName($target->department, 'Oficina') }}</div>
+                                    <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                        Enviado por {{ $target->distribution->creator?->name ?? 'Sistema' }}
+                                        @if($target->sent_at)
+                                            • {{ $target->sent_at->format('d/m/Y H:i') }}
+                                        @endif
+                                    </div>
+                                </td>
+                                <td class="px-3 py-4 align-top">
+                                    <span class="inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold {{ $distributionStatusClass($target->status) }}">
+                                        {{ $distributionStatusLabel($target->status) }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-4 align-top text-xs text-slate-600 dark:text-slate-300">
+                                    @if($target->last_activity_at)
+                                        <div>{{ $target->last_activity_at->format('d/m/Y H:i') }}</div>
+                                        <div class="mt-1 text-slate-500 dark:text-slate-400">por {{ $target->lastUpdatedBy?->name ?? 'Sistema' }}</div>
+                                    @else
+                                        <span class="text-slate-400">Sin actividad</span>
+                                    @endif
+                                </td>
+                                <td class="px-3 py-4 align-top">
+                                    <div class="space-y-2 text-xs">
+                                        @if($target->routing_note)
+                                            <div class="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                                <div class="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Nota de envío</div>
+                                                <div>{{ $target->routing_note }}</div>
+                                            </div>
+                                        @endif
+                                        @if($target->follow_up_note)
+                                            <div class="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">
+                                                <div class="mb-1 text-[10px] font-bold uppercase tracking-[0.14em]">Seguimiento</div>
+                                                <div>{{ $target->follow_up_note }}</div>
+                                            </div>
+                                        @endif
+                                        @if($target->response_note)
+                                            <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-200">
+                                                <div class="mb-1 text-[10px] font-bold uppercase tracking-[0.14em]">Respuesta</div>
+                                                <div>{{ $target->response_note }}</div>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </td>
+                                <td class="px-3 py-4 align-top">
+                                    @if($canUpdateTarget)
+                                        <form method="POST" action="{{ route('documents.distribution-targets.update', [$document, $target]) }}" class="space-y-2">
+                                            @csrf
+                                            <select name="status"
+                                                    class="block h-9 w-full rounded-lg border border-slate-300 bg-white px-2 text-xs text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                                                <option value="received">Recibido</option>
+                                                <option value="in_review">En revisión</option>
+                                                <option value="responded">Respondido</option>
+                                                <option value="closed">Cerrado</option>
+                                            </select>
+                                            <textarea name="note" rows="2"
+                                                      class="block w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                                      placeholder="Nota de seguimiento o respuesta..."></textarea>
+                                            <button type="submit" class="inline-flex h-8 w-full items-center justify-center rounded-lg border border-sky-300/20 bg-gradient-to-r from-sky-500 to-indigo-600 px-2 text-xs font-semibold text-white">
+                                                Actualizar
+                                            </button>
+                                        </form>
+                                    @else
+                                        <span class="text-xs text-slate-400">Sin acciones</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
     </section>
 
     <section class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">

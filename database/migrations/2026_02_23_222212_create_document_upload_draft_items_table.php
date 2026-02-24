@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('document_upload_draft_items')) {
+            Schema::drop('document_upload_draft_items');
+        }
+
         Schema::create('document_upload_draft_items', function (Blueprint $table) {
             $table->id();
             $table->foreignId('document_upload_draft_id')->constrained()->cascadeOnDelete();
@@ -27,7 +31,7 @@ return new class extends Migration
             $table->json('meta')->nullable();
             $table->timestamps();
 
-            $table->index(['document_upload_draft_id', 'sort_order']);
+            $table->index(['document_upload_draft_id', 'sort_order'], 'doc_upload_draft_items_order_idx');
         });
     }
 

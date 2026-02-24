@@ -48,6 +48,35 @@
         'id' => (int) $status->id,
         'label' => $translateName($status, 'Estado'),
     ])->values();
+    $iconCatalogExtensions = [
+        'pdf',
+        'doc', 'docx', 'odt', 'rtf', 'pages',
+        'xls', 'xlsx', 'csv', 'ods', 'numbers',
+        'ppt', 'pptx', 'odp', 'key',
+        'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'tif', 'tiff', 'heic', 'heif', 'avif',
+        'zip', 'rar', '7z', 'tar', 'gz', 'tgz', 'bz2', 'xz',
+        'txt', 'md', 'log', 'ini', 'env', 'conf',
+        'json', 'xml', 'yml', 'yaml', 'sql', 'js', 'ts', 'jsx', 'tsx', 'php', 'py', 'java', 'go', 'rs', 'css', 'scss', 'html',
+        'mp3', 'wav', 'ogg', 'm4a', 'flac',
+        'mp4', 'mov', 'avi', 'mkv', 'webm',
+        'dwg', 'dxf', 'step',
+        'ai', 'psd', 'fig',
+        'unknown',
+    ];
+    $extensionUiMap = collect($iconCatalogExtensions)
+        ->mapWithKeys(function (string $extension) {
+            $meta = \App\Support\FileExtensionIcon::meta($extension === 'unknown' ? '' : $extension);
+
+            return [
+                $extension => [
+                    'svg' => svg($meta['icon'], 'h-5 w-5')->toHtml(),
+                    'bgClass' => trim($meta['bg'].' '.$meta['fg']),
+                    'badgeClass' => $meta['badge'],
+                    'label' => $meta['label'],
+                ],
+            ];
+        })
+        ->all();
 @endphp
 
 <form
@@ -56,6 +85,7 @@
     enctype="multipart/form-data"
     class="space-y-6"
     x-data="uploadDocumentWizard()"
+    @submit.prevent="submitForm($event)"
 >
     @csrf
     <input type="hidden" name="draft_id" x-model="draftId">
@@ -138,7 +168,7 @@
                         </div>
                         <h2 class="relative text-xl font-bold text-slate-900 dark:text-white">Arrastra y suelta archivos aquí</h2>
                         <p class="relative mt-2 text-sm text-slate-500 dark:text-slate-400">
-                            Soporta PDF, DOCX, XLSX y PNG. Tamaño máximo por archivo: 10MB.
+                            Soporta PDF, DOCX, XLSX y PNG. El límite real depende de la configuración del servidor.
                         </p>
 
                         <div class="relative my-5 flex items-center justify-center gap-4">
@@ -203,23 +233,48 @@
                         <template x-for="(row, index) in rows" :key="row.uid">
                             <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-sky-300 dark:border-slate-800 dark:bg-slate-900">
                                 <div class="flex items-start gap-4">
-                                    <div class="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
-                                         :class="row.extension === 'pdf' ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-300' : 'bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-300'">
-                                        <span x-text="row.extension === 'pdf' ? '📕' : '📄'"></span>
+                                    <div class="relative mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-white/10"
+                                         :class="fileIconMeta(row.extension).bgClass">
+                                        <span x-html="fileIconSvg(row.extension, 'h-5 w-5')"></span>
+                                        <span class="absolute -bottom-1.5 -right-1.5 inline-flex min-w-[28px] items-center justify-center rounded-md border px-1 py-0.5 text-[10px] font-bold leading-none shadow-sm"
+                                              :class="fileIconMeta(row.extension).badgeClass"
+                                              x-text="fileTypeLabel(row.extension)"></span>
                                     </div>
 
                                     <div class="min-w-0 flex-1">
                                         <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
                                             <p class="truncate text-sm font-semibold text-slate-900 dark:text-white" x-text="row.fileName"></p>
-                                            <span class="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                                                <span>●</span> Listo
-                                            </span>
+                                            <template x-if="row.uploadStatus === 'uploading'">
+                                                <span class="inline-flex items-center gap-2 text-xs font-medium text-sky-600 dark:text-sky-300">
+                                                    <span class="inline-flex h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+                                                    <span x-text="row.progress > 0 ? `Subiendo ${row.progress}%` : 'Subiendo...'"></span>
+                                                </span>
+                                            </template>
+                                            <template x-if="row.uploadStatus === 'ready'">
+                                                <span class="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                                                    <span>●</span> Listo
+                                                </span>
+                                            </template>
+                                            <template x-if="row.uploadStatus === 'error'">
+                                                <span class="inline-flex items-center gap-1 text-xs font-medium text-rose-600 dark:text-rose-300">
+                                                    <span>●</span> Error
+                                                </span>
+                                            </template>
                                         </div>
 
                                         <div class="mb-3 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                                             <span x-text="row.sizeLabel"></span>
                                             <span class="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-600"></span>
-                                            <span>Agregado hace un momento</span>
+                                            <span x-text="row.uploadStatus === 'uploading' ? 'Cargando archivo al servidor...' : (row.uploadStatus === 'error' ? 'Falló la carga' : 'Agregado hace un momento')"></span>
+                                        </div>
+
+                                        <div x-show="row.uploadStatus === 'uploading' || row.uploadStatus === 'error'" x-cloak class="mb-3">
+                                            <div class="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                                                <div class="h-full rounded-full transition-all duration-200"
+                                                     :class="row.uploadStatus === 'error' ? 'bg-rose-500' : 'bg-gradient-to-r from-sky-500 to-indigo-600'"
+                                                     :style="`width: ${row.uploadStatus === 'error' ? 100 : Math.max(row.progress || 5, 5)}%`"></div>
+                                            </div>
+                                            <p x-show="row.uploadStatus === 'error' && row.uploadError" x-cloak class="mt-1 text-xs text-rose-600 dark:text-rose-300" x-text="row.uploadError"></p>
                                         </div>
 
                                         <div class="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_120px]">
@@ -230,18 +285,23 @@
                                                        :name="`bulk_items[${index}][title]`"
                                                        x-model="row.title"
                                                        required
+                                                       :disabled="row.uploadStatus === 'uploading'"
                                                        class="block h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
                                                 <input type="hidden" :name="`bulk_items[${index}][id]`" :value="row.id || ''">
                                             </div>
                                             <div>
                                                 <label class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Tipo</label>
-                                                <div class="flex h-10 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                                                     x-text="(row.extension || 'file').toUpperCase()"></div>
+                                                <div class="flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-medium"
+                                                     :class="fileIconMeta(row.extension).badgeClass"
+                                                >
+                                                    <span class="inline-flex items-center" x-html="fileIconSvg(row.extension, 'h-4 w-4')"></span>
+                                                    <span x-text="fileTypeLabel(row.extension)"></span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <button type="button" @click="removeRow(index)" class="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/20 dark:hover:text-rose-300">
+                                    <button type="button" @click="removeRow(index)" :disabled="row.uploadStatus === 'uploading'" class="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-rose-950/20 dark:hover:text-rose-300">
                                         ✕
                                     </button>
                                 </div>
@@ -526,11 +586,13 @@
                 </button>
 
                 <div class="flex items-center gap-3">
+                    <span x-show="isUploading" x-cloak class="text-xs font-medium text-sky-600 dark:text-sky-300">Subiendo archivos...</span>
                     <span class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400" x-text="`Paso ${currentStep} de 4`"></span>
 
                     <button type="button"
                             x-show="currentStep < 4"
                             @click="nextStep()"
+                            :disabled="isUploading || hasUploadingRows()"
                             class="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700">
                         Continuar
                         <span>→</span>
@@ -538,6 +600,7 @@
 
                     <button type="submit"
                             x-show="currentStep === 4"
+                            :disabled="isUploading || hasUploadingRows()"
                             class="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-900/20 transition hover:from-sky-400 hover:to-indigo-500">
                         <span x-text="rows.length > 1 ? 'Crear Documentos' : 'Crear Documento'"></span>
                     </button>
@@ -556,15 +619,24 @@
             statusOptions: @js($statusOptions),
             isDragging: false,
             goToStep(step) {
-                this.currentStep = step;
-            },
-            nextStep() {
-                if (this.currentStep === 1 && !this.hasAtLeastOneFile()) {
-                    alert('Debes seleccionar al menos un archivo (o archivo único) para continuar.');
+                const targetStep = Number(step);
+
+                if (Number.isNaN(targetStep)) {
                     return;
                 }
 
-                if (!this.validateCurrentStep()) {
+                if (targetStep > this.currentStep) {
+                    for (let stepIndex = this.currentStep; stepIndex < targetStep; stepIndex++) {
+                        if (!this.validateStep(stepIndex)) {
+                            return;
+                        }
+                    }
+                }
+
+                this.currentStep = Math.max(1, Math.min(4, targetStep));
+            },
+            nextStep() {
+                if (!this.validateStep(this.currentStep)) {
                     return;
                 }
                 this.currentStep = Math.min(4, this.currentStep + 1);
@@ -579,8 +651,25 @@
                 const single = this.$refs.singleFile?.files?.length > 0;
                 return hasBulk || single;
             },
-            validateCurrentStep() {
-                if (this.currentStep === 1 && this.rows.length > 0) {
+            validateStep(step) {
+                const stepNumber = Number(step);
+
+                if (stepNumber === 1) {
+                    if (!this.hasAtLeastOneFile()) {
+                        alert('Debes seleccionar al menos un archivo para continuar.');
+                        return false;
+                    }
+
+                    if (this.isUploading || this.hasUploadingRows()) {
+                        alert('Espera a que termine la carga de los archivos antes de continuar.');
+                        return false;
+                    }
+
+                    if (this.rows.some((row) => row.uploadStatus === 'error')) {
+                        alert('Hay archivos con error de carga. Corrige o elimina esos archivos antes de continuar.');
+                        return false;
+                    }
+
                     const hasEmptyTitle = this.rows.some((row) => !String(row.title ?? '').trim());
                     if (hasEmptyTitle) {
                         alert('Todos los archivos del lote deben tener título antes de continuar.');
@@ -588,7 +677,7 @@
                     }
                 }
 
-                if (this.currentStep === 2) {
+                if (stepNumber === 2) {
                     const titleInput = document.getElementById('title');
                     if (this.rows.length === 0 && titleInput && !titleInput.value.trim()) {
                         titleInput.reportValidity();
@@ -609,7 +698,7 @@
                     }
                 }
 
-                if (this.currentStep === 3) {
+                if (stepNumber === 3) {
                     const priority = document.getElementById('priority');
 
                     if (priority && !priority.value) {
@@ -634,6 +723,28 @@
                 }
 
                 return true;
+            },
+            validateWizardBeforeSubmit() {
+                if (this.isUploading || this.hasUploadingRows()) {
+                    alert('Espera a que termine la carga de archivos antes de crear los documentos.');
+                    return false;
+                }
+
+                for (let stepIndex = 1; stepIndex <= 3; stepIndex++) {
+                    if (!this.validateStep(stepIndex)) {
+                        this.currentStep = stepIndex;
+                        return false;
+                    }
+                }
+
+                return true;
+            },
+            submitForm(event) {
+                if (!this.validateWizardBeforeSubmit()) {
+                    return;
+                }
+
+                event.target.submit();
             },
             handleBulkSelection(event) {
                 const files = Array.from(event.target.files ?? []);
@@ -703,6 +814,9 @@
                     status_id: '',
                     extension: extension || '',
                     sizeLabel: this.formatBytes(file.size ?? 0),
+                    uploadStatus: 'uploading',
+                    progress: 0,
+                    uploadError: '',
                 };
             },
             makeTitleFromFilename(fileName) {
@@ -724,6 +838,31 @@
                     return 'Sin seleccionar';
                 }
                 return el.selectedOptions[0].text;
+            },
+            fileIconUiMap: @js($extensionUiMap),
+            fileIconMeta(extension) {
+                const ext = String(extension || '').toLowerCase();
+                const item = this.fileIconUiMap[ext] ?? this.fileIconUiMap.unknown;
+                return {
+                    bgClass: item.bgClass,
+                    badgeClass: item.badgeClass,
+                };
+            },
+            fileIconSvg(extension, sizeClass = 'h-5 w-5') {
+                const ext = String(extension || '').toLowerCase();
+                const raw = (this.fileIconUiMap[ext] ?? this.fileIconUiMap.unknown).svg;
+                return raw.replace(/class=\"([^\"]*)\"/, `class=\"${sizeClass}\"`);
+            },
+            fileTypeLabel(extension) {
+                const ext = String(extension || '').toLowerCase();
+                const item = this.fileIconUiMap[ext] ?? this.fileIconUiMap.unknown;
+                return item.label || (ext.toUpperCase() || 'ARCHIVO');
+            },
+            hasUploadingRows() {
+                return this.rows.some((row) => row.uploadStatus === 'uploading');
+            },
+            refreshUploadingState() {
+                this.isUploading = this.hasUploadingRows();
             },
             isChecked(selector) {
                 const el = document.querySelector(selector);
@@ -751,7 +890,78 @@
             csrfToken() {
                 return document.querySelector('input[name=\"_token\"]')?.value ?? '';
             },
+            uploadFileToDraft(file, row) {
+                return new Promise((resolve, reject) => {
+                    const formData = new FormData();
+                    formData.append('_token', this.csrfToken());
+                    formData.append('file', file);
+                    if (this.draftId) {
+                        formData.append('draft_id', String(this.draftId));
+                    }
+
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', this.uploadTempUrl, true);
+                    xhr.timeout = 45000;
+                    xhr.withCredentials = true;
+                    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+                    xhr.upload.addEventListener('progress', (event) => {
+                        if (!event.lengthComputable) {
+                            return;
+                        }
+                        row.progress = Math.min(99, Math.round((event.loaded / event.total) * 100));
+                    });
+
+                    xhr.onload = () => {
+                        if (xhr.status < 200 || xhr.status >= 300) {
+                            reject(new Error('No se pudo cargar uno de los archivos.'));
+                            return;
+                        }
+
+                        try {
+                            const payload = JSON.parse(xhr.responseText);
+                            resolve(payload);
+                        } catch (error) {
+                            reject(new Error('Respuesta inválida al cargar archivo.'));
+                        }
+                    };
+
+                    xhr.onerror = () => reject(new Error('Error de red durante la carga del archivo.'));
+                    xhr.onabort = () => reject(new Error('La carga del archivo fue cancelada.'));
+                    xhr.ontimeout = () => reject(new Error('La carga del archivo tardó demasiado. Intenta de nuevo.'));
+                    xhr.send(formData);
+                });
+            },
+            async uploadFileWithRetry(file, row, maxAttempts = 2) {
+                let lastError = null;
+
+                for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                    try {
+                        if (attempt > 1) {
+                            row.uploadError = '';
+                            row.uploadStatus = 'uploading';
+                            row.progress = 0;
+                        }
+
+                        return await this.uploadFileToDraft(file, row);
+                    } catch (error) {
+                        lastError = error;
+                        row.uploadError = error?.message || 'Error al cargar archivo.';
+
+                        if (attempt < maxAttempts) {
+                            await new Promise((resolve) => setTimeout(resolve, 500));
+                        }
+                    }
+                }
+
+                throw lastError ?? new Error('No se pudo cargar el archivo.');
+            },
             async uploadFiles(files, append = true) {
+                if (this.isUploading || this.hasUploadingRows()) {
+                    alert('Ya hay una carga en progreso. Espera a que termine antes de agregar más archivos.');
+                    return;
+                }
+
                 if (!append) {
                     const existing = [...this.rows];
                     this.rows = [];
@@ -767,34 +977,20 @@
 
                 try {
                     for (const file of files) {
-                        const formData = new FormData();
-                        formData.append('_token', this.csrfToken());
-                        formData.append('file', file);
-                        if (this.draftId) {
-                            formData.append('draft_id', String(this.draftId));
-                        }
+                        const row = this.makeRow(file);
+                        this.rows.push(row);
 
-                        const response = await fetch(this.uploadTempUrl, {
-                            method: 'POST',
-                            body: formData,
-                            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                            credentials: 'same-origin',
-                        });
-
-                        if (!response.ok) {
-                            throw new Error('No se pudo cargar uno de los archivos.');
-                        }
-
-                        const payload = await response.json();
+                        const payload = await this.uploadFileWithRetry(file, row);
                         this.draftId = payload.draft_id;
                         this.updateDraftUrl();
 
-                        const row = payload.item ?? this.makeRow(file);
-                        if (!append && this.rows.length > 0) {
-                            this.rows = [row];
-                        } else {
-                            this.rows.push(row);
-                        }
+                        const uploadedRow = payload.item ?? {};
+                        Object.assign(row, uploadedRow, {
+                            uploadStatus: 'ready',
+                            progress: 100,
+                            uploadError: '',
+                        });
+                        this.refreshUploadingState();
                     }
 
                     if (this.$refs.bulkFiles) {
@@ -809,9 +1005,16 @@
                         titleInput.value = this.rows[0].title ?? this.makeTitleFromFilename(files[0].name);
                     }
                 } catch (error) {
+                    const pendingRow = [...this.rows].reverse().find((candidate) => candidate.uploadStatus === 'uploading');
+                    if (pendingRow) {
+                        pendingRow.uploadStatus = 'error';
+                        pendingRow.progress = 0;
+                        pendingRow.uploadError = error?.message || 'Error al cargar archivo.';
+                    }
+                    this.refreshUploadingState();
                     alert(error?.message || 'Error al cargar archivos.');
                 } finally {
-                    this.isUploading = false;
+                    this.refreshUploadingState();
                     this.persistDraftSilently();
                 }
             },
@@ -935,6 +1138,9 @@
                     this.rows = draft.items.map((item) => ({
                         ...item,
                         file: null,
+                        uploadStatus: 'ready',
+                        progress: 100,
+                        uploadError: '',
                     }));
                 }
 

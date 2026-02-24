@@ -98,6 +98,10 @@ Route::middleware(['auth'])->group(function () {
         ->name('documents.upload-drafts.save');
     Route::delete('/documents/upload-drafts/{draft}/items/{item}', [App\Http\Controllers\UserDocumentController::class, 'deleteUploadDraftItem'])
         ->name('documents.upload-drafts.items.destroy');
+    Route::post('/documents/{document}/distributions', [App\Http\Controllers\UserDocumentController::class, 'sendToDepartments'])
+        ->name('documents.distributions.store');
+    Route::post('/documents/{document}/distribution-targets/{target}', [App\Http\Controllers\UserDocumentController::class, 'updateDistributionTarget'])
+        ->name('documents.distribution-targets.update');
 
     // Rutas CRUD de documentos
     Route::resource('documents', App\Http\Controllers\UserDocumentController::class);
@@ -105,6 +109,17 @@ Route::middleware(['auth'])->group(function () {
 
 // Grupo de rutas adicionales para documentos
 Route::prefix('documents')->name('documents.')->middleware(['auth'])->group(function () {
+    Route::get('/{id}/preview', function ($id) {
+        $document = Document::findOrFail($id);
+        authorizeDocumentAccess($document);
+        validateFileExists($document->file_path);
+
+        if (function_exists('logDocumentAccess')) {
+            logDocumentAccess($document, 'preview');
+        }
+
+        return app(\App\Services\DocumentFileService::class)->inlineResponse($document->file_path);
+    })->name('preview');
 
     // Descarga de documento principal
     Route::get('/{id}/download', function ($id) {

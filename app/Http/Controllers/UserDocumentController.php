@@ -7,9 +7,12 @@ use App\Enums\Role;
 use App\Events\DocumentVersionCreated;
 use App\Listeners\QueueDocumentVersionAiPipeline;
 use App\Models\Category;
+use App\Models\Department;
 use App\Models\Document;
 use App\Models\DocumentAiOutput;
 use App\Models\DocumentAiRun;
+use App\Models\DocumentDistribution;
+use App\Models\DocumentDistributionTarget;
 use App\Models\DocumentUploadDraft;
 use App\Models\DocumentUploadDraftItem;
 use App\Models\Receipt;
@@ -47,6 +50,12 @@ class UserDocumentController extends Controller
             ->where(function ($q) use ($user) {
                 $q->where('assigned_to', $user->id)
                     ->orWhere('created_by', $user->id);
+
+                if ($user->hasRole(Role::OfficeManager->value) && $user->department_id) {
+                    $q->orWhereHas('distributions.targets', function ($targetQuery) use ($user) {
+                        $targetQuery->where('department_id', $user->department_id);
+                    });
+                }
             });
 
         // Búsqueda por texto (título, descripción, número de documento)
@@ -101,7 +110,15 @@ class UserDocumentController extends Controller
         }
 
         // Obtener documentos con relaciones
-        $documents = $query->with(['status', 'category', 'creator', 'assignee'])
+        $documents = $query->with([
+            'status',
+            'category',
+            'creator',
+            'assignee',
+            'versions' => fn ($versionQuery) => $versionQuery
+                ->orderByDesc('id')
+                ->limit(1),
+        ])
             ->paginate(15)
             ->withQueryString(); // Mantener parámetros de búsqueda en paginación
 
@@ -170,7 +187,7 @@ class UserDocumentController extends Controller
             'description' => 'nullable|string',
             'category_id' => 'required|exists:categories,id',
             'status_id' => 'required|exists:statuses,id',
-            'file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png|max:10240', // 10MB max
+            'file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png',
             'is_confidential' => 'boolean',
             'priority' => 'required|in:low,medium,high',
             'recipient_name' => ($isReceptionist || $hasReceiptData) ? 'required|string|max:255' : 'nullable|string|max:255',
@@ -223,7 +240,7 @@ class UserDocumentController extends Controller
         $user = Auth::user();
 
         $validated = $request->validate([
-            'file' => 'required|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png|max:10240',
+            'file' => 'required|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png',
             'draft_id' => 'nullable|integer',
         ]);
 
@@ -376,7 +393,7 @@ class UserDocumentController extends Controller
             'is_confidential' => 'boolean',
             'priority' => 'required|in:low,medium,high',
             'files' => 'required|array|min:1|max:20',
-            'files.*' => 'file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png|max:10240',
+            'files.*' => 'file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png',
             'bulk_items' => 'nullable|array',
             'bulk_items.*.title' => 'nullable|string|max:255',
             'bulk_items.*.category_id' => 'nullable|exists:categories,id',
@@ -687,6 +704,44 @@ class UserDocumentController extends Controller
             ->limit(30)
             ->get();
 
+        $document->load([
+            'distributions.creator',
+            'distributions.targets.department',
+            'distributions.targets.assignedUser',
+            'distributions.targets.lastUpdatedBy',
+        ]);
+
+        $distributionTargets = $document->distributions
+            ->flatMap(fn (DocumentDistribution $distribution) => $distribution->targets->map(function (DocumentDistributionTarget $target) use ($distribution) {
+                $target->setRelation('distribution', $distribution);
+
+                return $target;
+            }))
+            ->sortByDesc(fn (DocumentDistributionTarget $target) => $target->last_activity_at ?? $target->updated_at)
+            ->values();
+
+        $distributedDepartmentIds = $distributionTargets
+            ->pluck('department_id')
+            ->filter()
+            ->map(fn (mixed $id): int => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $distributionDepartmentOptions = collect();
+        if (Auth::user()?->hasRole(Role::Receptionist->value)) {
+            $distributionDepartmentOptions = Department::query()
+                ->where('company_id', $document->company_id)
+                ->where('active', true)
+                ->orderBy('name')
+                ->get()
+                ->map(function (Department $department) use ($distributedDepartmentIds): Department {
+                    $department->setAttribute('already_distributed', in_array((int) $department->id, $distributedDepartmentIds, true));
+
+                    return $department;
+                });
+        }
+
         $activityUsers = User::query()
             ->where('company_id', $document->company_id)
             ->pluck('name', 'id')
@@ -744,7 +799,133 @@ class UserDocumentController extends Controller
             'activityStatuses',
             'activityCategories',
             'priorityLabels',
+            'distributionTargets',
+            'distributionDepartmentOptions',
+            'distributedDepartmentIds',
         ));
+    }
+
+    public function sendToDepartments(Request $request, Document $document)
+    {
+        $user = Auth::user();
+
+        if (! $this->canAccessDocument($user, $document)) {
+            abort(403, 'No tienes permiso para distribuir este documento.');
+        }
+
+        if (! $user->hasRole(Role::Receptionist->value) && ! $user->hasAnyRole(['admin', 'super_admin', 'branch_admin'])) {
+            abort(403, 'Solo recepción o administración puede distribuir documentos a oficinas.');
+        }
+
+        $validated = $request->validate([
+            'department_ids' => 'required|array|min:1',
+            'department_ids.*' => 'integer|exists:departments,id',
+            'routing_note' => 'nullable|string|max:1000',
+        ]);
+
+        $departments = Department::query()
+            ->where('company_id', $document->company_id)
+            ->whereIn('id', $validated['department_ids'])
+            ->get()
+            ->keyBy('id');
+
+        if ($departments->count() !== count(array_unique($validated['department_ids']))) {
+            return back()->withErrors(['department_ids' => 'Hay oficinas inválidas para la empresa del documento.']);
+        }
+
+        $existingDepartmentIds = $document->distributions()
+            ->whereHas('targets', fn ($query) => $query->whereIn('department_id', $validated['department_ids']))
+            ->with('targets:id,document_distribution_id,department_id')
+            ->get()
+            ->flatMap(fn (DocumentDistribution $distribution) => $distribution->targets->pluck('department_id'))
+            ->map(fn (mixed $id): int => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($existingDepartmentIds->isNotEmpty()) {
+            return back()->withErrors([
+                'department_ids' => 'Una o más oficinas ya fueron distribuidas para este documento. No pueden enviarse nuevamente.',
+            ])->withInput();
+        }
+
+        DB::transaction(function () use ($document, $user, $validated): void {
+            $distribution = DocumentDistribution::create([
+                'document_id' => $document->id,
+                'company_id' => $document->company_id,
+                'created_by' => $user->id,
+                'status' => 'open',
+                'notes' => $validated['routing_note'] ?? null,
+                'sent_at' => now(),
+            ]);
+
+            foreach (array_values(array_unique($validated['department_ids'])) as $index => $departmentId) {
+                $distribution->targets()->create([
+                    'department_id' => (int) $departmentId,
+                    'status' => 'sent',
+                    'routing_note' => $validated['routing_note'] ?? null,
+                    'sent_at' => now(),
+                    'last_activity_at' => now(),
+                    'last_updated_by' => $user->id,
+                ]);
+            }
+        });
+
+        return redirect()->route('documents.show', $document)
+            ->with('success', 'Documento distribuido a las oficinas seleccionadas.');
+    }
+
+    public function updateDistributionTarget(Request $request, Document $document, DocumentDistributionTarget $target)
+    {
+        $user = Auth::user();
+
+        if (! $this->canAccessDocument($user, $document)) {
+            abort(403, 'No tienes permiso para actualizar seguimiento.');
+        }
+
+        if ((int) $target->distribution->document_id !== (int) $document->id) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'status' => 'required|in:received,in_review,responded,closed',
+            'note' => 'nullable|string|max:2000',
+        ]);
+
+        $isDepartmentManager = $user->hasRole(Role::OfficeManager->value) && (int) $user->department_id === (int) $target->department_id;
+        $isAdmin = $user->hasAnyRole(['admin', 'super_admin', 'branch_admin']);
+
+        if (! $isDepartmentManager && ! $isAdmin) {
+            abort(403, 'No puedes actualizar este destinatario.');
+        }
+
+        $target->status = $validated['status'];
+        $target->last_updated_by = $user->id;
+        $target->last_activity_at = now();
+
+        if ($validated['status'] === 'received') {
+            $target->received_at ??= now();
+            $target->follow_up_note = $validated['note'] ?? $target->follow_up_note;
+        }
+
+        if ($validated['status'] === 'in_review') {
+            $target->reviewed_at ??= now();
+            $target->follow_up_note = $validated['note'] ?? $target->follow_up_note;
+        }
+
+        if ($validated['status'] === 'responded') {
+            $target->responded_at = now();
+            $target->response_note = $validated['note'] ?? $target->response_note;
+        }
+
+        if ($validated['status'] === 'closed') {
+            $target->closed_at = now();
+            $target->follow_up_note = $validated['note'] ?? $target->follow_up_note;
+        }
+
+        $target->save();
+
+        return redirect()->route('documents.show', $document)
+            ->with('success', 'Seguimiento de oficina actualizado.');
     }
 
     /**
@@ -782,7 +963,7 @@ class UserDocumentController extends Controller
             'description' => 'nullable|string',
             'category_id' => 'required|exists:categories,id',
             'status_id' => 'required|exists:statuses,id',
-            'file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png|max:10240',
+            'file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png',
             'is_confidential' => 'boolean',
             'priority' => 'required|in:low,medium,high',
         ]);
@@ -836,6 +1017,9 @@ class UserDocumentController extends Controller
         // Es el creador, asignado, o tiene permisos especiales
         return $document->created_by === $user->id
             || $document->assigned_to === $user->id
+            || ($user->hasRole(Role::OfficeManager->value) && $user->department_id && $document->distributions()
+                ->whereHas('targets', fn ($q) => $q->where('department_id', $user->department_id))
+                ->exists())
             || $user->hasAnyRole(['admin', 'super_admin', 'branch_admin']);
     }
 
@@ -849,7 +1033,10 @@ class UserDocumentController extends Controller
         }
 
         return $document->created_by === $user->id
-            || $document->assigned_to === $user->id;
+            || $document->assigned_to === $user->id
+            || ($user->hasRole(Role::OfficeManager->value) && $user->department_id && $document->distributions()
+                ->whereHas('targets', fn ($q) => $q->where('department_id', $user->department_id))
+                ->exists());
     }
 
     private function createReceiptForPortalUser(
@@ -862,12 +1049,14 @@ class UserDocumentController extends Controller
         $recipientUser = User::query()
             ->where('email', $recipientEmail)
             ->first();
+        $canCreateRecipientUser = true;
 
         if ($recipientUser && (int) $recipientUser->company_id !== (int) $issuer->company_id) {
-            abort(422, 'El correo receptor ya existe en otra empresa.');
+            $recipientUser = null;
+            $canCreateRecipientUser = false;
         }
 
-        if (! $recipientUser) {
+        if (! $recipientUser && $canCreateRecipientUser) {
             $recipientUser = User::create([
                 'name' => $recipientName,
                 'email' => $recipientEmail,
@@ -886,7 +1075,7 @@ class UserDocumentController extends Controller
 
         SpatieRole::firstOrCreate(['name' => Role::RegularUser->value]);
 
-        if (! $recipientUser->hasRole(Role::RegularUser->value)) {
+        if ($recipientUser && ! $recipientUser->hasRole(Role::RegularUser->value)) {
             $recipientUser->assignRole(Role::RegularUser->value);
         }
 
@@ -894,7 +1083,7 @@ class UserDocumentController extends Controller
             'document_id' => $document->id,
             'company_id' => $document->company_id,
             'issued_by' => $issuer->id,
-            'recipient_user_id' => $recipientUser->id,
+            'recipient_user_id' => $recipientUser?->id,
             'receipt_number' => $this->generateReceiptNumber(),
             'recipient_name' => $recipientName,
             'recipient_email' => $recipientEmail,

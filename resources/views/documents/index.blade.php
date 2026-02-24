@@ -179,7 +179,7 @@
     <section class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         @if($documents->isEmpty())
             <div class="px-6 py-14 text-center">
-                <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300">📄</div>
+                <x-file-extension-icon class="mx-auto mb-4 h-12 w-12" size="h-6 w-6" />
                 <h3 class="text-sm font-semibold text-slate-900 dark:text-white">
                     {{ $activeFilters->isNotEmpty() ? 'No se encontraron documentos con los filtros aplicados' : 'No tienes documentos' }}
                 </h3>
@@ -214,13 +214,15 @@
                                 $statusLabel = $translateName($document->status, 'Sin estado');
                                 $categoryLabel = $translateName($document->category, 'Sin categoría');
                                 $statusDotClass = str_contains(mb_strtolower($statusLabel), 'aprob') ? 'bg-emerald-500' : (str_contains(mb_strtolower($statusLabel), 'proceso') ? 'bg-amber-500' : 'bg-slate-400');
+                                $latestVersionForIcon = $document->versions->first();
+                                $documentFileExtension = \App\Support\FileExtensionIcon::extensionFromPath($document->file_path)
+                                    ?: \App\Support\FileExtensionIcon::extensionFromPath($latestVersionForIcon?->file_path)
+                                    ?: \App\Support\FileExtensionIcon::normalizeExtension($latestVersionForIcon?->file_extension);
                             @endphp
                             <tr class="group hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                                 <td class="px-6 py-4">
                                     <a href="{{ route('documents.show', $document) }}" class="flex items-center gap-4">
-                                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-300">
-                                            <span class="text-lg">📄</span>
-                                        </div>
+                                        <x-file-extension-icon :extension="$documentFileExtension" class="h-10 w-10 shrink-0" size="h-5 w-5" :data-file-ext="$documentFileExtension" />
                                         <div class="min-w-0">
                                             <div class="truncate text-sm font-semibold text-slate-900 transition group-hover:text-sky-700 dark:text-white dark:group-hover:text-sky-300">
                                                 {{ $document->title }}
