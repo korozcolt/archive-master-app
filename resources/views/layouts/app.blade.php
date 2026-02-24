@@ -16,10 +16,10 @@
     @livewireStyles
 </head>
 <body class="font-sans antialiased">
-    <div class="min-h-screen bg-gray-100 dark:bg-gray-900">
+    <div class="min-h-screen bg-slate-100 dark:bg-slate-950">
         <!-- Navigation -->
-        <nav class="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <nav class="sticky top-0 z-40 border-b border-white/70 bg-white/80 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/85">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between h-16">
                     <div class="flex">
                         <!-- Logo -->
@@ -28,29 +28,30 @@
                                 $portalRoles = ['office_manager', 'archive_manager', 'receptionist', 'regular_user'];
                                 $isPortalUser = Auth::user()?->hasAnyRole($portalRoles);
                             @endphp
-                            <a href="{{ $isPortalUser ? route('portal.dashboard') : route('dashboard') }}" class="text-xl font-bold text-gray-800 dark:text-gray-200">
-                                ArchiveMaster
+                            <a href="{{ $isPortalUser ? route('portal.dashboard') : route('dashboard') }}" class="inline-flex items-center gap-2 text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
+                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600 text-sm font-bold text-white shadow-sm">A</span>
+                                <span>ArchiveMaster</span>
                             </a>
                         </div>
 
                         <!-- Navigation Links -->
-                        <div class="hidden space-x-8 sm:-my-px sm:ml-10 sm:flex">
-                            <a href="{{ $isPortalUser ? route('portal.dashboard') : route('dashboard') }}" class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('dashboard') || request()->routeIs('portal.dashboard') ? 'border-indigo-400 dark:border-indigo-600' : 'border-transparent' }} text-sm font-medium text-gray-900 dark:text-gray-100">
+                        <div class="hidden items-center gap-2 sm:ml-8 sm:flex">
+                            <a href="{{ $isPortalUser ? route('portal.dashboard') : route('dashboard') }}" class="inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium transition {{ request()->routeIs('dashboard') || request()->routeIs('portal.dashboard') ? 'bg-sky-50 text-sky-700 ring-1 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/20' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white' }}">
                                 Dashboard
                             </a>
                             @if ($isPortalUser)
-                                <a href="{{ route('portal.reports') }}" class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('portal.reports') ? 'border-indigo-400 dark:border-indigo-600' : 'border-transparent' }} text-sm font-medium text-gray-900 dark:text-gray-100">
+                                <a href="{{ route('portal.reports') }}" class="inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium transition {{ request()->routeIs('portal.reports') ? 'bg-sky-50 text-sky-700 ring-1 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/20' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white' }}">
                                     Reportes
                                 </a>
                             @endif
-                            <a href="{{ route('documents.index') }}" class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('documents.*') ? 'border-indigo-400 dark:border-indigo-600' : 'border-transparent' }} text-sm font-medium text-gray-900 dark:text-gray-100">
+                            <a href="{{ route('documents.index') }}" class="inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium transition {{ request()->routeIs('documents.*') ? 'bg-sky-50 text-sky-700 ring-1 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/20' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white' }}">
                                 Mis Documentos
                             </a>
                         </div>
                     </div>
 
                     <!-- Right Side: Notifications + User -->
-                    <div class="flex items-center space-x-4">
+                    <div class="flex items-center gap-2 sm:gap-3">
                         <!-- Notifications Bell -->
                         <div class="relative" x-data="{ open: false, count: {{ Auth::user()->unreadNotifications()->count() }}, notifications: [] }"
                              x-init="
@@ -72,7 +73,7 @@
                                          });
                                  }, 30000);
                              ">
-                            <button @click="open = !open" class="relative p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 focus:outline-none">
+                            <button @click="open = !open" class="relative rounded-xl border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-300/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white">
                                 <!-- Bell Icon -->
                                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
@@ -139,10 +140,10 @@
                         </div>
 
                         <!-- User Info -->
-                        <span class="text-gray-700 dark:text-gray-300">{{ Auth::user()->name }}</span>
+                        <span class="hidden max-w-44 truncate rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm sm:inline-block dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">{{ Auth::user()->name }}</span>
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
-                            <button type="submit" class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">
+                            <button type="submit" class="inline-flex items-center rounded-xl px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-300/30 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">
                                 Cerrar Sesión
                             </button>
                         </form>
@@ -161,19 +162,19 @@
         @endif
 
         <!-- Page Content -->
-        <main class="py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <main class="py-8 sm:py-10">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <!-- Success Message -->
                 @if (session('success'))
-                    <div class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
+                    <div class="mb-4 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-emerald-800 shadow-sm dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200" role="alert">
                         <span class="block sm:inline">{{ session('success') }}</span>
                     </div>
                 @endif
 
                 <!-- Error Messages -->
                 @if ($errors->any())
-                    <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-                        <ul class="list-disc list-inside">
+                    <div class="mb-4 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-rose-800 shadow-sm dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200" role="alert">
+                        <ul class="list-inside list-disc">
                             @foreach ($errors->all() as $error)
                                 <li>{{ $error }}</li>
                             @endforeach

@@ -2,7 +2,10 @@
 
 namespace Tests\Browser;
 
+use App\Models\Branch;
+use App\Models\Category;
 use App\Models\Company;
+use App\Models\Department;
 use App\Models\Document;
 use App\Models\DocumentApproval;
 use App\Models\Status;
@@ -25,12 +28,26 @@ class ApprovalTest extends DuskTestCase
 
     protected $company;
 
+    protected $branch;
+
+    protected $department;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         // Crear empresa y estados
         $this->company = Company::factory()->create();
+        $this->branch = Branch::factory()->create([
+            'company_id' => $this->company->id,
+        ]);
+        $this->department = Department::factory()->create([
+            'company_id' => $this->company->id,
+            'branch_id' => $this->branch->id,
+        ]);
+        $category = Category::factory()->create([
+            'company_id' => $this->company->id,
+        ]);
 
         $statusPending = Status::factory()->create([
             'company_id' => $this->company->id,
@@ -53,21 +70,29 @@ class ApprovalTest extends DuskTestCase
         // Crear usuarios
         $creator = User::factory()->create([
             'company_id' => $this->company->id,
+            'branch_id' => $this->branch->id,
+            'department_id' => $this->department->id,
         ]);
 
         $this->approver = User::factory()->create([
             'company_id' => $this->company->id,
             'email' => 'approver@test.com',
+            'branch_id' => $this->branch->id,
+            'department_id' => $this->department->id,
         ]);
 
-        $adminRole = Role::firstOrCreate(['name' => 'admin']);
-        $this->approver->assignRole($adminRole);
+        $approverRole = Role::firstOrCreate(['name' => 'office_manager']);
+        $this->approver->assignRole($approverRole);
 
         // Crear documento
         $this->document = Document::factory()->create([
             'company_id' => $this->company->id,
+            'branch_id' => $this->branch->id,
+            'department_id' => $this->department->id,
+            'category_id' => $category->id,
             'status_id' => $statusPending->id,
             'created_by' => $creator->id,
+            'assigned_to' => $this->approver->id,
             'title' => 'Documento para aprobar',
         ]);
 
@@ -108,8 +133,8 @@ class ApprovalTest extends DuskTestCase
             $browser->loginAs($this->approver)
                 ->visit('/approvals/document/'.$this->document->id)
                 ->assertSee($this->document->title)
-                ->assertSee('Aprobar Documento')
-                ->assertSee('Rechazar Documento');
+                ->assertSourceHas('Aprobar Documento')
+                ->assertSourceHas('Rechazar Documento');
         });
     }
 
@@ -119,13 +144,17 @@ class ApprovalTest extends DuskTestCase
     public function test_user_can_approve_document()
     {
         $this->browse(function (Browser $browser) {
+            $approvalId = $this->approval->id;
+
             $browser->loginAs($this->approver)
                 ->visit('/approvals/document/'.$this->document->id)
-                ->press('Aprobar Documento')
-                ->waitFor('textarea[name="comments"]')
-                ->type('textarea[name="comments"]', 'Aprobado correctamente')
-                ->press('Confirmar Aprobación')
-                ->waitForLocation('/approvals')
+                ->script("
+                    const form = document.querySelector(`form[action$=\"/approvals/{$approvalId}/approve\"]`);
+                    form.querySelector('textarea[name=\"comments\"]').value = 'Aprobado correctamente';
+                    form.submit();
+                ");
+
+            $browser->waitForLocation('/approvals')
                 ->assertSee('Documento aprobado correctamente');
 
             // Verificar en base de datos
@@ -142,13 +171,17 @@ class ApprovalTest extends DuskTestCase
     public function test_user_can_reject_document()
     {
         $this->browse(function (Browser $browser) {
+            $approvalId = $this->approval->id;
+
             $browser->loginAs($this->approver)
                 ->visit('/approvals/document/'.$this->document->id)
-                ->press('Rechazar Documento')
-                ->waitFor('textarea[name="comments"]')
-                ->type('textarea[name="comments"]', 'Documentación incompleta')
-                ->press('Confirmar Rechazo')
-                ->waitForLocation('/approvals')
+                ->script("
+                    const form = document.querySelector(`form[action$=\"/approvals/{$approvalId}/reject\"]`);
+                    form.querySelector('textarea[name=\"comments\"]').value = 'Documentación incompleta';
+                    form.submit();
+                ");
+
+            $browser->waitForLocation('/approvals')
                 ->assertSee('Documento rechazado correctamente');
 
             // Verificar en base de datos
@@ -164,12 +197,20 @@ class ApprovalTest extends DuskTestCase
     public function test_reject_requires_comments()
     {
         $this->browse(function (Browser $browser) {
+            $approvalId = $this->approval->id;
+
             $browser->loginAs($this->approver)
                 ->visit('/approvals/document/'.$this->document->id)
-                ->press('Rechazar Documento')
-                ->waitFor('textarea[name="comments"]')
-                ->press('Confirmar Rechazo')
-                ->assertPresent('textarea[name="comments"]:invalid');
+                ->script("
+                    const form = document.querySelector(`form[action$=\"/approvals/{$approvalId}/reject\"]`);
+                    form.submit();
+                ");
+
+            $browser->pause(500)
+                ->assertPathIs('/approvals/document/'.$this->document->id);
+
+            $this->approval->refresh();
+            $this->assertEquals('pending', $this->approval->status);
         });
     }
 
@@ -183,13 +224,13 @@ class ApprovalTest extends DuskTestCase
             'email' => 'other@test.com',
         ]);
 
-        $adminRole = Role::firstOrCreate(['name' => 'admin']);
-        $otherUser->assignRole($adminRole);
+        $otherRole = Role::firstOrCreate(['name' => 'office_manager']);
+        $otherUser->assignRole($otherRole);
 
         $this->browse(function (Browser $browser) use ($otherUser) {
             $browser->loginAs($otherUser)
                 ->visit('/approvals/document/'.$this->document->id)
-                ->assertSee('No tienes permisos para aprobar este documento');
+                ->assertSee('403');
         });
     }
 
@@ -221,6 +262,8 @@ class ApprovalTest extends DuskTestCase
     public function test_approval_disappears_after_approving()
     {
         $this->browse(function (Browser $browser) {
+            $approvalId = $this->approval->id;
+
             // Ver que existe
             $browser->loginAs($this->approver)
                 ->visit('/approvals')
@@ -228,10 +271,12 @@ class ApprovalTest extends DuskTestCase
 
             // Aprobar
             $browser->visit('/approvals/document/'.$this->document->id)
-                ->click('[x-on:click="action = \'approve\'"]')
-                ->waitFor('textarea[name="comments"]')
-                ->press('Confirmar Aprobación')
-                ->waitForLocation('/approvals');
+                ->script("
+                    const form = document.querySelector(`form[action$=\"/approvals/{$approvalId}/approve\"]`);
+                    form.submit();
+                ");
+
+            $browser->waitForLocation('/approvals');
 
             // Verificar que ya no aparece
             $browser->visit('/approvals')

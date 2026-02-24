@@ -3,14 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\Document;
-use App\Models\User;
 use App\Models\Webhook;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 class WebhookController extends BaseApiController
 {
@@ -21,10 +19,13 @@ class WebhookController extends BaseApiController
      *     summary="Registrar webhook",
      *     description="Registrar un nuevo webhook para recibir notificaciones de eventos",
      *     security={{"bearerAuth":{}}},
+     *
      *     @OA\RequestBody(
      *         required=true,
+     *
      *         @OA\JsonContent(
      *             required={"url","events"},
+     *
      *             @OA\Property(property="url", type="string", format="url", example="https://mi-sistema.com/webhooks/archivemaster", description="URL del endpoint webhook"),
      *             @OA\Property(property="events", type="array", @OA\Items(type="string"), example={"document.created","document.updated","document.status_changed"}, description="Eventos a los que suscribirse"),
      *             @OA\Property(property="name", type="string", example="Sistema ERP Principal", description="Nombre descriptivo del webhook"),
@@ -34,10 +35,13 @@ class WebhookController extends BaseApiController
      *             @OA\Property(property="timeout", type="integer", example=30, description="Timeout en segundos para las llamadas")
      *         )
      *     ),
+     *
      *     @OA\Response(
      *         response=201,
      *         description="Webhook registrado exitosamente",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="success", type="boolean", example=true),
      *             @OA\Property(property="message", type="string", example="Webhook registrado exitosamente"),
      *             @OA\Property(
@@ -53,10 +57,13 @@ class WebhookController extends BaseApiController
      *             @OA\Property(property="timestamp", type="string", format="date-time")
      *         )
      *     ),
+     *
      *     @OA\Response(
      *         response=422,
      *         description="Errores de validación",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="success", type="boolean", example=false),
      *             @OA\Property(property="message", type="string", example="Errores de validación"),
      *             @OA\Property(property="errors", type="object"),
@@ -67,6 +74,9 @@ class WebhookController extends BaseApiController
      */
     public function register(Request $request): JsonResponse
     {
+        /** @var \App\Models\User $authenticatedUser */
+        $authenticatedUser = $request->user();
+
         $validator = Validator::make($request->all(), [
             'url' => 'required|url|max:500',
             'events' => 'required|array|min:1',
@@ -82,12 +92,12 @@ class WebhookController extends BaseApiController
             return $this->errorResponse('Errores de validación', 422, $validator->errors());
         }
 
-        $companyId = Auth::user()->company_id;
+        $companyId = $authenticatedUser->company_id;
 
         // Crear webhook en base de datos
         $webhook = Webhook::create([
             'company_id' => $companyId,
-            'user_id' => Auth::id(),
+            'user_id' => $authenticatedUser->id,
             'url' => $request->url,
             'events' => $request->events,
             'name' => $request->get('name', 'Webhook sin nombre'),
@@ -126,16 +136,21 @@ class WebhookController extends BaseApiController
      *     summary="Listar webhooks",
      *     description="Obtener lista de webhooks registrados para la empresa",
      *     security={{"bearerAuth":{}}},
+     *
      *     @OA\Response(
      *         response=200,
      *         description="Lista de webhooks",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="success", type="boolean", example=true),
      *             @OA\Property(property="message", type="string", example="Success"),
      *             @OA\Property(
      *                 property="data",
      *                 type="array",
+     *
      *                 @OA\Items(
+     *
      *                     @OA\Property(property="id", type="string", example="webhook_123456"),
      *                     @OA\Property(property="url", type="string", example="https://mi-sistema.com/webhooks/archivemaster"),
      *                     @OA\Property(property="events", type="array", @OA\Items(type="string")),
@@ -155,7 +170,9 @@ class WebhookController extends BaseApiController
      */
     public function index(): JsonResponse
     {
-        $companyId = Auth::user()->company_id;
+        /** @var \App\Models\User $authenticatedUser */
+        $authenticatedUser = request()->user();
+        $companyId = $authenticatedUser->company_id;
         $webhooks = Webhook::forCompany($companyId)->get();
 
         // Transformar a array con estadísticas
@@ -185,16 +202,21 @@ class WebhookController extends BaseApiController
      *     summary="Actualizar webhook",
      *     description="Actualizar configuración de un webhook existente",
      *     security={{"bearerAuth":{}}},
+     *
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
      *         description="ID del webhook",
      *         required=true,
+     *
      *         @OA\Schema(type="string", example="webhook_123456")
      *     ),
+     *
      *     @OA\RequestBody(
      *         required=true,
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="url", type="string", format="url", example="https://mi-sistema-actualizado.com/webhooks/archivemaster"),
      *             @OA\Property(property="events", type="array", @OA\Items(type="string"), example={"document.created","document.updated"}),
      *             @OA\Property(property="name", type="string", example="Sistema ERP Actualizado"),
@@ -203,20 +225,26 @@ class WebhookController extends BaseApiController
      *             @OA\Property(property="timeout", type="integer", example=45)
      *         )
      *     ),
+     *
      *     @OA\Response(
      *         response=200,
      *         description="Webhook actualizado exitosamente",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="success", type="boolean", example=true),
      *             @OA\Property(property="message", type="string", example="Webhook actualizado exitosamente"),
      *             @OA\Property(property="data", type="object"),
      *             @OA\Property(property="timestamp", type="string", format="date-time")
      *         )
      *     ),
+     *
      *     @OA\Response(
      *         response=404,
      *         description="Webhook no encontrado",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="success", type="boolean", example=false),
      *             @OA\Property(property="message", type="string", example="Webhook no encontrado"),
      *             @OA\Property(property="timestamp", type="string", format="date-time")
@@ -226,9 +254,11 @@ class WebhookController extends BaseApiController
      */
     public function update(Request $request, string $id): JsonResponse
     {
+        /** @var \App\Models\User $authenticatedUser */
+        $authenticatedUser = $request->user();
         $webhook = Webhook::find($id);
 
-        if (!$webhook || $webhook->company_id !== Auth::user()->company_id) {
+        if (! $webhook || $webhook->company_id !== $authenticatedUser->company_id) {
             return $this->errorResponse('Webhook no encontrado', 404);
         }
 
@@ -248,12 +278,12 @@ class WebhookController extends BaseApiController
 
         // Actualizar webhook
         $webhook->update($request->only([
-            'url', 'events', 'name', 'active', 'retry_attempts', 'timeout'
+            'url', 'events', 'name', 'active', 'retry_attempts', 'timeout',
         ]));
 
         Log::info('Webhook updated', [
             'webhook_id' => $id,
-            'company_id' => Auth::user()->company_id,
+            'company_id' => $authenticatedUser->company_id,
             'changes' => $request->only(['url', 'events', 'name', 'active']),
         ]);
 
@@ -276,17 +306,22 @@ class WebhookController extends BaseApiController
      *     summary="Eliminar webhook",
      *     description="Eliminar un webhook registrado",
      *     security={{"bearerAuth":{}}},
+     *
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
      *         description="ID del webhook",
      *         required=true,
+     *
      *         @OA\Schema(type="string", example="webhook_123456")
      *     ),
+     *
      *     @OA\Response(
      *         response=200,
      *         description="Webhook eliminado exitosamente",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="success", type="boolean", example=true),
      *             @OA\Property(property="message", type="string", example="Webhook eliminado exitosamente"),
      *             @OA\Property(property="timestamp", type="string", format="date-time")
@@ -294,11 +329,13 @@ class WebhookController extends BaseApiController
      *     )
      * )
      */
-    public function destroy(string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
+        /** @var \App\Models\User $authenticatedUser */
+        $authenticatedUser = $request->user();
         $webhook = Webhook::find($id);
 
-        if (!$webhook || $webhook->company_id !== Auth::user()->company_id) {
+        if (! $webhook || $webhook->company_id !== $authenticatedUser->company_id) {
             return $this->errorResponse('Webhook no encontrado', 404);
         }
 
@@ -306,7 +343,7 @@ class WebhookController extends BaseApiController
 
         Log::info('Webhook deleted', [
             'webhook_id' => $id,
-            'company_id' => Auth::user()->company_id,
+            'company_id' => $authenticatedUser->company_id,
         ]);
 
         return $this->successResponse(null, 'Webhook eliminado exitosamente');
@@ -319,17 +356,22 @@ class WebhookController extends BaseApiController
      *     summary="Probar webhook",
      *     description="Enviar un evento de prueba al webhook para verificar conectividad",
      *     security={{"bearerAuth":{}}},
+     *
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
      *         description="ID del webhook",
      *         required=true,
+     *
      *         @OA\Schema(type="string", example="webhook_123456")
      *     ),
+     *
      *     @OA\Response(
      *         response=200,
      *         description="Prueba de webhook completada",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="success", type="boolean", example=true),
      *             @OA\Property(property="message", type="string", example="Prueba de webhook completada"),
      *             @OA\Property(
@@ -346,11 +388,13 @@ class WebhookController extends BaseApiController
      *     )
      * )
      */
-    public function test(string $id): JsonResponse
+    public function test(Request $request, string $id): JsonResponse
     {
+        /** @var \App\Models\User $authenticatedUser */
+        $authenticatedUser = $request->user();
         $webhook = Webhook::find($id);
 
-        if (!$webhook || $webhook->company_id !== Auth::user()->company_id) {
+        if (! $webhook || $webhook->company_id !== $authenticatedUser->company_id) {
             return $this->errorResponse('Webhook no encontrado', 404);
         }
 
@@ -395,9 +439,9 @@ class WebhookController extends BaseApiController
 
         // Agregar firma si hay secreto configurado
         $headers = ['Content-Type' => 'application/json'];
-        if (!empty($webhook->secret)) {
+        if (! empty($webhook->secret)) {
             $signature = hash_hmac('sha256', json_encode($payload), $webhook->secret);
-            $headers['X-ArchiveMaster-Signature'] = 'sha256=' . $signature;
+            $headers['X-ArchiveMaster-Signature'] = 'sha256='.$signature;
         }
 
         try {

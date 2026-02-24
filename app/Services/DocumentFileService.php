@@ -6,6 +6,7 @@ use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class DocumentFileService
 {
@@ -33,6 +34,50 @@ class DocumentFileService
         }
 
         return $path;
+    }
+
+    /**
+     * @return array{disk:string,path:string,original_name:string,mime_type:?string,size_bytes:int}
+     */
+    public function storeTemporaryUploadedFile(UploadedFile $file, ?int $userId = null): array
+    {
+        $disk = 'local';
+        $directory = 'temp/document-upload-drafts/'.($userId ?: 'guest').'/'.now()->format('Y/m/d');
+        $extension = $file->getClientOriginalExtension();
+        $filename = Str::uuid()->toString().($extension ? '.'.$extension : '');
+        $path = $file->storeAs($directory, $filename, $disk);
+
+        return [
+            'disk' => $disk,
+            'path' => $path,
+            'original_name' => $file->getClientOriginalName(),
+            'mime_type' => $file->getClientMimeType(),
+            'size_bytes' => (int) $file->getSize(),
+        ];
+    }
+
+    public function promoteTemporaryFile(string $tempPath, ?string $tempDisk = 'local', ?string $preferredFilename = null): string
+    {
+        $sourceDisk = $tempDisk ?: 'local';
+        $targetDisk = $this->getStorageDisk();
+
+        $contents = Storage::disk($sourceDisk)->get($tempPath);
+        $extension = pathinfo($preferredFilename ?: $tempPath, PATHINFO_EXTENSION);
+        $basename = Str::uuid()->toString().($extension !== '' ? '.'.$extension : '');
+        $targetDirectory = trim((string) config('documents.files.storage_path', 'documents'), '/');
+        $targetPath = $targetDirectory.'/'.$basename;
+
+        Storage::disk($targetDisk)->put($targetPath, $contents);
+
+        if ($this->isEncryptionEnabled()) {
+            $this->encryptStoredFile($targetDisk, $targetPath);
+        }
+
+        if (Storage::disk($sourceDisk)->exists($tempPath)) {
+            Storage::disk($sourceDisk)->delete($tempPath);
+        }
+
+        return $targetPath;
     }
 
     public function replaceFile(?string $existingPath, UploadedFile $file): string

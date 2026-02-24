@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Archive Master Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2463eb",
+                        "primary-hover": "#1d4ed8",
+                        "background-light": "#ffffff",
+                        "background-dark": "#111621",
+                        "surface-light": "#f8f9fc",
+                        "surface-dark": "#1f2937",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "body": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "0.75rem",
+                        "xl": "1rem",
+                        "2xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    boxShadow: {
+                        'soft': '0 2px 10px rgba(0, 0, 0, 0.03)',
+                        'card': '0 0 0 1px rgba(0,0,0,0.03), 0 2px 8px rgba(0,0,0,0.04)',
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-surface-light text-slate-900 font-display antialiased h-screen flex overflow-hidden">
+<!-- Sidebar -->
+<aside class="w-64 bg-background-light border-r border-slate-200 flex flex-col h-full flex-shrink-0 z-20">
+<div class="p-6 pb-2">
+<div class="flex items-center gap-3 mb-6">
+<div class="bg-primary/10 p-2 rounded-lg">
+<span class="material-symbols-outlined text-primary text-2xl">inventory_2</span>
+</div>
+<div>
+<h1 class="text-slate-900 text-sm font-bold leading-tight">Archive Master</h1>
+<p class="text-slate-500 text-xs font-medium">Operational Portal</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-3 space-y-1 overflow-y-auto">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/10 text-primary group transition-colors" href="#">
+<span class="material-symbols-outlined text-xl">dashboard</span>
+<span class="text-sm font-medium">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 group transition-colors" href="#">
+<span class="material-symbols-outlined text-xl">description</span>
+<span class="text-sm font-medium">Documents</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 group transition-colors" href="#">
+<span class="material-symbols-outlined text-xl">inbox</span>
+<span class="text-sm font-medium">Inbox</span>
+<span class="ml-auto bg-slate-100 text-slate-600 text-xs font-bold px-2 py-0.5 rounded-full">4</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 group transition-colors" href="#">
+<span class="material-symbols-outlined text-xl">archive</span>
+<span class="text-sm font-medium">Archive</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 group transition-colors" href="#">
+<span class="material-symbols-outlined text-xl">swap_horiz</span>
+<span class="text-sm font-medium">Movements</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 group transition-colors" href="#">
+<span class="material-symbols-outlined text-xl">search</span>
+<span class="text-sm font-medium">Search</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 group transition-colors" href="#">
+<span class="material-symbols-outlined text-xl">folder_shared</span>
+<span class="text-sm font-medium">My Docs</span>
+</a>
+</nav>
+<div class="px-3 py-4 border-t border-slate-100">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 group transition-colors mb-2" href="#">
+<span class="material-symbols-outlined text-xl">settings</span>
+<span class="text-sm font-medium">Settings</span>
+</a>
+<div class="flex items-center gap-3 px-3 py-2 mt-2">
+<div class="h-9 w-9 rounded-full bg-slate-200 bg-cover bg-center border border-slate-200" data-alt="User profile avatar" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBjyIeMtOgoSb6CkNDZbH6A8-OsColPSPbjUE70tKNkfhcFpaqXqCzhnL9Crxjtda2X33J1uHNTfGy0Aanq43bYUkQczWbQIJEFhN1lA8Jl_-CFaLVfFECzHzykOjgQw1Ht7ZhfyvraNpeo8ael3qcasS_kzK0Z3g_52Q8Z_cMobUNgcJlUc_hl3naxcZRUfnFPBPivxtuYyQj2wX6bmvwoi1SmA7mTfyekbZKdSlcZUSQ_wfRahcfRR1XErgCzXfGM-hosVdf8vFBd');"></div>
+<div class="flex flex-col">
+<p class="text-slate-900 text-sm font-medium">Admin User</p>
+<p class="text-slate-500 text-xs">admin@archive.io</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col h-full overflow-hidden bg-surface-light relative">
+<!-- Header -->
+<header class="h-16 bg-background-light/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-6 sticky top-0 z-10">
+<h2 class="text-lg font-semibold text-slate-900">Dashboard Overview</h2>
+<div class="flex items-center gap-4">
+<div class="relative hidden md:block">
+<span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+<span class="material-symbols-outlined text-lg">search</span>
+</span>
+<input class="pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary w-64 transition-all" placeholder="Search archives..." type="text"/>
+</div>
+<button class="bg-primary hover:bg-primary-hover text-white h-9 px-4 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">add</span>
+                    New Document
+                </button>
+</div>
+</header>
+<!-- Scrollable Content -->
+<div class="flex-1 overflow-y-auto p-6 md:p-8">
+<div class="max-w-6xl mx-auto space-y-8">
+<!-- Welcome Banner -->
+<div class="relative rounded-2xl overflow-hidden bg-slate-900 h-48 flex items-end shadow-card">
+<div class="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-800 to-primary/40 z-0"></div>
+<!-- Abstract geometric pattern background -->
+<div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(#ffffff 1px, transparent 1px); background-size: 20px 20px;"></div>
+<div class="relative z-10 p-6 md:p-8 w-full flex justify-between items-end">
+<div>
+<p class="text-primary-200 text-sm font-medium mb-1">Thursday, October 24th</p>
+<h2 class="text-white text-3xl font-bold tracking-tight">Welcome back, Admin</h2>
+<p class="text-slate-300 mt-2 max-w-lg">You have 45 documents pending review and 12 awaiting final approval today.</p>
+</div>
+<div class="hidden md:block">
+<div class="bg-white/10 backdrop-blur-sm border border-white/10 p-4 rounded-xl">
+<p class="text-white/70 text-xs uppercase font-semibold tracking-wider mb-1">System Status</p>
+<div class="flex items-center gap-2">
+<span class="relative flex h-2.5 w-2.5">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+</span>
+<span class="text-white font-medium text-sm">Operational</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- KPI Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+<!-- KPI 1 -->
+<div class="bg-background-light p-5 rounded-xl border border-slate-200 shadow-card hover:shadow-md transition-shadow group">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-blue-50 rounded-lg group-hover:bg-blue-100 transition-colors">
+<span class="material-symbols-outlined text-primary">description</span>
+</div>
+<span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-emerald-50 text-emerald-700">
+<span class="material-symbols-outlined text-[14px] mr-1">trending_up</span>
+                                12%
+                            </span>
+</div>
+<h3 class="text-slate-500 text-sm font-medium">Documents Today</h3>
+<p class="text-slate-900 text-2xl font-bold mt-1">124</p>
+</div>
+<!-- KPI 2 -->
+<div class="bg-background-light p-5 rounded-xl border border-slate-200 shadow-card hover:shadow-md transition-shadow group">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-orange-50 rounded-lg group-hover:bg-orange-100 transition-colors">
+<span class="material-symbols-outlined text-orange-600">pending_actions</span>
+</div>
+<span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-emerald-50 text-emerald-700">
+<span class="material-symbols-outlined text-[14px] mr-1">trending_up</span>
+                                5%
+                            </span>
+</div>
+<h3 class="text-slate-500 text-sm font-medium">Pending Review</h3>
+<p class="text-slate-900 text-2xl font-bold mt-1">45</p>
+</div>
+<!-- KPI 3 -->
+<div class="bg-background-light p-5 rounded-xl border border-slate-200 shadow-card hover:shadow-md transition-shadow group">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-purple-50 rounded-lg group-hover:bg-purple-100 transition-colors">
+<span class="material-symbols-outlined text-purple-600">gavel</span>
+</div>
+<span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-emerald-50 text-emerald-700">
+<span class="material-symbols-outlined text-[14px] mr-1">trending_up</span>
+                                2%
+                            </span>
+</div>
+<h3 class="text-slate-500 text-sm font-medium">For Approval</h3>
+<p class="text-slate-900 text-2xl font-bold mt-1">12</p>
+</div>
+<!-- KPI 4 -->
+<div class="bg-background-light p-5 rounded-xl border border-slate-200 shadow-card hover:shadow-md transition-shadow group">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-slate-100 rounded-lg group-hover:bg-slate-200 transition-colors">
+<span class="material-symbols-outlined text-slate-600">inventory</span>
+</div>
+<span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-emerald-50 text-emerald-700">
+<span class="material-symbols-outlined text-[14px] mr-1">trending_up</span>
+                                25%
+                            </span>
+</div>
+<h3 class="text-slate-500 text-sm font-medium">In Archive</h3>
+<p class="text-slate-900 text-2xl font-bold mt-1">8,902</p>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<!-- Recent Activity Section -->
+<div class="lg:col-span-2 flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<h3 class="text-lg font-bold text-slate-900">Recent Activity</h3>
+<a class="text-sm font-medium text-primary hover:text-primary-hover" href="#">View all</a>
+</div>
+<div class="bg-background-light rounded-xl border border-slate-200 shadow-card overflow-hidden">
+<table class="w-full text-left text-sm">
+<thead class="bg-slate-50 border-b border-slate-200">
+<tr>
+<th class="px-6 py-3 font-medium text-slate-500">Document Name</th>
+<th class="px-6 py-3 font-medium text-slate-500">Status</th>
+<th class="px-6 py-3 font-medium text-slate-500">Modified</th>
+<th class="px-6 py-3 font-medium text-slate-500 text-right">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100">
+<tr class="hover:bg-slate-50/50 transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="bg-red-50 p-2 rounded text-red-600">
+<span class="material-symbols-outlined text-lg">picture_as_pdf</span>
+</div>
+<div>
+<p class="font-medium text-slate-900">Q3_Financial_Report.pdf</p>
+<p class="text-xs text-slate-500">Finance Dept</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700 border border-yellow-200">
+                                                Pending Review
+                                            </span>
+</td>
+<td class="px-6 py-4 text-slate-500">2 mins ago</td>
+<td class="px-6 py-4 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-slate-50/50 transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="bg-blue-50 p-2 rounded text-blue-600">
+<span class="material-symbols-outlined text-lg">article</span>
+</div>
+<div>
+<p class="font-medium text-slate-900">Vendor_Agreement_v2.docx</p>
+<p class="text-xs text-slate-500">Legal Dept</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                Approved
+                                            </span>
+</td>
+<td class="px-6 py-4 text-slate-500">1 hour ago</td>
+<td class="px-6 py-4 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-slate-50/50 transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="bg-green-50 p-2 rounded text-green-600">
+<span class="material-symbols-outlined text-lg">table_view</span>
+</div>
+<div>
+<p class="font-medium text-slate-900">Inventory_List_Oct.xlsx</p>
+<p class="text-xs text-slate-500">Operations</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                                                Archived
+                                            </span>
+</td>
+<td class="px-6 py-4 text-slate-500">3 hours ago</td>
+<td class="px-6 py-4 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-slate-50/50 transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="bg-red-50 p-2 rounded text-red-600">
+<span class="material-symbols-outlined text-lg">picture_as_pdf</span>
+</div>
+<div>
+<p class="font-medium text-slate-900">Employee_Handbook_2024.pdf</p>
+<p class="text-xs text-slate-500">HR Dept</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                Approved
+                                            </span>
+</td>
+<td class="px-6 py-4 text-slate-500">5 hours ago</td>
+<td class="px-6 py-4 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Quick Actions & Storage -->
+<div class="flex flex-col gap-8">
+<!-- Quick Actions Panel -->
+<div class="flex flex-col gap-4">
+<h3 class="text-lg font-bold text-slate-900">Quick Actions</h3>
+<div class="bg-background-light p-6 rounded-xl border border-slate-200 shadow-card flex flex-col gap-4">
+<!-- Upload Action -->
+<div class="relative group cursor-pointer">
+<div class="absolute inset-0 bg-primary/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="flex items-start gap-4 p-3 relative z-10">
+<div class="bg-primary/10 p-3 rounded-lg text-primary">
+<span class="material-symbols-outlined">cloud_upload</span>
+</div>
+<div class="flex-1">
+<h4 class="text-slate-900 font-semibold text-sm">Upload File</h4>
+<p class="text-slate-500 text-xs mt-1">Drag &amp; drop or select files</p>
+</div>
+<span class="material-symbols-outlined text-slate-400 text-lg group-hover:text-primary transition-colors">arrow_forward</span>
+</div>
+</div>
+<div class="h-px bg-slate-100 w-full"></div>
+<!-- Register Action -->
+<div class="relative group cursor-pointer">
+<div class="absolute inset-0 bg-primary/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="flex items-start gap-4 p-3 relative z-10">
+<div class="bg-emerald-50 p-3 rounded-lg text-emerald-600">
+<span class="material-symbols-outlined">app_registration</span>
+</div>
+<div class="flex-1">
+<h4 class="text-slate-900 font-semibold text-sm">Register Document</h4>
+<p class="text-slate-500 text-xs mt-1">Create new metadata entry</p>
+</div>
+<span class="material-symbols-outlined text-slate-400 text-lg group-hover:text-emerald-600 transition-colors">arrow_forward</span>
+</div>
+</div>
+<div class="h-px bg-slate-100 w-full"></div>
+<!-- Add User Action -->
+<div class="relative group cursor-pointer">
+<div class="absolute inset-0 bg-primary/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="flex items-start gap-4 p-3 relative z-10">
+<div class="bg-purple-50 p-3 rounded-lg text-purple-600">
+<span class="material-symbols-outlined">person_add</span>
+</div>
+<div class="flex-1">
+<h4 class="text-slate-900 font-semibold text-sm">Invite User</h4>
+<p class="text-slate-500 text-xs mt-1">Add member to workspace</p>
+</div>
+<span class="material-symbols-outlined text-slate-400 text-lg group-hover:text-purple-600 transition-colors">arrow_forward</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Storage Widget -->
+<div class="bg-slate-900 rounded-xl p-6 shadow-card text-white relative overflow-hidden">
+<!-- Abstract geometric background -->
+<div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 rounded-full bg-primary/20 blur-2xl"></div>
+<div class="absolute bottom-0 left-0 -mb-4 -ml-4 w-32 h-32 rounded-full bg-indigo-500/20 blur-3xl"></div>
+<div class="relative z-10">
+<h3 class="font-bold text-lg mb-1">Storage Usage</h3>
+<p class="text-slate-400 text-xs mb-4">75% of your plan used</p>
+<div class="w-full bg-slate-700 rounded-full h-2 mb-4">
+<div class="bg-gradient-to-r from-primary to-indigo-400 h-2 rounded-full" style="width: 75%"></div>
+</div>
+<div class="flex justify-between items-center text-sm">
+<span class="text-slate-300">750 GB</span>
+<span class="text-slate-500">/ 1 TB</span>
+</div>
+<button class="mt-6 w-full py-2 bg-white text-slate-900 rounded-lg text-sm font-semibold hover:bg-slate-100 transition-colors">
+                                    Upgrade Plan
+                                </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

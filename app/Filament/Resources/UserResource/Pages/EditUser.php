@@ -10,6 +10,13 @@ class EditUser extends EditRecord
 {
     protected static string $resource = UserResource::class;
 
+    protected function beforeSave(): void
+    {
+        if (isset($this->data['roles']) && is_array($this->data['roles'])) {
+            $this->data['roles'] = UserResource::sanitizeAssignableRoles($this->data['roles']);
+        }
+    }
+
     protected function getHeaderActions(): array
     {
         return [

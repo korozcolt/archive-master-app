@@ -29,6 +29,19 @@ enum Role: string implements HasColor, HasIcon, HasLabel
         };
     }
 
+    public function getDescription(): string
+    {
+        return match ($this) {
+            self::SuperAdmin => 'Acceso completo a toda la plataforma, configuración y gobierno.',
+            self::Admin => 'Administra la empresa, usuarios, catálogos, flujos y reportes globales.',
+            self::BranchAdmin => 'Gestiona la operación y reportes de su sucursal con alcance limitado.',
+            self::OfficeManager => 'Gestiona documentos del área y participa en aprobaciones.',
+            self::ArchiveManager => 'Administra archivo, custodia documental y ubicaciones.',
+            self::Receptionist => 'Registra documentos entrantes y genera recibidos para usuarios.',
+            self::RegularUser => 'Consulta sus documentos y recibidos, con acceso limitado al portal.',
+        };
+    }
+
     public function getColor(): string|array|null
     {
         return match ($this) {

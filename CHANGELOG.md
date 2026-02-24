@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2026-02-23
+
+- Portal / Documentos: nuevo wizard de carga **`Subir Nuevos Documentos`** (uno o varios archivos) con:
+  - carga inmediata de archivos a almacenamiento temporal al seleccionar/arrastrar (Step 1)
+  - borrador persistente real de carga (`document_upload_drafts`, `document_upload_draft_items`)
+  - botón `Guardar borrador` funcional
+  - recuperación de borrador por `?draft={id}` en la URL
+  - confirmación final desde `draft_id` (promoción de archivos temporales a storage final y creación de documentos)
+- Carga múltiple mejorada:
+  - títulos por archivo en edición rápida (Step 1)
+  - Step 2 con **metadatos por defecto del lote**
+  - **sobrescritura por archivo** (categoría/estado) para lotes heterogéneos
+- Rediseño UI del portal (flujo documentos):
+  - `documents/create` alineado al portal (wizard)
+  - `documents/edit` alineado visualmente al portal
+  - `documents/show` con timeline más legible
+- Nuevos modelos y migraciones para borradores de carga:
+  - `DocumentUploadDraft`
+  - `DocumentUploadDraftItem`
+  - `create_document_upload_drafts_table`
+  - `create_document_upload_draft_items_table`
+- `DocumentFileService` ahora soporta:
+  - almacenamiento temporal de uploads
+  - promoción de archivos temporales a almacenamiento final
+- Cobertura de pruebas del flujo de documentos actualizada:
+  - borrador de carga (upload temporal + guardar borrador)
+  - creación desde borrador
+  - overrides por archivo en carga múltiple
+  - render de vistas portal (create/edit/show)
+
+### Fixed - 2026-02-23
+
+- Registro de actividad (`documents.show`):
+  - valores humanizados en timeline (`prioridad`, `estado`, `asignado a`, `categoría`) en lugar de IDs/slugs internos
+  - ocultación de entradas `updated` vacías/ruidosas en la UI
+- Prevención de duplicidad de notificaciones/eventos por una sola actualización:
+  - deduplicación de `DocumentUpdated` en `DocumentObserver` por request/cambio
+  - eliminación de dispatch duplicado de `DocumentUpdated` desde `WorkflowEngine`
+- Correcciones de idioma (sin Spanglish) en flujo portal/documentos:
+  - textos del wizard de carga en español (`Atrás`, `Selección de archivos`, `Metadatos`, etc.)
+  - títulos de detalle de documento (`Registro de Actividad`, `Insights de IA`)
+
 ### Added - 2026-02-21
 
 - UI Portal IA (Fase 6, parcial):

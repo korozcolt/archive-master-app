@@ -53,6 +53,8 @@ Archive Master es un sistema avanzado de gestión documental empresarial constru
 ### Interfaz y Experiencia de Usuario
 - **Panel Filament**: Interfaz administrativa moderna y responsiva
 - **Wizards de Creación**: Asistentes paso a paso para usuarios, empresas y documentos
+- **Portal Operativo**: Flujo de trabajo simplificado para recepción, oficina, archivo y usuarios internos
+- **Carga Masiva Guiada**: Wizard de carga de documentos con borrador real, edición rápida y revisión
 - **Página de Bienvenida React**: Landing page moderna con diseño hero grid
 - **Soporte Multilingüe**: Español e Inglés completamente soportados
 - **Tema Personalizable**: Colores y estilos adaptables
@@ -128,6 +130,8 @@ Edita el archivo `.env` y configura:
 ```bash
 php artisan migrate --seed
 ```
+
+Nota: las versiones recientes del portal/documentos incluyen tablas de borradores de carga para uploads temporales y guardado de borradores reales. Si actualizas un entorno existente, ejecuta `php artisan migrate`.
 
 ### 5. Enlazar Almacenamiento
 
@@ -223,6 +227,60 @@ archive-master-app/
 └── tests/                  # Tests automatizados
 ```
 
+## Portal Operativo (Resumen)
+
+El sistema separa la operación diaria del panel administrativo:
+
+- **`/admin` (Filament):** configuración, gobierno, catálogos, administración y reportería global
+- **`/portal` (Livewire/Blade):** uso diario para roles operativos (`office_manager`, `archive_manager`, `receptionist`, `regular_user`)
+
+### Acceso al portal
+
+- **Personal interno operativo (recepción/oficina/archivo):** ingreso con correo + contraseña desde `/login`
+- **Usuario final por recibido:** ingreso por OTP (número de recibido + correo) desde `/login`
+
+### Flujo de carga de documentos (Portal)
+
+La pantalla **`Subir Nuevos Documentos`** (`/documents/create`) usa un wizard en 4 pasos:
+
+1. **Selección de archivos**
+   - Soporta archivo único o múltiples archivos
+   - Drag & drop
+   - Subida inmediata a almacenamiento temporal (no espera al submit final)
+   - Título sugerido automático por archivo (editable)
+
+2. **Metadatos**
+   - Metadatos por defecto del lote (descripción, categoría, estado)
+   - Ajustes por archivo (opcional) para sobrescribir categoría/estado en lotes heterogéneos
+
+3. **Configuración**
+   - Prioridad
+   - Confidencialidad
+   - Para `receptionist`: datos de recibido / acceso al portal
+
+4. **Revisión**
+   - Confirmación final antes de crear
+   - Muestra archivos, títulos y metadatos por defecto del lote
+
+### Borrador real de carga
+
+- El botón **Guardar borrador** es funcional
+- Persiste:
+  - archivos temporales ya cargados
+  - metadatos del lote
+  - títulos por archivo
+  - overrides por archivo (categoría/estado)
+  - paso actual del wizard
+- El borrador se puede recuperar con `?draft={id}` (se agrega automáticamente a la URL)
+
+### Confirmación final
+
+Al confirmar el wizard:
+- los archivos temporales se promueven al almacenamiento final
+- se crean los documentos reales
+- si aplica (recepción), se generan recibidos
+- el borrador queda marcado como `submitted`
+
 ## Modelos Principales
 
 - **Company**: Empresas del sistema
@@ -232,6 +290,8 @@ archive-master-app/
 - **Tag**: Etiquetas para clasificación
 - **Status**: Estados de documentos
 - **Document**: Documentos principales
+- **DocumentUploadDraft**: Borrador persistente de carga (portal)
+- **DocumentUploadDraftItem**: Archivos temporales y metadatos por archivo dentro del borrador
 - **DocumentVersion**: Versiones de documentos
 - **WorkflowDefinition**: Definiciones de flujos de trabajo
 - **WorkflowHistory**: Historial de transiciones

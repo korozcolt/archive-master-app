@@ -3,315 +3,277 @@
 @section('title', 'Mis Documentos')
 
 @section('content')
-<div class="space-y-6">
-    <!-- Header -->
-    <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-        <div class="p-6">
-            <div class="flex justify-between items-center">
-                <div>
-                    <h2 class="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                        Mis Documentos
-                    </h2>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        Total: {{ $documents->total() }} documento(s)
-                    </p>
-                </div>
-                <div class="flex space-x-2">
-                    <a href="{{ route('documents.create') }}" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:bg-blue-700 active:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
-                        Nuevo Documento
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
+@php
+    $translateName = function ($model, string $fallback = 'Sin dato') {
+        if ($model && method_exists($model, 'getTranslation')) {
+            $value = $model->getTranslation('name', app()->getLocale(), false);
 
-    <!-- Filtros de búsqueda -->
-    <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-        <div class="p-6">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">
-                    <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
-                    </svg>
-                    Búsqueda y Filtros
-                </h3>
-                @if(request()->hasAny(['search', 'category_id', 'status_id', 'priority', 'is_confidential', 'date_from', 'date_to']))
-                    <a href="{{ route('documents.index') }}" class="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
-                        Limpiar filtros
+            if (is_string($value) && str_starts_with($value, '{')) {
+                $decoded = json_decode($value, true);
+                if (is_array($decoded)) {
+                    return (string) ($decoded[app()->getLocale()] ?? $decoded['es'] ?? $decoded['en'] ?? reset($decoded) ?? $fallback);
+                }
+            }
+
+            if (is_string($value) && $value !== '') {
+                return $value;
+            }
+        }
+
+        $raw = data_get($model, 'name');
+
+        if (is_string($raw) && str_starts_with($raw, '{')) {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                return (string) ($decoded[app()->getLocale()] ?? $decoded['es'] ?? $decoded['en'] ?? reset($decoded) ?? $fallback);
+            }
+        }
+
+        return (string) ($raw ?: $fallback);
+    };
+
+    $priorityBadge = function ($priorityValue) {
+        return match ($priorityValue) {
+            'high', 'urgent' => ['Alta', 'bg-rose-50 text-rose-700 border-rose-200'],
+            'medium' => ['Media', 'bg-amber-50 text-amber-700 border-amber-200'],
+            default => ['Baja', 'bg-emerald-50 text-emerald-700 border-emerald-200'],
+        };
+    };
+
+    $activeFilters = collect([
+        'search' => request('search'),
+        'category_id' => request('category_id'),
+        'status_id' => request('status_id'),
+        'priority' => request('priority'),
+        'is_confidential' => request('is_confidential'),
+        'date_from' => request('date_from'),
+        'date_to' => request('date_to'),
+    ])->filter(fn ($v) => $v !== null && $v !== '');
+@endphp
+
+<div class="space-y-6">
+    <section class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+                <div class="mb-1 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                    <span>Portal</span>
+                    <span class="text-slate-300 dark:text-slate-600">/</span>
+                    <span class="font-medium text-slate-700 dark:text-slate-200">Mis Documentos</span>
+                </div>
+                <h1 class="text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">Document Explorer</h1>
+                <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                    Administra, filtra y consulta tus documentos. Total: {{ $documents->total() }} documento(s).
+                </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <a href="{{ route('documents.create') }}"
+                   class="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-900/20 transition hover:from-sky-400 hover:to-indigo-500">
+                    <span>Subir / Crear</span>
+                </a>
+                @if($documents->total() > 0)
+                    <a href="{{ route('documents.export', request()->all()) }}"
+                       class="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                        Exportar CSV
                     </a>
                 @endif
             </div>
+        </div>
+    </section>
 
-            <form method="GET" action="{{ route('documents.index') }}" class="space-y-4">
-                <!-- Primera fila: Búsqueda por texto -->
-                <div class="grid grid-cols-1 gap-4">
-                    <div>
-                        <label for="search" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Buscar
-                        </label>
-                        <div class="relative">
-                            <input type="text"
-                                   name="search"
-                                   id="search"
-                                   value="{{ request('search') }}"
-                                   placeholder="Buscar por título, descripción o número de documento..."
-                                   class="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
-                            <svg class="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                            </svg>
-                        </div>
-                    </div>
+    <section class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <form method="GET" action="{{ route('documents.index') }}" class="space-y-5">
+            <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_auto]">
+                <div class="relative">
+                    <input
+                        type="text"
+                        name="search"
+                        value="{{ request('search') }}"
+                        placeholder="Buscar por título, descripción o número de documento..."
+                        class="block h-11 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-3 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    >
+                    <svg class="pointer-events-none absolute left-3 top-3 h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
                 </div>
+                <div class="flex gap-2">
+                    <button type="submit" class="inline-flex h-11 items-center justify-center rounded-xl border border-sky-300/20 bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:from-sky-400 hover:to-indigo-500">
+                        Buscar
+                    </button>
+                    <a href="{{ route('documents.index') }}" class="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                        Limpiar
+                    </a>
+                </div>
+            </div>
 
-                <!-- Segunda fila: Filtros -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <!-- Categoría -->
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Filtros rápidos</span>
+                <a href="{{ route('documents.index', array_merge(request()->except('priority'), ['priority' => 'high'])) }}"
+                   class="inline-flex items-center rounded-xl border px-3 py-1.5 text-xs font-medium transition {{ request('priority') === 'high' ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-slate-200 bg-white text-slate-600 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300' }}">
+                    Alta prioridad
+                </a>
+                <a href="{{ route('documents.index', array_merge(request()->except('is_confidential'), ['is_confidential' => '1'])) }}"
+                   class="inline-flex items-center rounded-xl border px-3 py-1.5 text-xs font-medium transition {{ request('is_confidential') === '1' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-white text-slate-600 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300' }}">
+                    Confidenciales
+                </a>
+                <a href="{{ route('documents.index', array_merge(request()->except('date_from', 'date_to'), ['date_from' => now()->subDays(7)->format('Y-m-d'), 'date_to' => now()->format('Y-m-d')])) }}"
+                   class="inline-flex items-center rounded-xl border px-3 py-1.5 text-xs font-medium transition border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                    Últimos 7 días
+                </a>
+            </div>
+
+            <details class="rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-800/40" {{ $activeFilters->isNotEmpty() ? 'open' : '' }}>
+                <summary class="cursor-pointer list-none text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    Filtros avanzados
+                </summary>
+
+                <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <div>
-                        <label for="category_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Categoría
-                        </label>
-                        <select name="category_id"
-                                id="category_id"
-                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                        <label for="category_id" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">Categoría</label>
+                        <select name="category_id" id="category_id" class="block h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
                             <option value="">Todas las categorías</option>
                             @foreach($categories as $category)
-                                <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>
-                                    {{ $category->name }}
-                                </option>
+                                <option value="{{ $category->id }}" @selected(request('category_id') == $category->id)>{{ $translateName($category, 'Categoría') }}</option>
                             @endforeach
                         </select>
                     </div>
-
-                    <!-- Estado -->
                     <div>
-                        <label for="status_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Estado
-                        </label>
-                        <select name="status_id"
-                                id="status_id"
-                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                        <label for="status_id" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">Estado</label>
+                        <select name="status_id" id="status_id" class="block h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
                             <option value="">Todos los estados</option>
                             @foreach($statuses as $status)
-                                <option value="{{ $status->id }}" {{ request('status_id') == $status->id ? 'selected' : '' }}>
-                                    {{ $status->name }}
-                                </option>
+                                <option value="{{ $status->id }}" @selected(request('status_id') == $status->id)>{{ $translateName($status, 'Estado') }}</option>
                             @endforeach
                         </select>
                     </div>
-
-                    <!-- Prioridad -->
                     <div>
-                        <label for="priority" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Prioridad
-                        </label>
-                        <select name="priority"
-                                id="priority"
-                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
-                            <option value="">Todas las prioridades</option>
-                            <option value="low" {{ request('priority') == 'low' ? 'selected' : '' }}>Baja</option>
-                            <option value="medium" {{ request('priority') == 'medium' ? 'selected' : '' }}>Media</option>
-                            <option value="high" {{ request('priority') == 'high' ? 'selected' : '' }}>Alta</option>
-                            <option value="urgent" {{ request('priority') == 'urgent' ? 'selected' : '' }}>Urgente</option>
+                        <label for="priority" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">Prioridad</label>
+                        <select name="priority" id="priority" class="block h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                            <option value="">Todas</option>
+                            <option value="low" @selected(request('priority') === 'low')>Baja</option>
+                            <option value="medium" @selected(request('priority') === 'medium')>Media</option>
+                            <option value="high" @selected(request('priority') === 'high')>Alta</option>
+                            <option value="urgent" @selected(request('priority') === 'urgent')>Urgente</option>
                         </select>
                     </div>
-
-                    <!-- Confidencial -->
                     <div>
-                        <label for="is_confidential" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Confidencialidad
-                        </label>
-                        <select name="is_confidential"
-                                id="is_confidential"
-                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                        <label for="is_confidential" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">Confidencialidad</label>
+                        <select name="is_confidential" id="is_confidential" class="block h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
                             <option value="">Todos</option>
-                            <option value="1" {{ request('is_confidential') === '1' ? 'selected' : '' }}>Solo confidenciales</option>
-                            <option value="0" {{ request('is_confidential') === '0' ? 'selected' : '' }}>Solo públicos</option>
+                            <option value="1" @selected(request('is_confidential') === '1')>Solo confidenciales</option>
+                            <option value="0" @selected(request('is_confidential') === '0')>Solo públicos</option>
                         </select>
                     </div>
-                </div>
-
-                <!-- Tercera fila: Fechas -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label for="date_from" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Desde
-                        </label>
-                        <input type="date"
-                               name="date_from"
-                               id="date_from"
-                               value="{{ request('date_from') }}"
-                               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                        <label for="date_from" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">Desde</label>
+                        <input type="date" name="date_from" id="date_from" value="{{ request('date_from') }}" class="block h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
                     </div>
                     <div>
-                        <label for="date_to" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Hasta
-                        </label>
-                        <input type="date"
-                               name="date_to"
-                               id="date_to"
-                               value="{{ request('date_to') }}"
-                               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                        <label for="date_to" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">Hasta</label>
+                        <input type="date" name="date_to" id="date_to" value="{{ request('date_to') }}" class="block h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
                     </div>
                 </div>
+            </details>
+        </form>
+    </section>
 
-                <!-- Botones de acción -->
-                <div class="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <div class="flex space-x-2">
-                        <button type="submit" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:bg-blue-700 active:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                            </svg>
-                            Buscar
-                        </button>
-                        <a href="{{ route('documents.index') }}" class="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
-                            Limpiar
-                        </a>
-                    </div>
-
-                    @if($documents->total() > 0)
-                        <a href="{{ route('documents.export', request()->all()) }}" class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 focus:bg-green-700 active:bg-green-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                            Exportar CSV
-                        </a>
-                    @endif
+    <section class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        @if($documents->isEmpty())
+            <div class="px-6 py-14 text-center">
+                <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300">📄</div>
+                <h3 class="text-sm font-semibold text-slate-900 dark:text-white">
+                    {{ $activeFilters->isNotEmpty() ? 'No se encontraron documentos con los filtros aplicados' : 'No tienes documentos' }}
+                </h3>
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    {{ $activeFilters->isNotEmpty() ? 'Intenta ajustar los filtros de búsqueda.' : 'Comienza subiendo o creando tu primer documento.' }}
+                </p>
+                <div class="mt-5">
+                    <a href="{{ $activeFilters->isNotEmpty() ? route('documents.index') : route('documents.create') }}"
+                       class="inline-flex h-10 items-center justify-center rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-sm">
+                        {{ $activeFilters->isNotEmpty() ? 'Ver todos los documentos' : 'Subir / Crear Documento' }}
+                    </a>
                 </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Resultados -->
-    <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-        <div class="p-6">
-            @if($documents->isEmpty())
-                <div class="text-center py-12">
-                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                    </svg>
-                    <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
-                        @if(request()->hasAny(['search', 'category_id', 'status_id', 'priority', 'is_confidential', 'date_from', 'date_to']))
-                            No se encontraron documentos con los filtros aplicados
-                        @else
-                            No tienes documentos
-                        @endif
-                    </h3>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        @if(request()->hasAny(['search', 'category_id', 'status_id', 'priority', 'is_confidential', 'date_from', 'date_to']))
-                            Intenta ajustar los filtros de búsqueda.
-                        @else
-                            Comienza creando un nuevo documento.
-                        @endif
-                    </p>
-                    <div class="mt-6">
-                        @if(request()->hasAny(['search', 'category_id', 'status_id', 'priority', 'is_confidential', 'date_from', 'date_to']))
-                            <a href="{{ route('documents.index') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                                Ver todos los documentos
-                            </a>
-                        @else
-                            <a href="{{ route('documents.create') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                                Crear Documento
-                            </a>
-                        @endif
-                    </div>
-                </div>
-            @else
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead class="bg-gray-50 dark:bg-gray-700">
-                            <tr>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    Título
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    Categoría
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    Estado
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    Prioridad
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    Fecha
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    Acciones
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                            @foreach($documents as $document)
-                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="flex items-center">
-                                            <div>
-                                                <div class="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                                    {{ $document->title }}
-                                                </div>
-                                                <div class="text-xs text-gray-500 dark:text-gray-400">
-                                                    {{ $document->document_number }}
-                                                </div>
+            </div>
+        @else
+            <div class="overflow-x-auto">
+                <table class="min-w-[1000px] w-full divide-y divide-slate-200 dark:divide-slate-800">
+                    <thead class="bg-slate-50/70 dark:bg-slate-950/60">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Nombre</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Categoría</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Estado</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Prioridad</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Propietario</th>
+                            <th class="px-6 py-4 text-right text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Fecha</th>
+                            <th class="px-4 py-4"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+                        @foreach($documents as $document)
+                            @php
+                                [$priorityLabel, $priorityClasses] = $priorityBadge(optional($document->priority)->value);
+                                $statusLabel = $translateName($document->status, 'Sin estado');
+                                $categoryLabel = $translateName($document->category, 'Sin categoría');
+                                $statusDotClass = str_contains(mb_strtolower($statusLabel), 'aprob') ? 'bg-emerald-500' : (str_contains(mb_strtolower($statusLabel), 'proceso') ? 'bg-amber-500' : 'bg-slate-400');
+                            @endphp
+                            <tr class="group hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                                <td class="px-6 py-4">
+                                    <a href="{{ route('documents.show', $document) }}" class="flex items-center gap-4">
+                                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-300">
+                                            <span class="text-lg">📄</span>
+                                        </div>
+                                        <div class="min-w-0">
+                                            <div class="truncate text-sm font-semibold text-slate-900 transition group-hover:text-sky-700 dark:text-white dark:group-hover:text-sky-300">
+                                                {{ $document->title }}
+                                            </div>
+                                            <div class="mt-0.5 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                                                <span>{{ $document->document_number ?: 'Sin número' }}</span>
                                                 @if($document->is_confidential)
-                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 mt-1">
-                                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                            <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path>
-                                                        </svg>
-                                                        Confidencial
-                                                    </span>
+                                                    <span class="inline-flex items-center rounded-md border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700">Confidencial</span>
                                                 @endif
                                             </div>
                                         </div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                        {{ $document->category->name ?? 'Sin categoría' }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                                            @if($document->status->name == 'Completado') bg-green-100 text-green-800
-                                            @elseif($document->status->name == 'En Proceso') bg-yellow-100 text-yellow-800
-                                            @else bg-gray-100 text-gray-800
-                                            @endif">
-                                            {{ $document->status->name ?? 'Sin estado' }}
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                                            @if($document->priority->value == 'high' || $document->priority->value == 'urgent') bg-red-100 text-red-800
-                                            @elseif($document->priority->value == 'medium') bg-yellow-100 text-yellow-800
-                                            @else bg-green-100 text-green-800
-                                            @endif">
-                                            {{ $document->priority->getLabel() }}
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                        {{ $document->created_at->format('d/m/Y') }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <a href="{{ route('documents.show', $document) }}" class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-3">
-                                            Ver
-                                        </a>
+                                    </a>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                                        {{ $categoryLabel }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                                        <span class="h-2 w-2 rounded-full {{ $statusDotClass }}"></span>
+                                        <span>{{ $statusLabel }}</span>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="inline-flex items-center rounded-md border px-2 py-1 text-xs font-semibold {{ $priorityClasses }}">
+                                        {{ $priorityLabel }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-slate-700 dark:text-slate-300">
+                                    {{ $document->creator?->name ?? 'Sin propietario' }}
+                                </td>
+                                <td class="px-6 py-4 text-right text-sm text-slate-500 dark:text-slate-400">
+                                    {{ $document->created_at?->format('d/m/Y') }}
+                                </td>
+                                <td class="px-4 py-4 text-right">
+                                    <div class="flex justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition">
+                                        <a href="{{ route('documents.show', $document) }}" class="rounded-lg px-2 py-1 text-xs font-medium text-sky-700 hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-slate-800">Ver</a>
                                         @if($document->created_by == Auth::id() || $document->assigned_to == Auth::id())
-                                            <a href="{{ route('documents.edit', $document) }}" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">
-                                                Editar
-                                            </a>
+                                            <a href="{{ route('documents.edit', $document) }}" class="rounded-lg px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-slate-800">Editar</a>
                                         @endif
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
 
-                <!-- Pagination -->
-                <div class="mt-4">
-                    {{ $documents->links() }}
-                </div>
-            @endif
-        </div>
-    </div>
+            <div class="border-t border-slate-200 px-5 py-4 dark:border-slate-800">
+                {{ $documents->links() }}
+            </div>
+        @endif
+    </section>
 </div>
 @endsection

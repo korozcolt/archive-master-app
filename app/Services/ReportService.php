@@ -21,8 +21,8 @@ class ReportService
     public function documentsByStatus(array $filters = []): Collection
     {
         $query = Document::with(['status', 'category', 'creator', 'department'])
-            ->select('documents.*', DB::raw('count(*) as total'))
-            ->groupBy('status_id');
+            ->select('documents.*')
+            ->selectRaw('1 as total');
 
         // Apply date filters
         if (isset($filters['date_from'])) {

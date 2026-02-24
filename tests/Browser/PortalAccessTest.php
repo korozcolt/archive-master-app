@@ -2,14 +2,17 @@
 
 namespace Tests\Browser;
 
-use App\Models\User;
 use App\Models\Company;
+use App\Models\User;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Laravel\Dusk\Browser;
 use Spatie\Permission\Models\Role;
 use Tests\DuskTestCase;
 
 class PortalAccessTest extends DuskTestCase
 {
+    use DatabaseMigrations;
+
     protected function setUp(): void
     {
         parent::setUp();

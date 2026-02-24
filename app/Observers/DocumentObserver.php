@@ -139,26 +139,20 @@ class DocumentObserver
     protected static $pendingChanges = [];
 
     /**
+     * Deduplicación por request para evitar notificaciones/eventos repetidos
+     * cuando una misma acción dispara múltiples saves del documento.
+     */
+    protected static array $dispatchedUpdateHashes = [];
+
+    /**
      * Handle the Document "updated" event.
      */
     public function updated(Document $document): void
     {
         $importantChanges = static::$pendingChanges[$document->id] ?? [];
 
-        // Log de actividad para cambios importantes
-        if (! empty($importantChanges) && $this->shouldLogActivity()) {
-            activity()
-                ->performedOn($document)
-                ->causedBy(Auth::user())
-                ->withProperties([
-                    'changes' => $importantChanges,
-                    'document_number' => $document->document_number,
-                ])
-                ->log('updated');
-        }
-
         // Disparar evento DocumentUpdated para notificaciones automáticas
-        if (! empty($importantChanges) && Auth::check()) {
+        if (! empty($importantChanges) && Auth::check() && ! $this->hasDispatchedDuplicateUpdateEvent($document, $importantChanges)) {
             event(new DocumentUpdated(
                 $document,
                 Auth::user(),
@@ -201,6 +195,23 @@ class DocumentObserver
 
         // Limpiar cambios temporales
         unset(static::$pendingChanges[$document->id]);
+    }
+
+    private function hasDispatchedDuplicateUpdateEvent(Document $document, array $importantChanges): bool
+    {
+        $hash = md5(json_encode([
+            'document_id' => $document->id,
+            'user_id' => Auth::id(),
+            'changes' => $importantChanges,
+        ], JSON_UNESCAPED_UNICODE));
+
+        if (isset(static::$dispatchedUpdateHashes[$hash])) {
+            return true;
+        }
+
+        static::$dispatchedUpdateHashes[$hash] = true;
+
+        return false;
     }
 
     /**

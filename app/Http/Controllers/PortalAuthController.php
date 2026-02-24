@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\Role;
+use App\Http\Requests\Portal\PasswordPortalLoginRequest;
 use App\Http\Requests\Portal\RequestOtpLoginRequest;
 use App\Http\Requests\Portal\VerifyOtpLoginRequest;
 use App\Models\PortalLoginOtp;
@@ -65,6 +66,57 @@ class PortalAuthController extends Controller
         return $response;
     }
 
+    public function passwordLogin(PasswordPortalLoginRequest $request): RedirectResponse
+    {
+        $credentials = [
+            'email' => $request->string('email')->toString(),
+            'password' => $request->string('password')->toString(),
+            'is_active' => true,
+        ];
+
+        $remember = $request->boolean('remember');
+
+        if (! Auth::attempt($credentials, $remember)) {
+            return back()->withErrors([
+                'password_login' => 'Las credenciales no coinciden con nuestros registros.',
+            ])->onlyInput('email');
+        }
+
+        $request->session()->regenerate();
+
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+
+        $adminRoles = [
+            Role::SuperAdmin->value,
+            Role::Admin->value,
+            Role::BranchAdmin->value,
+        ];
+
+        $portalRoles = [
+            Role::OfficeManager->value,
+            Role::ArchiveManager->value,
+            Role::Receptionist->value,
+            Role::RegularUser->value,
+        ];
+
+        if ($user->hasAnyRole($adminRoles)) {
+            return redirect('/admin');
+        }
+
+        if ($user->hasAnyRole($portalRoles)) {
+            return redirect('/portal');
+        }
+
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return back()->withErrors([
+            'password_login' => 'Tu usuario no tiene acceso habilitado al portal.',
+        ]);
+    }
+
     public function showVerifyForm(): View|RedirectResponse
     {
         if (Auth::check()) {
@@ -72,7 +124,7 @@ class PortalAuthController extends Controller
         }
 
         if (! session('otp_sent')) {
-            return redirect()->route('portal.auth.login');
+            return redirect()->route('login');
         }
 
         return view('auth.portal-verify-otp');

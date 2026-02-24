@@ -14,7 +14,7 @@ use Spatie\Translatable\HasTranslations;
 
 class Category extends Model
 {
-    use HasFactory, LogsActivity, SoftDeletes, HasTranslations;
+    use HasFactory, HasTranslations, LogsActivity, SoftDeletes;
 
     protected $fillable = [
         'company_id',
@@ -28,7 +28,7 @@ class Category extends Model
         'active',
         'settings',
     ];
-    
+
     public $translatable = [
         'name',
         'description',
@@ -121,7 +121,7 @@ class Category extends Model
 
     public function getLabelHtmlAttribute(): string
     {
-        return '<span class="py-1 px-3 rounded ' . $this->color_html . '">' . $this->name . '</span>';
+        return '<span class="py-1 px-3 rounded '.$this->color_html.'">'.$this->name.'</span>';
     }
 
     public function getAllChildrenIds(): array
@@ -133,5 +133,46 @@ class Category extends Model
         }
 
         return $ids;
+    }
+
+    public function setNameAttribute(array|string|null $value): void
+    {
+        $this->attributes['name'] = $this->normalizeTranslatableValue($value);
+    }
+
+    public function setDescriptionAttribute(array|string|null $value): void
+    {
+        $this->attributes['description'] = $this->normalizeTranslatableValue($value);
+    }
+
+    private function normalizeTranslatableValue(array|string|null $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_array($value)) {
+            return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        }
+
+        if ($this->looksLikeJsonObject($value)) {
+            return $value;
+        }
+
+        return json_encode(
+            [app()->getLocale() => $value],
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+        );
+    }
+
+    private function looksLikeJsonObject(string $value): bool
+    {
+        if (! str_starts_with(trim($value), '{')) {
+            return false;
+        }
+
+        json_decode($value);
+
+        return json_last_error() === JSON_ERROR_NONE;
     }
 }

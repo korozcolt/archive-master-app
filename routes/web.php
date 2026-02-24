@@ -13,7 +13,8 @@ Route::get('/', function () {
     return view('welcome');
 })->name('welcome');
 
-Route::get('/login', [App\Http\Controllers\PortalAuthController::class, 'showLoginForm'])->name('portal.auth.login');
+Route::get('/login', [App\Http\Controllers\PortalAuthController::class, 'showLoginForm'])->name('login');
+Route::post('/login', [App\Http\Controllers\PortalAuthController::class, 'passwordLogin'])->name('portal.auth.password-login');
 Route::post('/portal/auth/request-otp', [App\Http\Controllers\PortalAuthController::class, 'requestOtp'])->name('portal.auth.request-otp');
 Route::get('/portal/auth/verify', [App\Http\Controllers\PortalAuthController::class, 'showVerifyForm'])->name('portal.auth.verify.form');
 Route::post('/portal/auth/verify', [App\Http\Controllers\PortalAuthController::class, 'verifyOtp'])->name('portal.auth.verify');
@@ -90,6 +91,13 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/documents/{document}/ai/apply-suggestions', [App\Http\Controllers\UserDocumentController::class, 'applyAiSuggestions'])->name('documents.ai.apply');
         Route::post('/documents/{document}/ai/mark-incorrect', [App\Http\Controllers\UserDocumentController::class, 'markAiSummaryIncorrect'])->name('documents.ai.mark-incorrect');
     });
+
+    Route::post('/documents/upload-drafts/temp-file', [App\Http\Controllers\UserDocumentController::class, 'uploadDraftTempFile'])
+        ->name('documents.upload-drafts.temp-file');
+    Route::post('/documents/upload-drafts/save', [App\Http\Controllers\UserDocumentController::class, 'saveUploadDraft'])
+        ->name('documents.upload-drafts.save');
+    Route::delete('/documents/upload-drafts/{draft}/items/{item}', [App\Http\Controllers\UserDocumentController::class, 'deleteUploadDraftItem'])
+        ->name('documents.upload-drafts.items.destroy');
 
     // Rutas CRUD de documentos
     Route::resource('documents', App\Http\Controllers\UserDocumentController::class);

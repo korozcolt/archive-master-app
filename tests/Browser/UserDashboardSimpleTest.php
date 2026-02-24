@@ -2,17 +2,17 @@
 
 namespace Tests\Browser;
 
-use App\Models\User;
-use App\Models\Company;
 use App\Models\Branch;
-use App\Models\Department;
 use App\Models\Category;
-use App\Models\Status;
+use App\Models\Company;
+use App\Models\Department;
 use App\Models\Document;
+use App\Models\Status;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Laravel\Dusk\Browser;
-use Tests\DuskTestCase;
 use Spatie\Permission\Models\Role;
+use Tests\DuskTestCase;
 
 class UserDashboardSimpleTest extends DuskTestCase
 {
@@ -36,7 +36,7 @@ class UserDashboardSimpleTest extends DuskTestCase
         $branch = Branch::factory()->create(['company_id' => $company->id]);
         $department = Department::factory()->create([
             'company_id' => $company->id,
-            'branch_id' => $branch->id
+            'branch_id' => $branch->id,
         ]);
 
         $role = Role::firstOrCreate(['name' => 'regular_user', 'guard_name' => 'web']);
@@ -55,13 +55,13 @@ class UserDashboardSimpleTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user) {
             $browser->loginAs($user, 'web')
-                    ->visit('/dashboard')
-                    ->assertPathIs('/dashboard')
-                    ->assertSee('Total Documentos')
-                    ->assertSee('En Proceso')
-                    ->assertSee('Completados')
-                    ->assertSee('Alta Prioridad')
-                    ->assertSee('Acciones Rápidas');
+                ->visit('/portal')
+                ->assertPathIs('/portal')
+                ->assertSee('Portal')
+                ->assertSee('Resumen personal de documentos')
+                ->assertSee('Total')
+                ->assertSee('Pendientes')
+                ->assertSee('Documentos recientes');
         });
     }
 
@@ -74,7 +74,7 @@ class UserDashboardSimpleTest extends DuskTestCase
         $branch = Branch::factory()->create(['company_id' => $company->id]);
         $department = Department::factory()->create([
             'company_id' => $company->id,
-            'branch_id' => $branch->id
+            'branch_id' => $branch->id,
         ]);
 
         $role = Role::firstOrCreate(['name' => 'regular_user', 'guard_name' => 'web']);
@@ -107,11 +107,11 @@ class UserDashboardSimpleTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user) {
             $browser->loginAs($user)
-                    ->visit('/documents')
-                    ->screenshot('documents-list-test')
-                    ->assertSee('Mis Documentos')
-                    ->assertSee('Test Document')
-                    ->assertSee('NUEVO DOCUMENTO'); // Button text is uppercase
+                ->visit('/documents')
+                ->screenshot('documents-list-test')
+                ->assertSee('Mis Documentos')
+                ->assertSee('Test Document')
+                ->assertSee('NUEVO DOCUMENTO'); // Button text is uppercase
         });
     }
 
@@ -124,7 +124,7 @@ class UserDashboardSimpleTest extends DuskTestCase
         $branch = Branch::factory()->create(['company_id' => $company->id]);
         $department = Department::factory()->create([
             'company_id' => $company->id,
-            'branch_id' => $branch->id
+            'branch_id' => $branch->id,
         ]);
 
         $role = Role::firstOrCreate(['name' => 'regular_user', 'guard_name' => 'web']);
@@ -145,13 +145,13 @@ class UserDashboardSimpleTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user) {
             $browser->loginAs($user)
-                    ->visit('/documents/create')
-                    ->assertSee('Crear Nuevo Documento')
-                    ->assertSee('Título')
-                    ->assertSee('Descripción')
-                    ->assertSee('Categoría')
-                    ->assertSee('Estado')
-                    ->assertSee('Prioridad');
+                ->visit('/documents/create')
+                ->assertSee('Crear Nuevo Documento')
+                ->assertSee('Título')
+                ->assertSee('Descripción')
+                ->assertSee('Categoría')
+                ->assertSee('Estado')
+                ->assertSee('Prioridad');
         });
     }
 
@@ -164,7 +164,7 @@ class UserDashboardSimpleTest extends DuskTestCase
         $branch = Branch::factory()->create(['company_id' => $company->id]);
         $department = Department::factory()->create([
             'company_id' => $company->id,
-            'branch_id' => $branch->id
+            'branch_id' => $branch->id,
         ]);
 
         $role = Role::firstOrCreate(['name' => 'regular_user', 'guard_name' => 'web']);
@@ -181,11 +181,11 @@ class UserDashboardSimpleTest extends DuskTestCase
 
         $category = Category::factory()->create([
             'company_id' => $company->id,
-            'name' => 'Categoría de Prueba'
+            'name' => 'Categoría de Prueba',
         ]);
         $status = Status::factory()->create([
             'company_id' => $company->id,
-            'name' => 'Estado de Prueba'
+            'name' => 'Estado de Prueba',
         ]);
 
         $document = Document::factory()->create([
@@ -204,19 +204,19 @@ class UserDashboardSimpleTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user, $document) {
             $browser->loginAs($user)
-                    ->visit("/documents/{$document->id}")
-                    ->screenshot('document-details-test')
-                    ->assertSee('Mi Documento de Prueba')
-                    ->assertSee('Esta es una descripción de prueba')
-                    ->assertSee('Información del Documento')
-                    ->assertSee('Categoría de Prueba')
-                    ->assertSee('Estado de Prueba')
-                    ->assertSee('Alta'); // 'high' priority shows as 'Alta' in Spanish
+                ->visit("/documents/{$document->id}")
+                ->screenshot('document-details-test')
+                ->assertSee('Mi Documento de Prueba')
+                ->assertSee('Esta es una descripción de prueba')
+                ->assertSee('Información del Documento')
+                ->assertSee('Categoría de Prueba')
+                ->assertSee('Estado de Prueba')
+                ->assertSee('Alta'); // 'high' priority shows as 'Alta' in Spanish
         });
     }
 
     /**
-     * Test que admin es redirigido a /admin cuando visita /dashboard
+     * Test que admin es redirigido a /admin cuando visita /portal
      */
     public function test_admin_redirected_to_admin_panel(): void
     {
@@ -224,7 +224,7 @@ class UserDashboardSimpleTest extends DuskTestCase
         $branch = Branch::factory()->create(['company_id' => $company->id]);
         $department = Department::factory()->create([
             'company_id' => $company->id,
-            'branch_id' => $branch->id
+            'branch_id' => $branch->id,
         ]);
 
         $role = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
@@ -241,8 +241,8 @@ class UserDashboardSimpleTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
-                    ->visit('/dashboard')
-                    ->assertPathIs('/admin');
+                ->visit('/portal')
+                ->assertPathIs('/admin');
         });
     }
 }

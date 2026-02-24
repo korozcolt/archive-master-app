@@ -26,7 +26,7 @@ class LoginTest extends DuskTestCase
         // Crear usuario de prueba
         $user = User::factory()->create([
             'name' => 'Test User',
-            'email' => 'test@example.com',
+            'email' => 'test+'.uniqid().'@example.com',
             'password' => bcrypt('password'),
             'company_id' => $company->id,
         ]);

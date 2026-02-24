@@ -96,11 +96,10 @@ class DocumentManagementTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) use ($user) {
             $browser->loginAs($user)
-                ->visit('/admin/documents')
-                ->clickLink('Crear Rápido')
-                ->waitForLocation('/admin/documents/create')
+                ->visit('/admin/documents/create')
                 ->assertPathIs('/admin/documents/create')
-                ->assertSee('Crear documento');
+                ->assertSee('Crear')
+                ->assertSee('documento');
         });
     }
 

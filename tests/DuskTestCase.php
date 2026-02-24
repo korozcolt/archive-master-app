@@ -7,6 +7,7 @@ use Facebook\WebDriver\Chrome\ChromeOptions;
 use Facebook\WebDriver\Remote\DesiredCapabilities;
 use Facebook\WebDriver\Remote\RemoteWebDriver;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Dusk\TestCase as BaseTestCase;
 use PHPUnit\Framework\Attributes\BeforeClass;
 use Spatie\Permission\Models\Permission;
@@ -59,6 +60,10 @@ abstract class DuskTestCase extends BaseTestCase
 
     private function seedPermissions(): void
     {
+        if (! Schema::hasTable('roles') || ! Schema::hasTable('permissions')) {
+            return;
+        }
+
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         foreach (AppRole::cases() as $role) {

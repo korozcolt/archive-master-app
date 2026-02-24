@@ -41,9 +41,8 @@
                 <button type="submit" class="w-full rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">Ingresar al portal</button>
             </form>
 
-            <a href="{{ route('portal.auth.login') }}" class="mt-4 inline-block text-sm text-blue-600 hover:text-blue-800">Solicitar un nuevo OTP</a>
+            <a href="{{ route('login') }}" class="mt-4 inline-block text-sm text-blue-600 hover:text-blue-800">Solicitar un nuevo OTP</a>
         </div>
     </div>
 </body>
 </html>
-

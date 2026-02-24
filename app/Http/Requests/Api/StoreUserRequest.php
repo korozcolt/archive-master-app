@@ -65,15 +65,15 @@ class StoreUserRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         // Set default values
-        if (!$this->has('language')) {
+        if (! $this->has('language')) {
             $this->merge(['language' => 'es']);
         }
 
-        if (!$this->has('timezone')) {
-            $this->merge(['timezone' => 'America/Mexico_City']);
+        if (! $this->has('timezone')) {
+            $this->merge(['timezone' => 'America/Bogota']);
         }
 
-        if (!$this->has('is_active')) {
+        if (! $this->has('is_active')) {
             $this->merge(['is_active' => true]);
         }
     }

@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Archive Master - Advanced Search</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#2463eb",
+              "primary-dark": "#1d4ed8", 
+              "background-light": "#f6f6f8",
+              "background-dark": "#111621",
+            },
+            fontFamily: {
+              "display": ["Inter", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display antialiased text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
+<!-- Top Navigation -->
+<header class="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md px-10 py-3">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-4 text-slate-900 dark:text-white">
+<div class="size-8 text-primary">
+<svg class="size-full" fill="none" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path d="M39.5563 34.1455V13.8546C39.5563 15.708 36.8773 17.3437 32.7927 18.3189C30.2914 18.916 27.263 19.2655 24 19.2655C20.737 19.2655 17.7086 18.916 15.2073 18.3189C11.1227 17.3437 8.44365 15.708 8.44365 13.8546V34.1455C8.44365 35.9988 11.1227 37.6346 15.2073 38.6098C17.7086 39.2069 20.737 39.5564 24 39.5564C27.263 39.5564 30.2914 39.2069 32.7927 38.6098C36.8773 37.6346 39.5563 35.9988 39.5563 34.1455Z" fill="currentColor"></path>
+<path clip-rule="evenodd" d="M10.4485 13.8519C10.4749 13.9271 10.6203 14.246 11.379 14.7361C12.298 15.3298 13.7492 15.9145 15.6717 16.3735C18.0007 16.9296 20.8712 17.2655 24 17.2655C27.1288 17.2655 29.9993 16.9296 32.3283 16.3735C34.2508 15.9145 35.702 15.3298 36.621 14.7361C37.3796 14.246 37.5251 13.9271 37.5515 13.8519C37.5287 13.7876 37.4333 13.5973 37.0635 13.2931C36.5266 12.8516 35.6288 12.3647 34.343 11.9175C31.79 11.0295 28.1333 10.4437 24 10.4437C19.8667 10.4437 16.2099 11.0295 13.657 11.9175C12.3712 12.3647 11.4734 12.8516 10.9365 13.2931C10.5667 13.5973 10.4713 13.7876 10.4485 13.8519ZM37.5563 18.7877C36.3176 19.3925 34.8502 19.8839 33.2571 20.2642C30.5836 20.9025 27.3973 21.2655 24 21.2655C20.6027 21.2655 17.4164 20.9025 14.7429 20.2642C13.1498 19.8839 11.6824 19.3925 10.4436 18.7877V34.1275C10.4515 34.1545 10.5427 34.4867 11.379 35.027C12.298 35.6207 13.7492 36.2054 15.6717 36.6644C18.0007 37.2205 20.8712 37.5564 24 37.5564C27.1288 37.5564 29.9993 37.2205 32.3283 36.6644C34.2508 36.2054 35.702 35.6207 36.621 35.027C37.4573 34.4867 37.5485 34.1546 37.5563 34.1275V18.7877ZM41.5563 13.8546V34.1455C41.5563 36.1078 40.158 37.5042 38.7915 38.3869C37.3498 39.3182 35.4192 40.0389 33.2571 40.5551C30.5836 41.1934 27.3973 41.5564 24 41.5564C20.6027 41.5564 17.4164 41.1934 14.7429 40.5551C12.5808 40.0389 10.6502 39.3182 9.20848 38.3869C7.84205 37.5042 6.44365 36.1078 6.44365 34.1455L6.44365 13.8546C6.44365 12.2684 7.37223 11.0454 8.39581 10.2036C9.43325 9.3505 10.8137 8.67141 12.343 8.13948C15.4203 7.06909 19.5418 6.44366 24 6.44366C28.4582 6.44366 32.5797 7.06909 35.657 8.13948C37.1863 8.67141 38.5667 9.3505 39.6042 10.2036C40.6278 11.0454 41.5563 12.2684 41.5563 13.8546Z" fill="currentColor" fill-rule="evenodd"></path>
+</svg>
+</div>
+<h2 class="text-lg font-bold leading-tight tracking-[-0.015em]">Archive Master</h2>
+</div>
+<label class="flex flex-col min-w-40 !h-10 max-w-64">
+<div class="flex w-full flex-1 items-stretch rounded-xl h-full shadow-sm">
+<div class="text-slate-500 dark:text-slate-400 flex border-none bg-slate-100 dark:bg-slate-800 items-center justify-center pl-4 rounded-l-xl border-r-0">
+<span class="material-symbols-outlined text-[20px]">search</span>
+</div>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-slate-900 dark:text-white focus:outline-0 focus:ring-0 border-none bg-slate-100 dark:bg-slate-800 focus:border-none h-full placeholder:text-slate-500 dark:placeholder:text-slate-400 px-4 rounded-l-none border-l-0 pl-2 text-sm font-normal leading-normal" placeholder="Quick find..." value=""/>
+</div>
+</label>
+</div>
+<div class="flex flex-1 justify-end gap-8">
+<nav class="hidden lg:flex items-center gap-9">
+<a class="text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary transition-colors text-sm font-medium leading-normal" href="#">Dashboard</a>
+<a class="text-primary text-sm font-medium leading-normal" href="#">Documents</a>
+<a class="text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary transition-colors text-sm font-medium leading-normal" href="#">Workflows</a>
+<a class="text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary transition-colors text-sm font-medium leading-normal" href="#">Reports</a>
+<a class="text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary transition-colors text-sm font-medium leading-normal" href="#">Settings</a>
+</nav>
+<div class="flex gap-3 items-center">
+<button class="flex items-center justify-center rounded-xl size-10 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+</button>
+<button class="flex items-center justify-center rounded-xl size-10 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+<span class="material-symbols-outlined text-[20px]">chat</span>
+</button>
+<div class="relative group cursor-pointer">
+<div class="bg-center bg-no-repeat bg-cover rounded-full size-10 ring-2 ring-white dark:ring-slate-800" data-alt="User profile picture placeholder" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBrzGV9gA2-xASTItQGOE5waeKdsaa8AOxTELHmx362ECedtRAI0yM3polU__DEGHaicZrE_McHnwgPNfFnE3MH61VgzakWQz8_286gzV3hLbQVcHIcQ9FnmEm50tOHr25wCiXUlzDEfI65UzT7uGAmnwbxfZb7fOIiO-W5M1gETzo0T3D3nImdYze_0dehcbP6NzpG2YFO3E_KFdtD_YXu57XL5oVB2zaSgFb3NIgYacu_IHm95wtbdFVLIA4Myvl1ZFIwW4XBuZaG");'></div>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col max-w-[1600px] w-full mx-auto px-6 py-8">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+<div class="flex flex-col gap-2">
+<h1 class="text-3xl font-black leading-tight tracking-[-0.033em] text-slate-900 dark:text-white">Advanced Search</h1>
+<p class="text-slate-500 dark:text-slate-400 text-base font-normal">Find specific documents across all archives using precise filters.</p>
+</div>
+<div class="flex gap-3">
+<button class="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-slate-700 dark:text-slate-200">
+<span class="material-symbols-outlined text-[18px]">save</span>
+                    Save Search
+                </button>
+<button class="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors shadow-sm shadow-primary/30">
+<span class="material-symbols-outlined text-[18px]">download</span>
+                    Export Results
+                </button>
+</div>
+</div>
+<div class="flex flex-col lg:flex-row gap-8 items-start h-full">
+<!-- Sidebar Filters -->
+<aside class="w-full lg:w-72 flex-shrink-0 flex flex-col gap-6">
+<!-- Active Filters -->
+<div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Active Filters</h3>
+<button class="text-xs text-primary font-medium hover:underline">Clear all</button>
+</div>
+<div class="flex flex-wrap gap-2">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold border border-primary/20">
+                            Marketing
+                            <button class="hover:text-primary-dark"><span class="material-symbols-outlined text-[14px]">close</span></button>
+</span>
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold border border-primary/20">
+                            Last 30 Days
+                            <button class="hover:text-primary-dark"><span class="material-symbols-outlined text-[14px]">close</span></button>
+</span>
+</div>
+</div>
+<!-- Filter Groups -->
+<div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col gap-6">
+<!-- Search Query -->
+<div class="flex flex-col gap-3">
+<label class="text-sm font-semibold text-slate-900 dark:text-white">Keywords</label>
+<div class="relative">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 material-symbols-outlined text-[20px]">search</span>
+<input class="w-full pl-10 pr-3 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm transition-all text-slate-900 dark:text-white" placeholder="e.g. 'quarterly report'" type="text"/>
+</div>
+</div>
+<!-- Date Range -->
+<div class="flex flex-col gap-3">
+<label class="text-sm font-semibold text-slate-900 dark:text-white">Date Range</label>
+<select class="w-full px-3 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm text-slate-700 dark:text-slate-300">
+<option>Last 30 Days</option>
+<option>Last 7 Days</option>
+<option>This Year</option>
+<option>Custom Range</option>
+</select>
+</div>
+<!-- Document Type -->
+<div class="flex flex-col gap-3">
+<label class="text-sm font-semibold text-slate-900 dark:text-white">Document Type</label>
+<div class="flex flex-col gap-2">
+<label class="flex items-center gap-2 cursor-pointer group">
+<input checked="" class="rounded text-primary focus:ring-primary bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-slate-600" type="checkbox"/>
+<span class="text-sm text-slate-600 dark:text-slate-300 group-hover:text-primary transition-colors">PDF Report</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer group">
+<input class="rounded text-primary focus:ring-primary bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-slate-600" type="checkbox"/>
+<span class="text-sm text-slate-600 dark:text-slate-300 group-hover:text-primary transition-colors">Spreadsheet</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer group">
+<input class="rounded text-primary focus:ring-primary bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-slate-600" type="checkbox"/>
+<span class="text-sm text-slate-600 dark:text-slate-300 group-hover:text-primary transition-colors">Presentation</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer group">
+<input class="rounded text-primary focus:ring-primary bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-slate-600" type="checkbox"/>
+<span class="text-sm text-slate-600 dark:text-slate-300 group-hover:text-primary transition-colors">Contract</span>
+</label>
+</div>
+</div>
+<!-- Department -->
+<div class="flex flex-col gap-3">
+<label class="text-sm font-semibold text-slate-900 dark:text-white">Department</label>
+<select class="w-full px-3 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm text-slate-700 dark:text-slate-300">
+<option>Marketing</option>
+<option>Engineering</option>
+<option>Legal</option>
+<option>Human Resources</option>
+<option>Finance</option>
+</select>
+</div>
+<!-- Apply Button -->
+<button class="w-full mt-2 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg text-sm font-bold hover:opacity-90 transition-opacity">
+                        Apply Filters
+                    </button>
+</div>
+</aside>
+<!-- Results Area -->
+<div class="flex-1 min-w-0 flex flex-col gap-4">
+<!-- Controls Bar -->
+<div class="bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-wrap items-center justify-between gap-4">
+<div class="flex items-center gap-2">
+<span class="text-slate-900 dark:text-white font-bold text-lg">142</span>
+<span class="text-slate-500 dark:text-slate-400 text-sm font-medium">results found</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<span class="text-slate-500 dark:text-slate-400 text-sm">Sort by:</span>
+<select class="bg-transparent text-sm font-semibold text-slate-900 dark:text-white border-none focus:ring-0 p-0 pr-6 cursor-pointer">
+<option>Relevance</option>
+<option>Date Modified</option>
+<option>Name (A-Z)</option>
+<option>Size</option>
+</select>
+</div>
+<div class="h-4 w-px bg-slate-200 dark:bg-slate-700"></div>
+<div class="flex bg-slate-100 dark:bg-slate-900 rounded-lg p-1">
+<button class="p-1.5 rounded bg-white dark:bg-slate-800 shadow-sm text-primary">
+<span class="material-symbols-outlined text-[20px] block">list</span>
+</button>
+<button class="p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+<span class="material-symbols-outlined text-[20px] block">grid_view</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Results List -->
+<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
+<th class="py-4 pl-6 pr-4 font-semibold text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider w-12">
+<input class="rounded text-primary focus:ring-primary bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" type="checkbox"/>
+</th>
+<th class="py-4 px-4 font-semibold text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">Document Name</th>
+<th class="py-4 px-4 font-semibold text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">Owner</th>
+<th class="py-4 px-4 font-semibold text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">Department</th>
+<th class="py-4 px-4 font-semibold text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">Last Modified</th>
+<th class="py-4 px-4 font-semibold text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+<!-- Item 1 -->
+<tr class="group hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+<td class="py-4 pl-6 pr-4">
+<input class="rounded text-primary focus:ring-primary bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" type="checkbox"/>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-[24px]">picture_as_pdf</span>
+</div>
+<div>
+<p class="font-medium text-slate-900 dark:text-white text-sm">Q3_Marketing_Strategy_2024.pdf</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">2.4 MB</p>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-2">
+<div class="size-6 rounded-full bg-cover bg-center" data-alt="Avatar of Sarah Jenkins" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBsZPfTfpq__zfil8vJqVB0UriMIDYQSXe8eD1c3iDmN2JdWPa3EdRC7JvODRul3u09ippejiumeYXEpQAmbmT9KDlkP-0pCTcyrSRyVz_2zhS7v5DFunZiXRd6Xi9F-3VeeSwjq9sviz0jTIeo1r74vNjX_6yjQTBlXm9exianS_XHTGAXebtsBulCB8CB4m9Afz286nnJIQuRB7x4igdrjFMISJ0bPOsHODKqJMYZMMDoOGORK7hY6bTc2bCR4Ke-5V0r1eEr0Wzi');"></div>
+<span class="text-sm text-slate-700 dark:text-slate-300">Sarah Jenkins</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                        Marketing
+                                    </span>
+</td>
+<td class="py-4 px-4">
+<span class="text-sm text-slate-600 dark:text-slate-400">Oct 24, 2023</span>
+</td>
+<td class="py-4 px-4 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors p-1">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Item 2 -->
+<tr class="group hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+<td class="py-4 pl-6 pr-4">
+<input class="rounded text-primary focus:ring-primary bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" type="checkbox"/>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-[24px]">table_view</span>
+</div>
+<div>
+<p class="font-medium text-slate-900 dark:text-white text-sm">Financial_Projection_FY25.xlsx</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">450 KB</p>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-2">
+<div class="size-6 rounded-full bg-cover bg-center" data-alt="Avatar of Mike Ross" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBSrYgXB2aJdo08r-OW2A7OYKcMjE_1saNLySxHvEcQb2VrA_xf2dsWNVj5C9GaeHSKfT3AfvLpb_Fzmy7n0dbv2qRtppnxysEPlg2dY12yRCAKxavDgeKrAueHO80VEUv9chpv7XlKXa1TEmFJHWAoTDtCtLrXhsWvOu30RWAKUd5Xv-oFbK7xBAGwSti9EJ4Jn_H6t1WHklPly7HPEk1fsSNk2OqfpcPPYyWikKDJ4pOq4J8w4-Ic_3FQCsjfKeR4_rPzK0Pwd7L7');"></div>
+<span class="text-sm text-slate-700 dark:text-slate-300">Mike Ross</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+                                        Finance
+                                    </span>
+</td>
+<td class="py-4 px-4">
+<span class="text-sm text-slate-600 dark:text-slate-400">Oct 22, 2023</span>
+</td>
+<td class="py-4 px-4 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors p-1">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Item 3 -->
+<tr class="group hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+<td class="py-4 pl-6 pr-4">
+<input class="rounded text-primary focus:ring-primary bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" type="checkbox"/>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-[24px]">slideshow</span>
+</div>
+<div>
+<p class="font-medium text-slate-900 dark:text-white text-sm">Townhall_Deck_Oct.pptx</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">12.1 MB</p>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-2">
+<div class="size-6 rounded-full bg-cover bg-center" data-alt="Avatar of John Doe" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuClUkGZm8sJoe9D1t5v2bfqg9BY_8tOHlfDvKMkYXZQUfUzL-cqdnmksAgp5Biqu_Vni17TTJBUPAUdzX1GQSCEidUrRTyAe0OCB8cTheBNuAzPD07CEI5WonORjUnMDb11xtAkY0TrRz8GMpiOogsM5fGd_4lqW3zKvxMAiTnKSrC_cwRKn3Yir8-zBQbm4JYhp7n75F4GfahQA3WeWMqbdy0FB6jxuIAFY06_vmYeInOqWTh--JjMd6W88RjvFcpcscCm-aqz36OR');"></div>
+<span class="text-sm text-slate-700 dark:text-slate-300">John Doe</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                                        Executive
+                                    </span>
+</td>
+<td class="py-4 px-4">
+<span class="text-sm text-slate-600 dark:text-slate-400">Oct 20, 2023</span>
+</td>
+<td class="py-4 px-4 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors p-1">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Item 4 -->
+<tr class="group hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+<td class="py-4 pl-6 pr-4">
+<input class="rounded text-primary focus:ring-primary bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" type="checkbox"/>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-[24px]">description</span>
+</div>
+<div>
+<p class="font-medium text-slate-900 dark:text-white text-sm">NDA_Vendor_Agreement_V2.docx</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">128 KB</p>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-2">
+<div class="size-6 rounded-full bg-cover bg-center" data-alt="Avatar of Emily Clark" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDyie2-6EvbmxSV1ns0qOKKI63D6qzFpe5sIYhCF1nIWzt0Bzctp6IGYvcKZGAvMITUPJtJGx3FfrMfSKZgkgMYpQkLDuM5Brii3B56q8hvnuH_MczTrxxK6WKd-vgHHl3U2oxgvIxXmRV4Q3Dof6RPM08t_uHsYpxsEcxCPxQU5qjSTKQU6i9WBLhH8kcLaOXj9ptpzNyFq_hmFeiMD41jDnbl9i1sZzqLaL9avUbKXevPNNSyqWOI_Hnq5beyz0YvIKviD-oZKRQe');"></div>
+<span class="text-sm text-slate-700 dark:text-slate-300">Emily Clark</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300">
+                                        Legal
+                                    </span>
+</td>
+<td class="py-4 px-4">
+<span class="text-sm text-slate-600 dark:text-slate-400">Oct 18, 2023</span>
+</td>
+<td class="py-4 px-4 text-right">
+<button class="text-slate-400 hover:text-primary transition-colors p-1">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+<div class="flex items-center justify-between pt-4">
+<p class="text-sm text-slate-500 dark:text-slate-400">
+                        Showing <span class="font-medium text-slate-900 dark:text-white">1</span> to <span class="font-medium text-slate-900 dark:text-white">4</span> of <span class="font-medium text-slate-900 dark:text-white">142</span> results
+                    </p>
+<div class="flex items-center gap-2">
+<button class="px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50" disabled="">Previous</button>
+<div class="flex items-center gap-1">
+<button class="size-8 rounded-lg bg-primary text-white text-sm font-medium">1</button>
+<button class="size-8 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-medium transition-colors">2</button>
+<button class="size-8 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-medium transition-colors">3</button>
+<span class="text-slate-400 px-1">...</span>
+<button class="size-8 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-medium transition-colors">12</button>
+</div>
+<button class="px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-50 dark:hover:bg-slate-800">Next</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

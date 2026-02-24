@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Laravel\Scout\Searchable;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -516,7 +517,15 @@ class Document extends Model
         if (is_array($companyName)) {
             $companyName = $this->company->getTranslation('name', app()->getLocale());
         }
-        $companyCode = strtoupper(substr($companyName, 0, 3));
+
+        $normalizedCompanyName = Str::upper(Str::ascii((string) $companyName));
+        $lettersOnly = preg_replace('/[^A-Z0-9]/', '', $normalizedCompanyName) ?: 'EMP';
+        $companyCode = substr($lettersOnly, 0, 3);
+
+        if (strlen($companyCode) < 3) {
+            $companyCode = str_pad($companyCode, 3, 'X');
+        }
+
         $timestamp = now()->format('YmdHis');
         $random = strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 4));
 

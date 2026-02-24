@@ -134,19 +134,7 @@ class UserResource extends Resource
                                 Forms\Components\Select::make('roles')
                                     ->label('Roles')
                                     ->multiple()
-                                    ->options(function () {
-                                        // Los superadmins pueden asignar cualquier rol
-                                        if (Auth::user()->hasRole('super_admin')) {
-                                            return collect(Role::cases())->pluck('value', 'value')
-                                                ->mapWithKeys(fn ($value, $key) => [$value => Role::from($value)->getLabel()]);
-                                        }
-
-                                        // Los demás usuarios no pueden asignar super_admin
-                                        return collect(Role::cases())
-                                            ->filter(fn ($role) => $role !== Role::SuperAdmin)
-                                            ->pluck('value', 'value')
-                                            ->mapWithKeys(fn ($value, $key) => [$value => Role::from($value)->getLabel()]);
-                                    })
+                                    ->options(fn () => static::getAssignableRoleOptions())
                                     ->searchable(),
                             ])
                             ->columns(2),
@@ -206,6 +194,30 @@ class UserResource extends Resource
                     ->columnSpan(['lg' => 1]),
             ])
             ->columns(3);
+    }
+
+    public static function getAssignableRoleOptions(): array
+    {
+        return collect(Role::cases())
+            ->reject(fn (Role $role): bool => $role === Role::SuperAdmin)
+            ->mapWithKeys(fn (Role $role): array => [$role->value => $role->getLabel()])
+            ->toArray();
+    }
+
+    public static function getAssignableRoleDescriptions(): array
+    {
+        return collect(Role::cases())
+            ->reject(fn (Role $role): bool => $role === Role::SuperAdmin)
+            ->mapWithKeys(fn (Role $role): array => [$role->value => $role->getDescription()])
+            ->toArray();
+    }
+
+    public static function sanitizeAssignableRoles(array $roles): array
+    {
+        return collect($roles)
+            ->filter(fn ($role): bool => is_string($role) && $role !== Role::SuperAdmin->value)
+            ->values()
+            ->all();
     }
 
     public static function table(Table $table): Table

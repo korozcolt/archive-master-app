@@ -13,6 +13,7 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class AdvancedSearchResource extends Resource
 {
@@ -154,15 +155,18 @@ class AdvancedSearchResource extends Resource
                 Tables\Columns\TextColumn::make('category.name')
                     ->label('Tipo')
                     ->badge()
+                    ->formatStateUsing(fn (?string $state, Document $record): string => static::translatedRelationName($record->category, $state))
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('status.name')
                     ->label('Estado')
                     ->badge()
+                    ->formatStateUsing(fn (?string $state, Document $record): string => static::translatedRelationName($record->status, $state))
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('category.name')
                     ->label('Categoría')
+                    ->formatStateUsing(fn (?string $state, Document $record): string => static::translatedRelationName($record->category, $state))
                     ->sortable()
                     ->toggleable(),
 
@@ -315,5 +319,38 @@ class AdvancedSearchResource extends Resource
         }
 
         return $query;
+    }
+
+    public static function translatedRelationName(?Model $relatedRecord, ?string $fallback = null): string
+    {
+        if ($relatedRecord !== null && method_exists($relatedRecord, 'getTranslation')) {
+            $translated = $relatedRecord->getTranslation('name', app()->getLocale(), false);
+
+            if (is_string($translated) && $translated !== '') {
+                if (str_starts_with($translated, '{')) {
+                    $decodedTranslated = json_decode($translated, true);
+
+                    if (is_array($decodedTranslated)) {
+                        $locale = app()->getLocale();
+
+                        return (string) ($decodedTranslated[$locale] ?? $decodedTranslated['es'] ?? $decodedTranslated['en'] ?? reset($decodedTranslated) ?? '—');
+                    }
+                }
+
+                return $translated;
+            }
+        }
+
+        if (is_string($fallback) && str_starts_with($fallback, '{')) {
+            $decoded = json_decode($fallback, true);
+
+            if (is_array($decoded)) {
+                $locale = app()->getLocale();
+
+                return (string) ($decoded[$locale] ?? $decoded['es'] ?? $decoded['en'] ?? reset($decoded) ?? '—');
+            }
+        }
+
+        return (string) ($fallback ?? '—');
     }
 }
