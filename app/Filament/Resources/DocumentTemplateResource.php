@@ -35,6 +35,10 @@ class DocumentTemplateResource extends Resource
 
     protected static ?int $navigationSort = 3;
 
+    protected static ?string $modelLabel = 'Plantilla de Documento';
+
+    protected static ?string $pluralModelLabel = 'Plantillas de Documentos';
+
     public static function canViewAny(): bool
     {
         return ResourceAccess::allows(roles: ['admin', 'archive_manager']);
@@ -50,6 +54,88 @@ class DocumentTemplateResource extends Resource
         return static::getModel()::where('company_id', Auth::user()->company_id)
             ->where('is_active', true)
             ->count();
+    }
+
+    public static function localizedTranslatableLabel(mixed $record, string $field = 'name'): string
+    {
+        if (! $record) {
+            return 'Sin definir';
+        }
+
+        $locale = app()->getLocale();
+        $fallbackLocale = config('app.fallback_locale', 'en');
+
+        if (method_exists($record, 'getTranslation')) {
+            $translated = $record->getTranslation($field, $locale, false);
+
+            if (is_string($translated) && $translated !== '') {
+                return static::unwrapNestedLocalizedString($translated, $locale, $fallbackLocale);
+            }
+
+            $fallback = $record->getTranslation($field, $fallbackLocale, false);
+
+            if (is_string($fallback) && $fallback !== '') {
+                return static::unwrapNestedLocalizedString($fallback, $locale, $fallbackLocale);
+            }
+        }
+
+        $raw = method_exists($record, 'getRawOriginal') ? $record->getRawOriginal($field) : data_get($record, $field);
+        $candidate = $raw ?? data_get($record, $field);
+
+        if (is_array($candidate)) {
+            return static::unwrapNestedLocalizedString(
+                $candidate[$locale] ?? $candidate[$fallbackLocale] ?? reset($candidate) ?? 'Sin definir',
+                $locale,
+                $fallbackLocale,
+            );
+        }
+
+        if (is_string($candidate)) {
+            $decoded = json_decode($candidate, true);
+
+            if (is_string($decoded)) {
+                $decodedTwice = json_decode($decoded, true);
+
+                if (is_array($decodedTwice)) {
+                    $decoded = $decodedTwice;
+                }
+            }
+
+            if (is_array($decoded)) {
+                return static::unwrapNestedLocalizedString(
+                    $decoded[$locale] ?? $decoded[$fallbackLocale] ?? reset($decoded) ?? 'Sin definir',
+                    $locale,
+                    $fallbackLocale,
+                );
+            }
+
+            return $candidate;
+        }
+
+        return (string) ($candidate ?? 'Sin definir');
+    }
+
+    private static function unwrapNestedLocalizedString(mixed $value, string $locale, string $fallbackLocale): string
+    {
+        if (! is_string($value)) {
+            return (string) ($value ?? 'Sin definir');
+        }
+
+        $decoded = json_decode($value, true);
+
+        if (is_array($decoded)) {
+            return static::unwrapNestedLocalizedString(
+                $decoded[$locale] ?? $decoded[$fallbackLocale] ?? reset($decoded) ?? 'Sin definir',
+                $locale,
+                $fallbackLocale,
+            );
+        }
+
+        if (is_string($decoded)) {
+            return static::unwrapNestedLocalizedString($decoded, $locale, $fallbackLocale);
+        }
+
+        return $value;
     }
 
     public static function form(Form $form): Form
@@ -115,7 +201,8 @@ class DocumentTemplateResource extends Resource
                             ->label('Categoría por Defecto')
                             ->options(function () {
                                 return Category::where('company_id', Auth::user()->company_id)
-                                    ->pluck('name', 'id');
+                                    ->get()
+                                    ->mapWithKeys(fn (Category $category): array => [$category->id => static::localizedTranslatableLabel($category)]);
                             })
                             ->searchable()
                             ->preload(),
@@ -123,8 +210,9 @@ class DocumentTemplateResource extends Resource
                             ->label('Estado por Defecto')
                             ->options(function () {
                                 return Status::where('company_id', Auth::user()->company_id)
-                                    ->where('is_active', true)
-                                    ->pluck('name', 'id');
+                                    ->where('active', true)
+                                    ->get()
+                                    ->mapWithKeys(fn (Status $status): array => [$status->id => static::localizedTranslatableLabel($status)]);
                             })
                             ->searchable()
                             ->preload(),
@@ -132,7 +220,7 @@ class DocumentTemplateResource extends Resource
                             ->label('Workflow por Defecto')
                             ->options(function () {
                                 return WorkflowDefinition::where('company_id', Auth::user()->company_id)
-                                    ->where('is_active', true)
+                                    ->where('active', true)
                                     ->pluck('name', 'id');
                             })
                             ->searchable()
@@ -180,7 +268,8 @@ class DocumentTemplateResource extends Resource
                             ->multiple()
                             ->options(function () {
                                 return Tag::where('company_id', Auth::user()->company_id)
-                                    ->pluck('name', 'id');
+                                    ->get()
+                                    ->mapWithKeys(fn (Tag $tag): array => [$tag->id => static::localizedTranslatableLabel($tag)]);
                             })
                             ->searchable()
                             ->preload()
@@ -190,7 +279,8 @@ class DocumentTemplateResource extends Resource
                             ->multiple()
                             ->options(function () {
                                 return Tag::where('company_id', Auth::user()->company_id)
-                                    ->pluck('name', 'id');
+                                    ->get()
+                                    ->mapWithKeys(fn (Tag $tag): array => [$tag->id => static::localizedTranslatableLabel($tag)]);
                             })
                             ->searchable()
                             ->preload()
@@ -291,8 +381,127 @@ class DocumentTemplateResource extends Resource
     {
         return $infolist
             ->schema([
-                TextEntry::make('name')
-                    ->label('Nombre de la Plantilla'),
+                \Filament\Infolists\Components\Section::make('Información General')
+                    ->schema([
+                        TextEntry::make('name')
+                            ->label('Nombre de la Plantilla')
+                            ->weight('bold'),
+                        TextEntry::make('description')
+                            ->label('Descripción')
+                            ->placeholder('Sin descripción'),
+                        TextEntry::make('is_active')
+                            ->label('Activa')
+                            ->badge()
+                            ->formatStateUsing(fn (bool $state): string => $state ? 'Sí' : 'No')
+                            ->color(fn (bool $state): string => $state ? 'success' : 'danger'),
+                        TextEntry::make('usage_count')
+                            ->label('Veces usada')
+                            ->badge()
+                            ->color('info'),
+                        TextEntry::make('last_used_at')
+                            ->label('Último uso')
+                            ->dateTime('d/m/Y H:i')
+                            ->placeholder('Nunca'),
+                        TextEntry::make('createdBy.name')
+                            ->label('Creada por')
+                            ->placeholder('Sistema'),
+                    ])
+                    ->columns(2),
+
+                \Filament\Infolists\Components\Section::make('Configuración por Defecto')
+                    ->schema([
+                        TextEntry::make('defaultCategory.name')
+                            ->label('Categoría por Defecto')
+                            ->formatStateUsing(fn ($state, DocumentTemplate $record): string => static::localizedTranslatableLabel($record->defaultCategory))
+                            ->badge()
+                            ->placeholder('Sin categoría'),
+                        TextEntry::make('defaultStatus.name')
+                            ->label('Estado por Defecto')
+                            ->formatStateUsing(fn ($state, DocumentTemplate $record): string => static::localizedTranslatableLabel($record->defaultStatus))
+                            ->badge()
+                            ->placeholder('Sin estado'),
+                        TextEntry::make('default_priority')
+                            ->label('Prioridad por Defecto')
+                            ->badge()
+                            ->formatStateUsing(fn (?string $state): string => match ($state) {
+                                'low' => 'Baja',
+                                'medium' => 'Media',
+                                'high' => 'Alta',
+                                'urgent' => 'Urgente',
+                                default => $state ?: 'Sin definir',
+                            }),
+                        TextEntry::make('default_workflow_name')
+                            ->label('Workflow por Defecto')
+                            ->state(fn (DocumentTemplate $record): string => $record->defaultWorkflow?->name ?? 'Sin workflow'),
+                        TextEntry::make('default_physical_location')
+                            ->label('Ubicación Física por Defecto')
+                            ->state(fn (DocumentTemplate $record): string => $record->defaultPhysicalLocation?->full_path ?? 'Sin ubicación'),
+                        TextEntry::make('document_number_prefix')
+                            ->label('Prefijo de Numeración')
+                            ->placeholder('Sin prefijo'),
+                    ])
+                    ->columns(2),
+
+                \Filament\Infolists\Components\Section::make('Restricciones y Validaciones')
+                    ->schema([
+                        TextEntry::make('allowed_file_types')
+                            ->label('Tipos de Archivo Permitidos')
+                            ->state(fn (DocumentTemplate $record): string => ! empty($record->allowed_file_types) ? implode(', ', $record->allowed_file_types) : 'Sin restricción'),
+                        TextEntry::make('max_file_size_mb')
+                            ->label('Tamaño Máximo de Archivo')
+                            ->formatStateUsing(fn ($state): string => $state ? "{$state} MB" : 'Sin límite'),
+                        TextEntry::make('required_fields')
+                            ->label('Campos Requeridos')
+                            ->state(fn (DocumentTemplate $record): string => ! empty($record->required_fields) ? implode(', ', $record->required_fields) : 'Ninguno'),
+                        TextEntry::make('custom_fields_count')
+                            ->label('Campos Personalizados')
+                            ->state(fn (DocumentTemplate $record): string => (string) count($record->custom_fields ?? [])),
+                    ])
+                    ->columns(2),
+
+                \Filament\Infolists\Components\Section::make('Etiquetas e Instrucciones')
+                    ->schema([
+                        TextEntry::make('default_tags_display')
+                            ->label('Etiquetas por Defecto')
+                            ->state(function (DocumentTemplate $record): string {
+                                if (empty($record->default_tags)) {
+                                    return 'Ninguna';
+                                }
+
+                                $names = Tag::query()
+                                    ->whereIn('id', $record->default_tags)
+                                    ->get()
+                                    ->map(fn (Tag $tag): string => static::localizedTranslatableLabel($tag))
+                                    ->all();
+
+                                return implode(', ', $names);
+                            }),
+                        TextEntry::make('suggested_tags_display')
+                            ->label('Etiquetas Sugeridas')
+                            ->state(function (DocumentTemplate $record): string {
+                                if (empty($record->suggested_tags)) {
+                                    return 'Ninguna';
+                                }
+
+                                $names = Tag::query()
+                                    ->whereIn('id', $record->suggested_tags)
+                                    ->get()
+                                    ->map(fn (Tag $tag): string => static::localizedTranslatableLabel($tag))
+                                    ->all();
+
+                                return implode(', ', $names);
+                            }),
+                        TextEntry::make('help_text')
+                            ->label('Texto de Ayuda')
+                            ->placeholder('Sin texto de ayuda')
+                            ->columnSpanFull(),
+                        TextEntry::make('instructions')
+                            ->label('Instrucciones')
+                            ->html()
+                            ->placeholder('Sin instrucciones')
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(2),
             ]);
     }
 
@@ -312,14 +521,17 @@ class DocumentTemplateResource extends Resource
                     ->limit(50)
                     ->searchable()
                     ->toggleable(),
-                Tables\Columns\TextColumn::make('defaultCategory.name')
+                Tables\Columns\TextColumn::make('default_category_display')
                     ->label('Categoría')
+                    ->state(fn (DocumentTemplate $record): string => $record->default_category_label)
                     ->badge()
+                    ->color(fn (DocumentTemplate $record): string => filled($record->defaultCategory) ? ['primary', 'info', 'success', 'warning', 'danger'][crc32($record->default_category_label) % 5] : 'gray')
                     ->toggleable(),
-                Tables\Columns\TextColumn::make('defaultStatus.name')
+                Tables\Columns\TextColumn::make('default_status_display')
                     ->label('Estado')
+                    ->state(fn (DocumentTemplate $record): string => $record->default_status_label)
                     ->badge()
-                    ->color(fn ($record) => $record->defaultStatus?->color ?? 'gray')
+                    ->color(fn (DocumentTemplate $record) => $record->defaultStatus?->color ?? 'gray')
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('default_priority')
                     ->label('Prioridad')
@@ -366,12 +578,22 @@ class DocumentTemplateResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('default_category_id')
                     ->label('Categoría')
-                    ->relationship('defaultCategory', 'name')
+                    ->options(function (): array {
+                        return Category::where('company_id', Auth::user()->company_id)
+                            ->get()
+                            ->mapWithKeys(fn (Category $category): array => [$category->id => static::localizedTranslatableLabel($category)])
+                            ->all();
+                    })
                     ->searchable()
                     ->preload(),
                 Tables\Filters\SelectFilter::make('default_status_id')
                     ->label('Estado')
-                    ->relationship('defaultStatus', 'name')
+                    ->options(function (): array {
+                        return Status::where('company_id', Auth::user()->company_id)
+                            ->get()
+                            ->mapWithKeys(fn (Status $status): array => [$status->id => static::localizedTranslatableLabel($status)])
+                            ->all();
+                    })
                     ->searchable()
                     ->preload(),
                 Tables\Filters\SelectFilter::make('default_priority')

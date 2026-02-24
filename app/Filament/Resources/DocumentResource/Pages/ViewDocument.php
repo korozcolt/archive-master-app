@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\DocumentResource\Pages;
 
 use App\Filament\Resources\DocumentResource;
+use App\Models\Document;
 use App\Models\Status;
 use App\Models\WorkflowDefinition;
 use Filament\Actions;
@@ -49,24 +50,29 @@ class ViewDocument extends ViewRecord
                                             ->label('Sucursal'),
                                         Infolists\Components\TextEntry::make('department.name')
                                             ->label('Departamento'),
-                                        Infolists\Components\TextEntry::make('category.name')
-                                            ->label('Categoría'),
+                                        Infolists\Components\TextEntry::make('category_display')
+                                            ->label('Categoría')
+                                            ->state(fn (Document $record): string => $this->localizedModelField($record->category, 'name')),
                                     ])
                                     ->columns(2),
 
                                 Infolists\Components\Section::make('Estado y Asignación')
                                     ->schema([
-                                        Infolists\Components\TextEntry::make('status.name')
+                                        Infolists\Components\TextEntry::make('status_display')
                                             ->label('Estado')
+                                            ->state(fn (Document $record): string => $this->localizedModelField($record->status, 'name'))
                                             ->badge()
                                             ->color(fn ($record) => $record->status ? $record->status->color : 'gray'),
                                         Infolists\Components\TextEntry::make('priority')
                                             ->label('Prioridad')
+                                            ->formatStateUsing(fn ($state): string => $this->priorityLabel($state))
                                             ->badge(),
-                                        Infolists\Components\TextEntry::make('creator.name')
-                                            ->label('Creado por'),
-                                        Infolists\Components\TextEntry::make('assignee.name')
-                                            ->label('Asignado a'),
+                                        Infolists\Components\TextEntry::make('creator_display')
+                                            ->label('Creado por')
+                                            ->state(fn (Document $record): string => $record->creator?->name ?? 'Sin definir'),
+                                        Infolists\Components\TextEntry::make('assignee_display')
+                                            ->label('Asignado a')
+                                            ->state(fn (Document $record): string => $record->assignee?->name ?? 'Sin asignar'),
                                     ])
                                     ->columns(2),
                             ]),
@@ -76,8 +82,9 @@ class ViewDocument extends ViewRecord
                                 Infolists\Components\Section::make('Contenido del Documento')
                                     ->schema([
                                         Infolists\Components\TextEntry::make('content')
-                                            ->label('Contenido')
+                                            ->label('Texto extraído / contenido')
                                             ->markdown()
+                                            ->placeholder('No hay contenido textual extraído disponible para este documento.')
                                             ->columnSpanFull(),
                                     ]),
 
@@ -89,6 +96,10 @@ class ViewDocument extends ViewRecord
                                             ->url(fn ($record) => $record->file_path ? route('documents.download', ['id' => $record->id]) : null)
                                             ->openUrlInNewTab()
                                             ->hidden(fn ($record) => ! $record->file_path),
+                                        Infolists\Components\TextEntry::make('file_path_help')
+                                            ->label('Acción')
+                                            ->state('Este documento no tiene archivo adjunto. Use "Nueva Versión" para cargar un archivo.')
+                                            ->hidden(fn ($record) => (bool) $record->file_path),
                                     ]),
                             ]),
 
@@ -129,10 +140,20 @@ class ViewDocument extends ViewRecord
                             ->schema([
                                 Infolists\Components\Section::make('Metadatos y Configuración')
                                     ->schema([
+                                        Infolists\Components\TextEntry::make('metadata_empty_message')
+                                            ->label('')
+                                            ->state('No hay metadatos adicionales registrados para este documento.')
+                                            ->hidden(fn (Document $record): bool => ! empty($record->metadata)),
                                         Infolists\Components\KeyValueEntry::make('metadata')
-                                            ->label('Metadatos Adicionales'),
+                                            ->label('Metadatos Adicionales')
+                                            ->hidden(fn (Document $record): bool => empty($record->metadata)),
+                                        Infolists\Components\TextEntry::make('settings_empty_message')
+                                            ->label('')
+                                            ->state('No hay configuración adicional definida para este documento.')
+                                            ->hidden(fn (Document $record): bool => ! empty($record->settings)),
                                         Infolists\Components\KeyValueEntry::make('settings')
-                                            ->label('Configuración'),
+                                            ->label('Configuración')
+                                            ->hidden(fn (Document $record): bool => empty($record->settings)),
                                     ]),
                             ]),
                     ])
@@ -159,7 +180,10 @@ class ViewDocument extends ViewRecord
                 ->get();
 
             if ($possibleTransitions->isNotEmpty()) {
-                $statusOptions = $possibleTransitions->pluck('toStatus.name', 'toStatus.id')->toArray();
+                $statusOptions = $possibleTransitions
+                    ->filter(fn ($transition) => $transition->toStatus !== null)
+                    ->mapWithKeys(fn ($transition) => [$transition->toStatus->id => $this->localizedModelField($transition->toStatus, 'name')])
+                    ->toArray();
 
                 $actions[] = Actions\Action::make('changeStatus')
                     ->label('Cambiar Estado')
@@ -281,6 +305,46 @@ class ViewDocument extends ViewRecord
                 $this->redirect($this->getResource()::getUrl('view', ['record' => $document]));
             });
 
+        $actions[] = Actions\Action::make('generateSticker')
+            ->label('Generar Etiqueta')
+            ->icon('heroicon-o-qr-code')
+            ->form([
+                \Filament\Forms\Components\Select::make('template')
+                    ->label('Plantilla de etiqueta')
+                    ->options([
+                        'standard' => 'Estándar (50mm x 80mm)',
+                        'compact' => 'Compacto (40mm x 40mm)',
+                        'detailed' => 'Detallado (80mm x 100mm)',
+                        'label' => 'Etiqueta (100mm x 50mm)',
+                    ])
+                    ->default('standard')
+                    ->required(),
+                \Filament\Forms\Components\Toggle::make('include_company')
+                    ->label('Incluir nombre de empresa')
+                    ->default(true),
+                \Filament\Forms\Components\Toggle::make('include_date')
+                    ->label('Incluir fecha de generación')
+                    ->default(true),
+            ])
+            ->action(function (array $data) use ($document): void {
+                $url = route('stickers.documents.download', [
+                    'document' => $document->id,
+                    'template' => $data['template'] ?? 'standard',
+                    'options' => [
+                        'include_company' => $data['include_company'] ?? true,
+                        'include_date' => $data['include_date'] ?? true,
+                    ],
+                ]);
+
+                \Filament\Notifications\Notification::make()
+                    ->title('Etiqueta generada')
+                    ->body('La etiqueta se está descargando...')
+                    ->success()
+                    ->send();
+
+                $this->redirect($url, navigate: false);
+            });
+
         // Add download options
         $actions[] = Actions\Action::make('download')
             ->label('Descargar')
@@ -307,5 +371,63 @@ class ViewDocument extends ViewRecord
             ->hidden(fn ($record) => ! $record->file_path);
 
         return $actions;
+    }
+
+    private function localizedModelField(mixed $model, string $field): string
+    {
+        if (! $model) {
+            return 'Sin definir';
+        }
+
+        $locale = app()->getLocale();
+        $fallbackLocale = config('app.fallback_locale', 'en');
+
+        if (method_exists($model, 'getTranslation')) {
+            $translated = $model->getTranslation($field, $locale, false);
+
+            if (is_string($translated) && $translated !== '') {
+                return $translated;
+            }
+
+            $fallback = $model->getTranslation($field, $fallbackLocale, false);
+
+            if (is_string($fallback) && $fallback !== '') {
+                return $fallback;
+            }
+        }
+
+        $raw = method_exists($model, 'getRawOriginal') ? $model->getRawOriginal($field) : data_get($model, $field);
+        $candidate = $raw ?? data_get($model, $field);
+
+        if (is_array($candidate)) {
+            return (string) ($candidate[$locale] ?? $candidate[$fallbackLocale] ?? reset($candidate) ?? 'Sin definir');
+        }
+
+        if (is_string($candidate)) {
+            $decoded = json_decode($candidate, true);
+
+            if (is_array($decoded)) {
+                return (string) ($decoded[$locale] ?? $decoded[$fallbackLocale] ?? reset($decoded) ?? 'Sin definir');
+            }
+
+            return $candidate;
+        }
+
+        return (string) ($candidate ?? 'Sin definir');
+    }
+
+    private function priorityLabel(mixed $priority): string
+    {
+        if ($priority instanceof \BackedEnum) {
+            $priority = (string) $priority->value;
+        }
+
+        return match ($priority) {
+            'low' => 'Baja',
+            'medium' => 'Media',
+            'high' => 'Alta',
+            'urgent' => 'Urgente',
+            default => $priority ?: 'Sin definir',
+        };
     }
 }

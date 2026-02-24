@@ -167,6 +167,93 @@
                     </div>
                 </div>
 
+                @if(Auth::user()?->hasRole(\App\Enums\Role::ArchiveManager->value))
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between gap-2">
+                            <h3 class="text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Archivo físico</h3>
+                            <a href="{{ route('stickers.documents.download', ['document' => $document->id]) }}"
+                               class="inline-flex h-8 items-center justify-center rounded-lg border border-indigo-300/20 bg-gradient-to-r from-sky-500 to-indigo-600 px-3 text-xs font-semibold text-white shadow-sm hover:from-sky-400 hover:to-indigo-500"
+                               target="_blank">
+                                Imprimir etiqueta
+                            </a>
+                        </div>
+
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/40">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Ubicación actual</p>
+                                    <p class="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+                                        {{ $document->physicalLocation?->full_path ?: 'Sin ubicación asignada' }}
+                                    </p>
+                                    @if($document->physicalLocation?->code)
+                                        <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{{ $document->physicalLocation->code }}</p>
+                                    @endif
+                                </div>
+                                @if($document->physicalLocation)
+                                    <a href="{{ route('stickers.locations.download', ['location' => $document->physicalLocation->id]) }}"
+                                       class="inline-flex h-8 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                                       target="_blank">
+                                        Etiqueta ubicación
+                                    </a>
+                                @endif
+                            </div>
+                        </div>
+
+                        <form method="POST" action="{{ route('documents.archive-location.update', $document) }}" class="space-y-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                            @csrf
+                            <div>
+                                <label for="physical_location_id" class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Asignar ubicación</label>
+                                <select id="physical_location_id"
+                                        name="physical_location_id"
+                                        class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                                    <option value="">Seleccionar ubicación</option>
+                                    @foreach(($archiveLocationOptions ?? collect()) as $locationOption)
+                                        <option value="{{ $locationOption->id }}"
+                                            @selected((int) old('physical_location_id', $document->physical_location_id) === (int) $locationOption->id)>
+                                            {{ $locationOption->full_path }} ({{ $locationOption->code }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('physical_location_id')
+                                    <p class="mt-1 text-xs text-rose-600 dark:text-rose-300">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <div>
+                                <label for="archive_note" class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Nota de movimiento (opcional)</label>
+                                <textarea id="archive_note"
+                                          name="archive_note"
+                                          rows="2"
+                                          class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                          placeholder="Ej. Ingreso a estante B / caja 04">{{ old('archive_note') }}</textarea>
+                            </div>
+
+                            <button type="submit"
+                                    class="inline-flex h-10 w-full items-center justify-center rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:from-sky-400 hover:to-indigo-500">
+                                {{ $document->physicalLocation ? 'Mover / actualizar ubicación' : 'Asignar ubicación en archivo' }}
+                            </button>
+                        </form>
+
+                        @if(($documentLocationHistory ?? collect())->isNotEmpty())
+                            <div class="space-y-2">
+                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Movimientos recientes de ubicación</p>
+                                <div class="space-y-2">
+                                    @foreach($documentLocationHistory as $locationMove)
+                                        <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-800/60">
+                                            <div class="font-medium text-slate-800 dark:text-slate-100">
+                                                {{ $locationMove->getMovementDescription() }}
+                                            </div>
+                                            <div class="mt-0.5 text-slate-500 dark:text-slate-400">
+                                                {{ $locationMove->moved_at?->format('d/m/Y H:i') }}
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+                @endif
+
                 @if($document->tags->count() > 0)
                     <div class="space-y-3">
                         <h3 class="text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Etiquetas</h3>
@@ -313,6 +400,7 @@
                 'received' => 'Recibido',
                 'in_review' => 'En revisión',
                 'responded' => 'Respondido',
+                'rejected' => 'Rechazado',
                 'closed' => 'Cerrado',
                 default => 'Sin estado',
             };
@@ -322,6 +410,7 @@
                 'received' => 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900/40 dark:bg-indigo-900/20 dark:text-indigo-300',
                 'in_review' => 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300',
                 'responded' => 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300',
+                'rejected' => 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-900/20 dark:text-rose-300',
                 'closed' => 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200',
                 default => 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200',
             };
@@ -436,16 +525,18 @@
                     'received' => ($distributionTargets ?? collect())->where('status', 'received')->count(),
                     'in_review' => ($distributionTargets ?? collect())->where('status', 'in_review')->count(),
                     'responded' => ($distributionTargets ?? collect())->where('status', 'responded')->count(),
+                    'rejected' => ($distributionTargets ?? collect())->where('status', 'rejected')->count(),
                     'closed' => ($distributionTargets ?? collect())->where('status', 'closed')->count(),
                 ];
             @endphp
 
-            <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
+            <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-6">
                 @foreach([
                     ['key' => 'sent', 'label' => 'Enviadas', 'class' => 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/40 dark:bg-sky-900/20 dark:text-sky-300'],
                     ['key' => 'received', 'label' => 'Recibidas', 'class' => 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900/40 dark:bg-indigo-900/20 dark:text-indigo-300'],
                     ['key' => 'in_review', 'label' => 'En revisión', 'class' => 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300'],
                     ['key' => 'responded', 'label' => 'Respondidas', 'class' => 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300'],
+                    ['key' => 'rejected', 'label' => 'Rechazadas', 'class' => 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-900/20 dark:text-rose-300'],
                     ['key' => 'closed', 'label' => 'Cerradas', 'class' => 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'],
                 ] as $summaryCard)
                     <div class="rounded-xl border p-3 {{ $summaryCard['class'] }}">
@@ -515,24 +606,52 @@
                                                 <div>{{ $target->response_note }}</div>
                                             </div>
                                         @endif
+                                        @if($target->rejected_reason)
+                                            <div class="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-2 text-rose-800 dark:border-rose-900/40 dark:bg-rose-900/20 dark:text-rose-200">
+                                                <div class="mb-1 text-[10px] font-bold uppercase tracking-[0.14em]">Motivo de rechazo</div>
+                                                <div>{{ $target->rejected_reason }}</div>
+                                            </div>
+                                        @endif
+                                        @if($target->responseDocument)
+                                            <div class="rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-2 text-sky-800 dark:border-sky-900/40 dark:bg-sky-900/20 dark:text-sky-200">
+                                                <div class="mb-1 text-[10px] font-bold uppercase tracking-[0.14em]">Documento de respuesta</div>
+                                                <a href="{{ route('documents.show', $target->responseDocument) }}" class="font-semibold underline underline-offset-2">
+                                                    {{ $target->responseDocument->title }}
+                                                </a>
+                                                @if($target->responseDocument->document_number)
+                                                    <div class="mt-1 opacity-90">{{ $target->responseDocument->document_number }}</div>
+                                                @endif
+                                            </div>
+                                        @endif
                                     </div>
                                 </td>
                                 <td class="px-3 py-4 align-top">
                                     @if($canUpdateTarget)
                                         <form method="POST" action="{{ route('documents.distribution-targets.update', [$document, $target]) }}" class="space-y-2">
                                             @csrf
-                                            <select name="status"
+                                            <select name="action"
                                                     class="block h-9 w-full rounded-lg border border-slate-300 bg-white px-2 text-xs text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
-                                                <option value="received">Recibido</option>
-                                                <option value="in_review">En revisión</option>
-                                                <option value="responded">Respondido</option>
-                                                <option value="closed">Cerrado</option>
+                                                <option value="received">Marcar recibido</option>
+                                                <option value="in_review">Marcar en revisión</option>
+                                                <option value="respond_comment">Responder con comentario</option>
+                                                <option value="respond_document">Responder con documento</option>
+                                                <option value="reject">Rechazar (no corresponde)</option>
+                                                <option value="close">Cerrar</option>
                                             </select>
                                             <textarea name="note" rows="2"
                                                       class="block w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                                                      placeholder="Nota de seguimiento o respuesta..."></textarea>
+                                                      placeholder="Comentario, motivo de rechazo o nota de respuesta..."></textarea>
+                                            @if(($distributionResponseDocumentOptions ?? collect())->isNotEmpty())
+                                                <select name="response_document_id"
+                                                        class="block h-9 w-full rounded-lg border border-slate-300 bg-white px-2 text-xs text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                                                    <option value="">Documento de respuesta (solo para 'Responder con documento')</option>
+                                                    @foreach($distributionResponseDocumentOptions as $responseDocId => $responseDocLabel)
+                                                        <option value="{{ $responseDocId }}">{{ $responseDocLabel }}</option>
+                                                    @endforeach
+                                                </select>
+                                            @endif
                                             <button type="submit" class="inline-flex h-8 w-full items-center justify-center rounded-lg border border-sky-300/20 bg-gradient-to-r from-sky-500 to-indigo-600 px-2 text-xs font-semibold text-white">
-                                                Actualizar
+                                                Aplicar acción
                                             </button>
                                         </form>
                                     @else

@@ -62,6 +62,65 @@ class DocumentTemplateResourceTest extends TestCase
     }
 
     /** @test */
+    public function list_displays_localized_category_and_status_labels()
+    {
+        $this->actingAs($this->admin);
+
+        $this->category->update([
+            'name' => ['es' => 'Actas de Reunión'],
+        ]);
+
+        $this->status->update([
+            'name' => ['es' => 'Borrador'],
+            'active' => true,
+        ]);
+
+        DocumentTemplate::factory()->create([
+            'company_id' => $this->company->id,
+            'created_by' => $this->admin->id,
+            'default_category_id' => $this->category->id,
+            'default_status_id' => $this->status->id,
+        ]);
+
+        Livewire::test(DocumentTemplateResource\Pages\ListDocumentTemplates::class)
+            ->assertSuccessful()
+            ->assertSee('Actas de Reunión')
+            ->assertSee('Borrador')
+            ->assertDontSee('{\"es\":');
+    }
+
+    /** @test */
+    public function list_displays_localized_labels_from_legacy_nested_translatable_json()
+    {
+        $this->actingAs($this->admin);
+
+        $this->category->forceFill([
+            'name' => json_encode(['es' => json_encode(['es' => 'Actas de Reunión'])], JSON_UNESCAPED_UNICODE),
+        ])->save();
+
+        $this->status->forceFill([
+            'name' => json_encode([
+                'en' => json_encode(['es' => 'Borrador'], JSON_UNESCAPED_UNICODE),
+                'es' => json_encode(['es' => 'Borrador'], JSON_UNESCAPED_UNICODE),
+            ], JSON_UNESCAPED_UNICODE),
+            'active' => true,
+        ])->save();
+
+        DocumentTemplate::factory()->create([
+            'company_id' => $this->company->id,
+            'created_by' => $this->admin->id,
+            'default_category_id' => $this->category->id,
+            'default_status_id' => $this->status->id,
+        ]);
+
+        Livewire::test(DocumentTemplateResource\Pages\ListDocumentTemplates::class)
+            ->assertSuccessful()
+            ->assertSee('Actas de Reunión')
+            ->assertSee('Borrador')
+            ->assertDontSee('{\"es\":');
+    }
+
+    /** @test */
     public function document_templates_list_shows_all_templates()
     {
         $this->actingAs($this->admin);
@@ -393,7 +452,10 @@ class DocumentTemplateResourceTest extends TestCase
             'record' => $template->getRouteKey(),
         ])
             ->assertSuccessful()
-            ->assertSee('Plantilla de Vista');
+            ->assertSee('Plantilla de Vista')
+            ->assertSee('Ver Plantilla de Documento')
+            ->assertDontSee('Ver Document Template')
+            ->assertDontSee('Document Templates');
     }
 
     /** @test */

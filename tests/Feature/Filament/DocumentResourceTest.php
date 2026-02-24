@@ -202,6 +202,40 @@ class DocumentResourceTest extends TestCase
     }
 
     /** @test */
+    public function document_view_page_shows_translated_category_and_status_and_sticker_action()
+    {
+        $this->actingAs($this->admin);
+
+        $category = Category::factory()->create([
+            'company_id' => $this->company->id,
+            'name' => ['es' => 'Correspondencia', 'en' => 'Correspondence'],
+        ]);
+
+        $status = Status::factory()->create([
+            'company_id' => $this->company->id,
+            'is_initial' => true,
+            'name' => ['es' => 'Borrador', 'en' => 'Draft'],
+        ]);
+
+        $document = Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $status->id,
+            'category_id' => $category->id,
+            'created_by' => $this->admin->id,
+            'title' => 'Documento Vista Admin',
+        ]);
+
+        Livewire::test(DocumentResource\Pages\ViewDocument::class, [
+            'record' => $document->id,
+        ])
+            ->assertSuccessful()
+            ->assertSee('Ver Documento')
+            ->assertSee('Generar Etiqueta')
+            ->assertSee('Correspondencia')
+            ->assertSee('Borrador');
+    }
+
+    /** @test */
     public function can_create_document()
     {
         $this->actingAs($this->admin);

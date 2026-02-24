@@ -10,10 +10,20 @@ class ListDocumentTemplates extends ListRecords
 {
     protected static string $resource = DocumentTemplateResource::class;
 
+    public function getTitle(): string
+    {
+        return 'Plantillas de Documentos';
+    }
+
+    public function getBreadcrumb(): ?string
+    {
+        return 'Plantillas de Documentos';
+    }
+
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()->label('Nueva Plantilla de Documento'),
         ];
     }
 }

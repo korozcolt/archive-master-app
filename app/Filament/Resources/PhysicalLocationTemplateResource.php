@@ -28,6 +28,16 @@ class PhysicalLocationTemplateResource extends Resource
 
     protected static ?int $navigationSort = 8;
 
+    public static function getModelLabel(): string
+    {
+        return 'plantilla de ubicación';
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return 'plantillas de ubicación';
+    }
+
     public static function canViewAny(): bool
     {
         return ResourceAccess::allows(roles: [
@@ -175,8 +185,8 @@ class PhysicalLocationTemplateResource extends Resource
                     ->toggle(),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\ViewAction::make()->label('Ver'),
+                Tables\Actions\EditAction::make()->label('Editar'),
                 Tables\Actions\Action::make('duplicate')
                     ->label('Duplicar')
                     ->icon('heroicon-o-document-duplicate')
@@ -194,7 +204,7 @@ class PhysicalLocationTemplateResource extends Resource
                             ->success()
                             ->send();
                     }),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()->label('Eliminar'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -220,7 +230,7 @@ class PhysicalLocationTemplateResource extends Resource
                                 ->success()
                                 ->send();
                         }),
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()->label('Eliminar seleccionadas'),
                 ]),
             ])
             ->defaultSort('created_at', 'desc');

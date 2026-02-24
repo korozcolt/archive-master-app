@@ -40,6 +40,10 @@ class DocumentResource extends Resource
 
     protected static ?int $navigationSort = 5;
 
+    protected static ?string $modelLabel = 'Documento';
+
+    protected static ?string $pluralModelLabel = 'Documentos';
+
     public static function canViewAny(): bool
     {
         return ResourceAccess::allows(roles: [
@@ -65,6 +69,49 @@ class DocumentResource extends Resource
     public static function getNavigationBadge(): ?string
     {
         return static::getModel()::count();
+    }
+
+    public static function localizedTranslatableLabel(mixed $record, string $field = 'name'): string
+    {
+        if (! $record) {
+            return 'Sin definir';
+        }
+
+        $locale = app()->getLocale();
+        $fallbackLocale = config('app.fallback_locale', 'en');
+
+        if (method_exists($record, 'getTranslation')) {
+            $translated = $record->getTranslation($field, $locale, false);
+
+            if (is_string($translated) && $translated !== '') {
+                return $translated;
+            }
+
+            $fallback = $record->getTranslation($field, $fallbackLocale, false);
+
+            if (is_string($fallback) && $fallback !== '') {
+                return $fallback;
+            }
+        }
+
+        $raw = method_exists($record, 'getRawOriginal') ? $record->getRawOriginal($field) : data_get($record, $field);
+        $candidate = $raw ?? data_get($record, $field);
+
+        if (is_array($candidate)) {
+            return (string) ($candidate[$locale] ?? $candidate[$fallbackLocale] ?? reset($candidate) ?? 'Sin definir');
+        }
+
+        if (is_string($candidate)) {
+            $decoded = json_decode($candidate, true);
+
+            if (is_array($decoded)) {
+                return (string) ($decoded[$locale] ?? $decoded[$fallbackLocale] ?? reset($decoded) ?? 'Sin definir');
+            }
+
+            return $candidate;
+        }
+
+        return (string) ($candidate ?? 'Sin definir');
     }
 
     public static function form(Form $form): Form
@@ -165,6 +212,7 @@ class DocumentResource extends Resource
                                             ->label('Categoría')
                                             ->relationship('category', 'name', fn (Builder $query, Get $get) => $query->where('company_id', $get('company_id'))
                                             )
+                                            ->getOptionLabelFromRecordUsing(fn (Category $record): string => static::localizedTranslatableLabel($record))
                                             ->searchable()
                                             ->preload(),
                                         Forms\Components\Select::make('status_id')
@@ -172,6 +220,7 @@ class DocumentResource extends Resource
                                             ->relationship('status', 'name', fn (Builder $query, Get $get) => $query->where('company_id', $get('company_id'))
                                                 ->where('is_initial', true)
                                             )
+                                            ->getOptionLabelFromRecordUsing(fn (Status $record): string => static::localizedTranslatableLabel($record))
                                             ->searchable()
                                             ->preload()
                                             ->required(),
@@ -773,7 +822,8 @@ class DocumentResource extends Resource
                                 ->options(function () {
                                     return Status::where('company_id', Auth::user()->company_id)
                                         ->where('is_active', true)
-                                        ->pluck('name', 'id');
+                                        ->get()
+                                        ->mapWithKeys(fn (Status $status): array => [$status->id => static::localizedTranslatableLabel($status)]);
                                 })
                                 ->required()
                                 ->searchable(),
@@ -839,7 +889,8 @@ class DocumentResource extends Resource
                                 ->label('Nueva Categoría')
                                 ->options(function () {
                                     return Category::where('company_id', Auth::user()->company_id)
-                                        ->pluck('name', 'id');
+                                        ->get()
+                                        ->mapWithKeys(fn (Category $category): array => [$category->id => static::localizedTranslatableLabel($category)]);
                                 })
                                 ->required()
                                 ->searchable(),
@@ -889,7 +940,8 @@ class DocumentResource extends Resource
                                 ->multiple()
                                 ->options(function () {
                                     return Tag::where('company_id', Auth::user()->company_id)
-                                        ->pluck('name', 'id');
+                                        ->get()
+                                        ->mapWithKeys(fn (Tag $tag): array => [$tag->id => static::localizedTranslatableLabel($tag)]);
                                 })
                                 ->required()
                                 ->searchable(),

@@ -9,6 +9,16 @@ class CreateDocumentTemplate extends CreateRecord
 {
     protected static string $resource = DocumentTemplateResource::class;
 
+    public function getTitle(): string
+    {
+        return 'Crear Plantilla de Documento';
+    }
+
+    public function getBreadcrumb(): string
+    {
+        return 'Crear';
+    }
+
     protected function getRedirectUrl(): string
     {
         return $this->getResource()::getUrl('index');

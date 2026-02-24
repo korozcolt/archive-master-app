@@ -10,10 +10,20 @@ class EditPhysicalLocation extends EditRecord
 {
     protected static string $resource = PhysicalLocationResource::class;
 
+    public function getTitle(): string
+    {
+        return 'Editar ubicación física';
+    }
+
+    public function getBreadcrumb(): string
+    {
+        return 'Editar';
+    }
+
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
+            Actions\DeleteAction::make()->label('Eliminar'),
         ];
     }
 }

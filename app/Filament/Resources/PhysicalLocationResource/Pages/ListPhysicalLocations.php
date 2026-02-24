@@ -10,10 +10,15 @@ class ListPhysicalLocations extends ListRecords
 {
     protected static string $resource = PhysicalLocationResource::class;
 
+    public function getTitle(): string
+    {
+        return 'Ubicaciones físicas';
+    }
+
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()->label('Nueva ubicación física'),
         ];
     }
 }

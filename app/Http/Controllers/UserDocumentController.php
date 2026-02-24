@@ -15,10 +15,13 @@ use App\Models\DocumentDistribution;
 use App\Models\DocumentDistributionTarget;
 use App\Models\DocumentUploadDraft;
 use App\Models\DocumentUploadDraftItem;
+use App\Models\PhysicalLocation;
 use App\Models\Receipt;
 use App\Models\Status;
 use App\Models\Tag;
 use App\Models\User;
+use App\Notifications\DocumentDistributedToOfficeNotification;
+use App\Notifications\DocumentDistributionTargetUpdatedNotification;
 use App\Services\DocumentFileService;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -55,6 +58,10 @@ class UserDocumentController extends Controller
                     $q->orWhereHas('distributions.targets', function ($targetQuery) use ($user) {
                         $targetQuery->where('department_id', $user->department_id);
                     });
+                }
+
+                if ($user->hasRole(Role::ArchiveManager->value)) {
+                    $q->orWhere('company_id', $user->company_id);
                 }
             });
 
@@ -689,7 +696,7 @@ class UserDocumentController extends Controller
             logDocumentAccess($document, 'view');
         }
 
-        $document->load(['status', 'category', 'creator', 'assignee', 'tags', 'versions', 'receipts', 'company', 'aiRuns.output']);
+        $document->load(['status', 'category', 'creator', 'assignee', 'tags', 'versions', 'receipts', 'company', 'aiRuns.output', 'physicalLocation']);
         $latestAiRun = $document->aiRuns()
             ->with('output')
             ->where('task', 'summarize')
@@ -709,6 +716,11 @@ class UserDocumentController extends Controller
             'distributions.targets.department',
             'distributions.targets.assignedUser',
             'distributions.targets.lastUpdatedBy',
+            'distributions.targets.respondedBy',
+            'distributions.targets.responseDocument',
+            'locationHistory.physicalLocation',
+            'locationHistory.movedFromLocation',
+            'locationHistory.movedBy',
         ]);
 
         $distributionTargets = $document->distributions
@@ -741,6 +753,44 @@ class UserDocumentController extends Controller
                     return $department;
                 });
         }
+
+        $distributionResponseDocumentOptions = collect();
+        if ($user->hasRole(Role::OfficeManager->value) && $user->department_id) {
+            $distributionResponseDocumentOptions = Document::query()
+                ->where('company_id', $document->company_id)
+                ->where('department_id', $user->department_id)
+                ->where('id', '!=', $document->id)
+                ->where(function ($query) use ($user): void {
+                    $query->where('created_by', $user->id)
+                        ->orWhere('assigned_to', $user->id);
+                })
+                ->latest('id')
+                ->limit(50)
+                ->get(['id', 'title', 'document_number'])
+                ->mapWithKeys(fn (Document $candidate): array => [
+                    $candidate->id => trim(($candidate->document_number ? "[{$candidate->document_number}] " : '').$candidate->title),
+                ]);
+        }
+
+        $archiveLocationOptions = collect();
+        if ($user->hasRole(Role::ArchiveManager->value) || $user->hasAnyRole(['admin', 'super_admin', 'branch_admin'])) {
+            $archiveLocationOptions = PhysicalLocation::query()
+                ->where('company_id', $document->company_id)
+                ->where(function ($query) use ($document): void {
+                    $query->where('is_active', true);
+
+                    if ($document->physical_location_id) {
+                        $query->orWhere('id', $document->physical_location_id);
+                    }
+                })
+                ->orderBy('full_path')
+                ->get();
+        }
+
+        $documentLocationHistory = $document->locationHistory
+            ->sortByDesc(fn ($history) => $history->moved_at ?? $history->created_at)
+            ->take(5)
+            ->values();
 
         $activityUsers = User::query()
             ->where('company_id', $document->company_id)
@@ -802,7 +852,56 @@ class UserDocumentController extends Controller
             'distributionTargets',
             'distributionDepartmentOptions',
             'distributedDepartmentIds',
+            'distributionResponseDocumentOptions',
+            'archiveLocationOptions',
+            'documentLocationHistory',
         ));
+    }
+
+    public function updateArchiveLocation(Request $request, Document $document)
+    {
+        $user = Auth::user();
+
+        if (! $this->canAccessDocument($user, $document)) {
+            abort(403, 'No tienes permiso para gestionar archivo físico de este documento.');
+        }
+
+        if (! $user->hasRole(Role::ArchiveManager->value)) {
+            abort(403, 'Solo el rol de archivo puede asignar ubicación física desde el portal.');
+        }
+
+        $validated = $request->validate([
+            'physical_location_id' => 'required|integer|exists:physical_locations,id',
+            'archive_note' => 'nullable|string|max:1000',
+        ]);
+
+        $location = PhysicalLocation::query()
+            ->where('company_id', $document->company_id)
+            ->where('is_active', true)
+            ->find($validated['physical_location_id']);
+
+        if (! $location) {
+            return back()->withErrors([
+                'physical_location_id' => 'La ubicación seleccionada no es válida para la empresa del documento.',
+            ])->withInput();
+        }
+
+        $movementType = $document->physical_location_id ? 'moved' : 'stored';
+        $saved = $document->moveToLocation(
+            newLocation: $location,
+            notes: $validated['archive_note'] ?? null,
+            movedBy: $user,
+            movementType: $movementType
+        );
+
+        if (! $saved) {
+            return back()->withErrors([
+                'physical_location_id' => 'No se pudo asignar la ubicación física.',
+            ])->withInput();
+        }
+
+        return redirect()->route('documents.show', $document)
+            ->with('success', 'Ubicación física del documento actualizada.');
     }
 
     public function sendToDepartments(Request $request, Document $document)
@@ -859,14 +958,29 @@ class UserDocumentController extends Controller
             ]);
 
             foreach (array_values(array_unique($validated['department_ids'])) as $index => $departmentId) {
-                $distribution->targets()->create([
+                $target = $distribution->targets()->create([
                     'department_id' => (int) $departmentId,
                     'status' => 'sent',
+                    'response_type' => 'none',
                     'routing_note' => $validated['routing_note'] ?? null,
                     'sent_at' => now(),
                     'last_activity_at' => now(),
                     'last_updated_by' => $user->id,
                 ]);
+
+                $officeUsers = User::query()
+                    ->where('company_id', $document->company_id)
+                    ->where('department_id', (int) $departmentId)
+                    ->where('is_active', true)
+                    ->get();
+
+                foreach ($officeUsers as $officeUser) {
+                    $officeUser->notify(new DocumentDistributedToOfficeNotification(
+                        $document,
+                        $target->fresh(['department', 'distribution']),
+                        $user->name
+                    ));
+                }
             }
         });
 
@@ -887,8 +1001,9 @@ class UserDocumentController extends Controller
         }
 
         $validated = $request->validate([
-            'status' => 'required|in:received,in_review,responded,closed',
+            'action' => 'required|in:received,in_review,close,reject,respond_comment,respond_document',
             'note' => 'nullable|string|max:2000',
+            'response_document_id' => 'nullable|integer|exists:documents,id',
         ]);
 
         $isDepartmentManager = $user->hasRole(Role::OfficeManager->value) && (int) $user->department_id === (int) $target->department_id;
@@ -898,31 +1013,94 @@ class UserDocumentController extends Controller
             abort(403, 'No puedes actualizar este destinatario.');
         }
 
-        $target->status = $validated['status'];
+        $action = (string) $validated['action'];
+        $note = isset($validated['note']) ? trim((string) $validated['note']) : null;
+
         $target->last_updated_by = $user->id;
         $target->last_activity_at = now();
 
-        if ($validated['status'] === 'received') {
+        if ($action === 'received') {
+            $target->status = 'received';
             $target->received_at ??= now();
-            $target->follow_up_note = $validated['note'] ?? $target->follow_up_note;
+            $target->follow_up_note = $note ?: $target->follow_up_note;
         }
 
-        if ($validated['status'] === 'in_review') {
+        if ($action === 'in_review') {
+            $target->status = 'in_review';
             $target->reviewed_at ??= now();
-            $target->follow_up_note = $validated['note'] ?? $target->follow_up_note;
+            $target->follow_up_note = $note ?: $target->follow_up_note;
         }
 
-        if ($validated['status'] === 'responded') {
-            $target->responded_at = now();
-            $target->response_note = $validated['note'] ?? $target->response_note;
-        }
-
-        if ($validated['status'] === 'closed') {
+        if ($action === 'close') {
+            $target->status = 'closed';
             $target->closed_at = now();
-            $target->follow_up_note = $validated['note'] ?? $target->follow_up_note;
+            $target->follow_up_note = $note ?: $target->follow_up_note;
+        }
+
+        if ($action === 'reject') {
+            if ($note === null || $note === '') {
+                return back()->withErrors(['note' => 'Debes indicar el motivo del rechazo.'])->withInput();
+            }
+
+            $target->status = 'rejected';
+            $target->response_type = 'comment';
+            $target->rejected_reason = $note;
+            $target->response_note = $note;
+            $target->responded_at = now();
+            $target->responded_by = $user->id;
+        }
+
+        if ($action === 'respond_comment') {
+            if ($note === null || $note === '') {
+                return back()->withErrors(['note' => 'Debes escribir un comentario de respuesta.'])->withInput();
+            }
+
+            $target->status = 'responded';
+            $target->response_type = 'comment';
+            $target->response_note = $note;
+            $target->responded_at = now();
+            $target->responded_by = $user->id;
+        }
+
+        if ($action === 'respond_document') {
+            $responseDocumentId = (int) ($validated['response_document_id'] ?? 0);
+
+            if ($responseDocumentId <= 0) {
+                return back()->withErrors(['response_document_id' => 'Selecciona un documento de respuesta.'])->withInput();
+            }
+
+            $responseDocument = Document::query()
+                ->where('company_id', $document->company_id)
+                ->where('id', $responseDocumentId)
+                ->first();
+
+            if (! $responseDocument) {
+                return back()->withErrors(['response_document_id' => 'El documento de respuesta no pertenece a la empresa.'])->withInput();
+            }
+
+            if ($isDepartmentManager && (int) $responseDocument->department_id !== (int) $user->department_id) {
+                return back()->withErrors(['response_document_id' => 'Solo puedes responder con documentos de tu oficina.'])->withInput();
+            }
+
+            $target->status = 'responded';
+            $target->response_type = 'outgoing_document';
+            $target->response_document_id = $responseDocument->id;
+            $target->response_note = $note ?: $target->response_note;
+            $target->responded_at = now();
+            $target->responded_by = $user->id;
         }
 
         $target->save();
+        $target->load(['department', 'distribution', 'responseDocument', 'respondedBy']);
+
+        $creator = $document->creator;
+        if ($creator && (int) $creator->id !== (int) $user->id) {
+            $creator->notify(new DocumentDistributionTargetUpdatedNotification(
+                $document->loadMissing('company', 'creator'),
+                $target,
+                $user->name
+            ));
+        }
 
         return redirect()->route('documents.show', $document)
             ->with('success', 'Seguimiento de oficina actualizado.');
@@ -1020,6 +1198,7 @@ class UserDocumentController extends Controller
             || ($user->hasRole(Role::OfficeManager->value) && $user->department_id && $document->distributions()
                 ->whereHas('targets', fn ($q) => $q->where('department_id', $user->department_id))
                 ->exists())
+            || $user->hasRole(Role::ArchiveManager->value)
             || $user->hasAnyRole(['admin', 'super_admin', 'branch_admin']);
     }
 

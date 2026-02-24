@@ -18,6 +18,9 @@ class DocumentDistributionTarget extends Model
         'routing_note',
         'follow_up_note',
         'response_note',
+        'response_type',
+        'response_document_id',
+        'rejected_reason',
         'sent_at',
         'received_at',
         'reviewed_at',
@@ -25,6 +28,7 @@ class DocumentDistributionTarget extends Model
         'closed_at',
         'last_activity_at',
         'last_updated_by',
+        'responded_by',
     ];
 
     protected function casts(): array
@@ -57,5 +61,15 @@ class DocumentDistributionTarget extends Model
     public function lastUpdatedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'last_updated_by');
+    }
+
+    public function respondedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'responded_by');
+    }
+
+    public function responseDocument(): BelongsTo
+    {
+        return $this->belongsTo(Document::class, 'response_document_id');
     }
 }

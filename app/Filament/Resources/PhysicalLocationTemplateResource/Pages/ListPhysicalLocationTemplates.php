@@ -10,10 +10,15 @@ class ListPhysicalLocationTemplates extends ListRecords
 {
     protected static string $resource = PhysicalLocationTemplateResource::class;
 
+    public function getTitle(): string
+    {
+        return 'Plantillas de ubicación';
+    }
+
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()->label('Nueva plantilla de ubicación'),
         ];
     }
 }

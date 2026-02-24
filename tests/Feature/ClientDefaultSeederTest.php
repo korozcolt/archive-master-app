@@ -4,6 +4,8 @@ use App\Enums\Role;
 use App\Models\Category;
 use App\Models\Company;
 use App\Models\DocumentTemplate;
+use App\Models\PhysicalLocation;
+use App\Models\PhysicalLocationTemplate;
 use App\Models\Status;
 use App\Models\Tag;
 use App\Models\User;
@@ -19,6 +21,8 @@ it('seeds default client data and leaves only one super admin user', function ()
     expect(Status::query()->count())->toBeGreaterThan(0);
     expect(Tag::query()->count())->toBeGreaterThan(0);
     expect(DocumentTemplate::query()->count())->toBeGreaterThan(0);
+    expect(PhysicalLocationTemplate::query()->count())->toBeGreaterThan(0);
+    expect(PhysicalLocation::query()->count())->toBeGreaterThan(0);
 
     expect(User::query()->count())->toBe(1);
 

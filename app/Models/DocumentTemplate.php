@@ -102,6 +102,16 @@ class DocumentTemplate extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 
+    public function getDefaultCategoryLabelAttribute(): string
+    {
+        return $this->localizedTranslatableModelLabel($this->defaultCategory, 'Sin categoría');
+    }
+
+    public function getDefaultStatusLabelAttribute(): string
+    {
+        return $this->localizedTranslatableModelLabel($this->defaultStatus, 'Sin estado');
+    }
+
     // Scopes
 
     public function scopeActive($query)
@@ -140,8 +150,7 @@ class DocumentTemplate extends Model
     /**
      * Aplicar la plantilla a un documento
      *
-     * @param array $overrides Valores que sobrescriben los defaults
-     * @return array
+     * @param  array  $overrides  Valores que sobrescriben los defaults
      */
     public function applyToDocument(array $overrides = []): array
     {
@@ -172,7 +181,6 @@ class DocumentTemplate extends Model
     /**
      * Validar datos contra los campos requeridos de la plantilla
      *
-     * @param array $data
      * @return array Array de errores (vacío si todo está bien)
      */
     public function validateData(array $data): array
@@ -181,7 +189,7 @@ class DocumentTemplate extends Model
 
         if ($this->required_fields) {
             foreach ($this->required_fields as $field) {
-                if (!isset($data[$field]) || empty($data[$field])) {
+                if (! isset($data[$field]) || empty($data[$field])) {
                     $errors[$field] = "El campo {$field} es requerido por la plantilla";
                 }
             }
@@ -193,30 +201,27 @@ class DocumentTemplate extends Model
     /**
      * Obtener los campos personalizados con sus valores
      *
-     * @param array $values Valores actuales
-     * @return array
+     * @param  array  $values  Valores actuales
      */
     public function getCustomFieldsWithValues(array $values = []): array
     {
-        if (!$this->custom_fields) {
+        if (! $this->custom_fields) {
             return [];
         }
 
         return collect($this->custom_fields)->map(function ($field) use ($values) {
             $field['value'] = $values[$field['name']] ?? null;
+
             return $field;
         })->toArray();
     }
 
     /**
      * Verificar si un archivo es permitido
-     *
-     * @param string $extension
-     * @return bool
      */
     public function isFileTypeAllowed(string $extension): bool
     {
-        if (!$this->allowed_file_types) {
+        if (! $this->allowed_file_types) {
             return true; // Si no hay restricciones, todo es permitido
         }
 
@@ -225,17 +230,15 @@ class DocumentTemplate extends Model
 
     /**
      * Verificar si el tamaño del archivo es permitido
-     *
-     * @param int $sizeInBytes
-     * @return bool
      */
     public function isFileSizeAllowed(int $sizeInBytes): bool
     {
-        if (!$this->max_file_size_mb) {
+        if (! $this->max_file_size_mb) {
             return true; // Sin límite
         }
 
         $sizeInMb = $sizeInBytes / 1024 / 1024;
+
         return $sizeInMb <= $this->max_file_size_mb;
     }
 
@@ -258,5 +261,91 @@ class DocumentTemplate extends Model
                 $template->updated_by = Auth::id();
             }
         });
+    }
+
+    private function localizedTranslatableModelLabel(mixed $model, string $fallback = 'Sin definir', string $field = 'name'): string
+    {
+        if (! $model) {
+            return $fallback;
+        }
+
+        $locale = app()->getLocale();
+        $fallbackLocale = config('app.fallback_locale', 'en');
+
+        if (method_exists($model, 'getTranslation')) {
+            $translated = $model->getTranslation($field, $locale, false);
+
+            if (is_string($translated) && $translated !== '') {
+                return $this->unwrapNestedLocalizedString($translated, $locale, $fallbackLocale, $fallback);
+            }
+
+            $translated = $model->getTranslation($field, $fallbackLocale, false);
+
+            if (is_string($translated) && $translated !== '') {
+                return $this->unwrapNestedLocalizedString($translated, $locale, $fallbackLocale, $fallback);
+            }
+        }
+
+        $raw = method_exists($model, 'getRawOriginal')
+            ? $model->getRawOriginal($field)
+            : data_get($model, $field);
+
+        if (is_array($raw)) {
+            return $this->unwrapNestedLocalizedString(
+                $raw[$locale] ?? $raw[$fallbackLocale] ?? reset($raw) ?? $fallback,
+                $locale,
+                $fallbackLocale,
+                $fallback,
+            );
+        }
+
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+
+            if (is_string($decoded)) {
+                $decodedTwice = json_decode($decoded, true);
+
+                if (is_array($decodedTwice)) {
+                    $decoded = $decodedTwice;
+                }
+            }
+
+            if (is_array($decoded)) {
+                return $this->unwrapNestedLocalizedString(
+                    $decoded[$locale] ?? $decoded[$fallbackLocale] ?? reset($decoded) ?? $fallback,
+                    $locale,
+                    $fallbackLocale,
+                    $fallback,
+                );
+            }
+
+            return $raw !== '' ? $raw : $fallback;
+        }
+
+        return (string) ($raw ?? $fallback);
+    }
+
+    private function unwrapNestedLocalizedString(mixed $value, string $locale, string $fallbackLocale, string $fallback): string
+    {
+        if (! is_string($value)) {
+            return (string) ($value ?? $fallback);
+        }
+
+        $decoded = json_decode($value, true);
+
+        if (is_array($decoded)) {
+            return $this->unwrapNestedLocalizedString(
+                $decoded[$locale] ?? $decoded[$fallbackLocale] ?? reset($decoded) ?? $fallback,
+                $locale,
+                $fallbackLocale,
+                $fallback,
+            );
+        }
+
+        if (is_string($decoded)) {
+            return $this->unwrapNestedLocalizedString($decoded, $locale, $fallbackLocale, $fallback);
+        }
+
+        return $value;
     }
 }

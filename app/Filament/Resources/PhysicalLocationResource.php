@@ -18,6 +18,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class PhysicalLocationResource extends Resource
 {
@@ -30,6 +31,16 @@ class PhysicalLocationResource extends Resource
     protected static ?string $navigationGroup = 'Gestión Documental';
 
     protected static ?int $navigationSort = 9;
+
+    public static function getModelLabel(): string
+    {
+        return 'ubicación física';
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return 'ubicaciones físicas';
+    }
 
     public static function canViewAny(): bool
     {
@@ -76,7 +87,22 @@ class PhysicalLocationResource extends Resource
                             ->searchable()
                             ->preload()
                             ->live()
-                            ->afterStateUpdated(fn (Set $set) => $set('structured_data', null))
+                            ->afterStateUpdated(function (Set $set, mixed $state): void {
+                                if (! $state) {
+                                    $set('structured_data', null);
+
+                                    return;
+                                }
+
+                                $template = PhysicalLocationTemplate::find($state);
+                                if (! $template || ! is_array($template->levels)) {
+                                    $set('structured_data', null);
+
+                                    return;
+                                }
+
+                                $set('structured_data', static::buildStructuredDataDefaultsFromTemplate($template));
+                            })
                             ->helperText('Selecciona la plantilla que define la estructura de esta ubicación'),
                         Forms\Components\Toggle::make('is_active')
                             ->label('Activa')
@@ -88,42 +114,13 @@ class PhysicalLocationResource extends Resource
                 Forms\Components\Section::make('Ubicación')
                     ->description('Define la ubicación física siguiendo la estructura de la plantilla')
                     ->schema([
-                        Forms\Components\Repeater::make('structured_data')
-                            ->label('Niveles de ubicación')
-                            ->schema(function (Get $get) {
-                                $templateId = $get('../../template_id');
-                                if (! $templateId) {
-                                    return [
-                                        Forms\Components\Placeholder::make('select_template')
-                                            ->label('Selecciona una plantilla primero')
-                                            ->content('Debes seleccionar una plantilla para definir la estructura de ubicación'),
-                                    ];
-                                }
-
-                                $template = PhysicalLocationTemplate::find($templateId);
-                                if (! $template || ! $template->levels) {
-                                    return [];
-                                }
-
-                                $fields = [];
-                                foreach ($template->levels as $level) {
-                                    $fields[] = Forms\Components\TextInput::make($level['name'])
-                                        ->label($level['name'])
-                                        ->required($level['required'] ?? true)
-                                        ->maxLength(100)
-                                        ->placeholder("Ingresa {$level['name']}")
-                                        ->helperText("Código: {$level['code']}");
-                                }
-
-                                return $fields;
-                            })
-                            ->columns(2)
-                            ->visible(fn (Get $get) => $get('template_id') !== null),
                         Forms\Components\KeyValue::make('structured_data')
                             ->label('Datos de ubicación')
                             ->keyLabel('Nivel')
                             ->valueLabel('Valor')
                             ->reorderable(false)
+                            ->formatStateUsing(fn (mixed $state): array => static::normalizeStructuredDataForKeyValue($state))
+                            ->dehydrateStateUsing(fn (mixed $state): array => static::normalizeStructuredDataForKeyValue($state))
                             ->visible(fn (Get $get) => $get('template_id') !== null)
                             ->helperText('Define cada nivel de la ubicación según la plantilla'),
                         Forms\Components\TextInput::make('code')
@@ -163,6 +160,60 @@ class PhysicalLocationResource extends Resource
                     ])
                     ->columns(2),
             ]);
+    }
+
+    public static function normalizeStructuredDataForKeyValue(mixed $state): array
+    {
+        if (! is_array($state)) {
+            return [];
+        }
+
+        $normalized = [];
+
+        foreach ($state as $key => $value) {
+            $normalizedKey = trim((string) $key);
+
+            if ($normalizedKey === '') {
+                continue;
+            }
+
+            if (is_array($value)) {
+                $normalizedValue = implode(', ', array_values(array_filter(array_map(
+                    fn (mixed $item): string => trim((string) $item),
+                    $value
+                ), fn (string $item): bool => $item !== '')));
+            } elseif (is_null($value)) {
+                $normalizedValue = '';
+            } else {
+                $normalizedValue = trim((string) $value);
+            }
+
+            $normalized[$normalizedKey] = $normalizedValue;
+        }
+
+        return $normalized;
+    }
+
+    public static function buildStructuredDataDefaultsFromTemplate(PhysicalLocationTemplate $template): array
+    {
+        if (! is_array($template->levels)) {
+            return [];
+        }
+
+        $defaults = [];
+
+        foreach ($template->getOrderedLevels() as $level) {
+            $label = trim((string) ($level['name'] ?? ''));
+
+            if ($label === '') {
+                continue;
+            }
+
+            $key = Str::lower($label);
+            $defaults[$key] = '';
+        }
+
+        return $defaults;
     }
 
     public static function table(Table $table): Table
@@ -248,8 +299,8 @@ class PhysicalLocationResource extends Resource
                 Tables\Filters\TrashedFilter::make(),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\ViewAction::make()->label('Ver'),
+                Tables\Actions\EditAction::make()->label('Editar'),
                 Tables\Actions\Action::make('generateSticker')
                     ->label('Generar Etiqueta')
                     ->icon('heroicon-o-qr-code')
@@ -257,8 +308,8 @@ class PhysicalLocationResource extends Resource
                     ->url(fn (PhysicalLocation $record): string => route('stickers.locations.download', ['location' => $record->id])
                     )
                     ->openUrlInNewTab(),
-                Tables\Actions\DeleteAction::make(),
-                Tables\Actions\RestoreAction::make(),
+                Tables\Actions\DeleteAction::make()->label('Eliminar'),
+                Tables\Actions\RestoreAction::make()->label('Restaurar'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -284,9 +335,9 @@ class PhysicalLocationResource extends Resource
                                 ->success()
                                 ->send();
                         }),
-                    Tables\Actions\DeleteBulkAction::make(),
-                    Tables\Actions\RestoreBulkAction::make(),
-                    Tables\Actions\ForceDeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()->label('Eliminar seleccionadas'),
+                    Tables\Actions\RestoreBulkAction::make()->label('Restaurar seleccionadas'),
+                    Tables\Actions\ForceDeleteBulkAction::make()->label('Eliminar permanentemente'),
                 ]),
             ])
             ->defaultSort('created_at', 'desc');

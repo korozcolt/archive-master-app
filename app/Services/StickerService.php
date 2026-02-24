@@ -7,11 +7,11 @@ use App\Models\PhysicalLocation;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
-use Exception;
 
 class StickerService
 {
     protected BarcodeService $barcodeService;
+
     protected QRCodeService $qrCodeService;
 
     public function __construct(BarcodeService $barcodeService, QRCodeService $qrCodeService)
@@ -28,24 +28,15 @@ class StickerService
         string $template = 'standard',
         array $options = []
     ): array {
+        $documentUrl = route('documents.show', $document);
         $barcode = $this->barcodeService->getAsDataUrl(
-            $document->barcode,
+            $documentUrl,
             $options['barcode_width'] ?? 2,
             $options['barcode_height'] ?? 50
         );
 
-        // Generar datos del QR para el documento
-        $qrData = json_encode([
-            'type' => 'document',
-            'id' => $document->id,
-            'document_number' => $document->document_number,
-            'company' => $this->getCompanyName($document->company),
-            'title' => $document->title,
-            'created_at' => $document->created_at?->toDateTimeString(),
-        ]);
-
         $qrCode = $this->qrCodeService->getAsDataUrl(
-            $qrData,
+            $documentUrl,
             $options['qr_size'] ?? 200,
             "DOC: {$document->document_number}"
         );
@@ -57,6 +48,7 @@ class StickerService
             'qrcode' => $qrCode,
             'title' => $document->title,
             'document_number' => $document->document_number,
+            'document_url' => $documentUrl,
             'company' => $this->getCompanyName($document->company),
             'location' => $document->getCurrentLocationPath() ?? 'Sin ubicación asignada',
             'created_at' => $document->created_at?->format('d/m/Y'),
@@ -127,7 +119,7 @@ class StickerService
 
         // Configurar tamaño de página según template
         $pageSize = $this->getPageSizeForTemplate($template);
-        $pdf->setPaper($pageSize['width'] . 'mm', $pageSize['height'] . 'mm');
+        $pdf->setPaper($pageSize['width'].'mm', $pageSize['height'].'mm');
 
         return $pdf->output();
     }
@@ -146,7 +138,7 @@ class StickerService
 
         // Configurar tamaño de página según template
         $pageSize = $this->getPageSizeForTemplate($template);
-        $pdf->setPaper($pageSize['width'] . 'mm', $pageSize['height'] . 'mm');
+        $pdf->setPaper($pageSize['width'].'mm', $pageSize['height'].'mm');
 
         return $pdf->output();
     }
@@ -298,7 +290,7 @@ class StickerService
      */
     protected function getCompanyName($company): string
     {
-        if (!$company) {
+        if (! $company) {
             return 'Sin compañía';
         }
 
@@ -336,7 +328,7 @@ class StickerService
         $validKeys = array_keys($this->getDefaultOptions());
 
         foreach (array_keys($options) as $key) {
-            if (!in_array($key, $validKeys)) {
+            if (! in_array($key, $validKeys)) {
                 return false;
             }
         }

@@ -11,7 +11,6 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Auth;
 
 class StatusRelationManager extends RelationManager
@@ -37,6 +36,7 @@ class StatusRelationManager extends RelationManager
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nombre')
+                    ->formatStateUsing(fn ($state, Status $record): string => $this->localizedName($record))
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\ColorColumn::make('color')
@@ -67,32 +67,46 @@ class StatusRelationManager extends RelationManager
                         Forms\Components\Select::make('status_id')
                             ->label('Nuevo Estado')
                             ->options(function (): array {
-                                // Get valid workflow transitions
                                 $document = $this->ownerRecord;
-                                if (!$document->status_id) return [];
+                                if (! $document->status_id) {
+                                    return [];
+                                }
 
-                                // Get workflow definitions that start from the current status
                                 $definitions = WorkflowDefinition::where('company_id', $document->company_id)
                                     ->where('from_status_id', $document->status_id)
                                     ->where('active', true)
                                     ->with('toStatus')
                                     ->get();
 
-                                if ($definitions->isEmpty()) return [];
+                                if ($definitions->isEmpty()) {
+                                    return [];
+                                }
 
-                                // Check if user has permission for each transition
                                 $user = Auth::user();
+
                                 return $definitions
                                     ->filter(function ($definition) use ($user) {
                                         $roles = $definition->roles_allowed ?? [];
-                                        // Si no hay roles, cualquiera puede ejecutar
-                                        if (empty($roles)) return true;
-                                        // Si no hay usuario, no se puede ejecutar
-                                        if (!$user) return false;
-                                        // Verificar si el usuario tiene alguno de los roles permitidos
-                                        return collect($roles)->contains(fn($role) => $user->hasRole($role));
+
+                                        if (empty($roles)) {
+                                            return true;
+                                        }
+
+                                        if (! $user) {
+                                            return false;
+                                        }
+
+                                        return collect($roles)->contains(fn ($role) => $user->hasRole($role));
                                     })
-                                    ->pluck('toStatus.name', 'toStatus.id')
+                                    ->mapWithKeys(function ($definition): array {
+                                        $toStatus = $definition->toStatus;
+
+                                        if (! $toStatus) {
+                                            return [];
+                                        }
+
+                                        return [$toStatus->id => $this->localizedName($toStatus)];
+                                    })
                                     ->toArray();
                             })
                             ->required(),
@@ -105,17 +119,15 @@ class StatusRelationManager extends RelationManager
                         $document = $this->ownerRecord;
                         $user = Auth::user();
 
-                        // Get target status
                         $toStatus = Status::find($data['status_id']);
-                        if (!$toStatus) return;
+                        if (! $toStatus) {
+                            return;
+                        }
 
-                        // Change document status
                         $document->changeStatus($toStatus, $user, $data['comments'] ?? null);
 
-                        // Refresh relation manager
                         $this->refresh();
 
-                        // Success notification
                         \Filament\Notifications\Notification::make()
                             ->title('Estado actualizado')
                             ->body('El estado del documento ha sido actualizado correctamente.')
@@ -146,11 +158,11 @@ class StatusRelationManager extends RelationManager
         return false;
     }
 
-    protected function getTableQuery(): Builder|null
+    protected function getTableQuery(): ?Builder
     {
         $query = parent::getTableQuery();
 
-        if (!$query) {
+        if (! $query) {
             return null;
         }
 
@@ -159,5 +171,42 @@ class StatusRelationManager extends RelationManager
         }
 
         return $query->withCount('documents');
+    }
+
+    private function localizedName(Status $status): string
+    {
+        $locale = app()->getLocale();
+
+        if (method_exists($status, 'getTranslation')) {
+            $translated = $status->getTranslation('name', $locale, false);
+
+            if (is_string($translated) && $translated !== '') {
+                return $translated;
+            }
+
+            $fallback = $status->getTranslation('name', config('app.fallback_locale', 'en'), false);
+
+            if (is_string($fallback) && $fallback !== '') {
+                return $fallback;
+            }
+        }
+
+        $raw = $status->getRawOriginal('name') ?? $status->name;
+
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+
+            if (is_array($decoded)) {
+                return (string) ($decoded[$locale] ?? $decoded[config('app.fallback_locale', 'en')] ?? reset($decoded) ?? '');
+            }
+
+            return $raw;
+        }
+
+        if (is_array($raw)) {
+            return (string) ($raw[$locale] ?? $raw[config('app.fallback_locale', 'en')] ?? reset($raw) ?? '');
+        }
+
+        return '';
     }
 }

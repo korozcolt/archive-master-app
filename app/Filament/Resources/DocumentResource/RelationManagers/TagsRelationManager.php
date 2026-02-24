@@ -2,13 +2,13 @@
 
 namespace App\Filament\Resources\DocumentResource\RelationManagers;
 
+use App\Models\Tag;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class TagsRelationManager extends RelationManager
 {
@@ -55,6 +55,7 @@ class TagsRelationManager extends RelationManager
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nombre')
+                    ->formatStateUsing(fn ($state, Tag $record): string => $this->localizedName($record))
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('slug')
@@ -99,11 +100,14 @@ class TagsRelationManager extends RelationManager
                             ->options(function (): array {
                                 // Obtener etiquetas de la empresa del documento
                                 $companyId = $this->ownerRecord->company_id;
-                                if (!$companyId) return [];
+                                if (! $companyId) {
+                                    return [];
+                                }
 
                                 return \App\Models\Tag::where('company_id', $companyId)
                                     ->where('active', true)
-                                    ->pluck('name', 'id')
+                                    ->get()
+                                    ->mapWithKeys(fn (Tag $tag): array => [$tag->id => $this->localizedName($tag)])
                                     ->toArray();
                             }),
                     ]),
@@ -111,6 +115,7 @@ class TagsRelationManager extends RelationManager
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['company_id'] = $this->ownerRecord->company_id;
                         $data['active'] = true;
+
                         return $data;
                     }),
             ])
@@ -124,5 +129,42 @@ class TagsRelationManager extends RelationManager
                     Tables\Actions\DetachBulkAction::make(),
                 ]),
             ]);
+    }
+
+    private function localizedName(Tag $tag): string
+    {
+        $locale = app()->getLocale();
+
+        if (method_exists($tag, 'getTranslation')) {
+            $translated = $tag->getTranslation('name', $locale, false);
+
+            if (is_string($translated) && $translated !== '') {
+                return $translated;
+            }
+
+            $fallback = $tag->getTranslation('name', config('app.fallback_locale', 'en'), false);
+
+            if (is_string($fallback) && $fallback !== '') {
+                return $fallback;
+            }
+        }
+
+        $raw = $tag->getRawOriginal('name') ?? $tag->name;
+
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+
+            if (is_array($decoded)) {
+                return (string) ($decoded[$locale] ?? $decoded[config('app.fallback_locale', 'en')] ?? reset($decoded) ?? '');
+            }
+
+            return $raw;
+        }
+
+        if (is_array($raw)) {
+            return (string) ($raw[$locale] ?? $raw[config('app.fallback_locale', 'en')] ?? reset($raw) ?? '');
+        }
+
+        return '';
     }
 }

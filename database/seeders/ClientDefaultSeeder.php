@@ -21,6 +21,7 @@ class ClientDefaultSeeder extends Seeder
             TagSeeder::class,
             WorkflowDefinitionSeeder::class,
             DocumentTemplateSeeder::class,
+            PhysicalLocationBootstrapSeeder::class,
         ]);
 
         $this->leaveOnlyConfiguredSuperAdmin();

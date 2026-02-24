@@ -102,6 +102,8 @@ Route::middleware(['auth'])->group(function () {
         ->name('documents.distributions.store');
     Route::post('/documents/{document}/distribution-targets/{target}', [App\Http\Controllers\UserDocumentController::class, 'updateDistributionTarget'])
         ->name('documents.distribution-targets.update');
+    Route::post('/documents/{document}/archive-location', [App\Http\Controllers\UserDocumentController::class, 'updateArchiveLocation'])
+        ->name('documents.archive-location.update');
 
     // Rutas CRUD de documentos
     Route::resource('documents', App\Http\Controllers\UserDocumentController::class);
@@ -189,7 +191,7 @@ if (! function_exists('canDownloadDocument')) {
         }
 
         if ($user->hasRole('archive_manager')) {
-            return ! is_null($document->physical_location_id);
+            return true;
         }
 
         return $document->created_by === $user->id || $document->assigned_to === $user->id;
