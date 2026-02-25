@@ -35,3 +35,13 @@ test('super admin can access log viewer', function () {
 
     $response->assertOk();
 });
+
+test('super admin can access log viewer api with session auth', function () {
+    $user = User::factory()->create();
+    Role::findOrCreate('super_admin', 'web');
+    $user->assignRole('super_admin');
+
+    $response = $this->actingAs($user)->get('/admin/logs/api/files');
+
+    $response->assertOk();
+});
