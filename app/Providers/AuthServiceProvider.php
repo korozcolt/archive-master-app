@@ -21,6 +21,7 @@ use App\Policies\StatusPolicy;
 use App\Policies\TagPolicy;
 use App\Policies\UserPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use Illuminate\Support\Facades\Gate;
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -48,6 +49,24 @@ class AuthServiceProvider extends ServiceProvider
     {
         $this->registerPolicies();
 
-        //
+        Gate::define('viewLogViewer', function (?User $user): bool {
+            return (bool) $user?->hasRole('super_admin');
+        });
+
+        Gate::define('downloadLogFile', function (?User $user): bool {
+            return (bool) $user?->hasRole('super_admin');
+        });
+
+        Gate::define('downloadLogFolder', function (?User $user): bool {
+            return (bool) $user?->hasRole('super_admin');
+        });
+
+        Gate::define('deleteLogFile', function (?User $user): bool {
+            return (bool) $user?->hasRole('super_admin');
+        });
+
+        Gate::define('deleteLogFolder', function (?User $user): bool {
+            return (bool) $user?->hasRole('super_admin');
+        });
     }
 }
