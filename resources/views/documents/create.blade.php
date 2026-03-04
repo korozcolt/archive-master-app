@@ -900,19 +900,46 @@
                     }
 
                     const xhr = new XMLHttpRequest();
+                    let inactivityTimer = null;
+                    let abortedByWatchdog = false;
+                    const clearInactivityTimer = () => {
+                        if (inactivityTimer) {
+                            clearTimeout(inactivityTimer);
+                            inactivityTimer = null;
+                        }
+                    };
+                    const resetInactivityTimer = () => {
+                        clearInactivityTimer();
+                        inactivityTimer = setTimeout(() => {
+                            abortedByWatchdog = true;
+                            try {
+                                xhr.abort();
+                            } catch (error) {
+                                reject(new Error('La carga del archivo se quedó sin respuesta. Intenta de nuevo.'));
+                            }
+                        }, 30000);
+                    };
+
                     xhr.open('POST', this.uploadTempUrl, true);
                     xhr.timeout = 45000;
                     xhr.withCredentials = true;
                     xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                    resetInactivityTimer();
 
                     xhr.upload.addEventListener('progress', (event) => {
+                        resetInactivityTimer();
                         if (!event.lengthComputable) {
                             return;
                         }
                         row.progress = Math.min(99, Math.round((event.loaded / event.total) * 100));
                     });
 
+                    xhr.onreadystatechange = () => {
+                        resetInactivityTimer();
+                    };
+
                     xhr.onload = () => {
+                        clearInactivityTimer();
                         if (xhr.status < 200 || xhr.status >= 300) {
                             reject(new Error('No se pudo cargar uno de los archivos.'));
                             return;
@@ -926,9 +953,23 @@
                         }
                     };
 
-                    xhr.onerror = () => reject(new Error('Error de red durante la carga del archivo.'));
-                    xhr.onabort = () => reject(new Error('La carga del archivo fue cancelada.'));
-                    xhr.ontimeout = () => reject(new Error('La carga del archivo tardó demasiado. Intenta de nuevo.'));
+                    xhr.onerror = () => {
+                        clearInactivityTimer();
+                        reject(new Error('Error de red durante la carga del archivo.'));
+                    };
+                    xhr.onabort = () => {
+                        clearInactivityTimer();
+                        if (abortedByWatchdog) {
+                            reject(new Error('La carga del archivo se quedó sin respuesta y fue reiniciada. Intenta de nuevo.'));
+                            return;
+                        }
+
+                        reject(new Error('La carga del archivo fue cancelada.'));
+                    };
+                    xhr.ontimeout = () => {
+                        clearInactivityTimer();
+                        reject(new Error('La carga del archivo tardó demasiado. Intenta de nuevo.'));
+                    };
                     xhr.send(formData);
                 });
             },

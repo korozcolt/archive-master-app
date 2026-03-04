@@ -57,3 +57,25 @@ it('includes worker restart steps when requested', function (): void {
 
     expect(array_column($steps, 'command'))->toContain('queue:restart', 'horizon:terminate');
 });
+
+it('skips seeding by default in production unless explicitly enabled', function (): void {
+    expect(BootstrapProductionInstance::shouldSkipSeed(
+        skipSeedOption: false,
+        withSeedOption: false,
+        isProduction: true,
+    ))->toBeTrue();
+
+    expect(BootstrapProductionInstance::shouldSkipSeed(
+        skipSeedOption: false,
+        withSeedOption: true,
+        isProduction: true,
+    ))->toBeFalse();
+});
+
+it('keeps seeding enabled by default outside production', function (): void {
+    expect(BootstrapProductionInstance::shouldSkipSeed(
+        skipSeedOption: false,
+        withSeedOption: false,
+        isProduction: false,
+    ))->toBeFalse();
+});

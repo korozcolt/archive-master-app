@@ -9,6 +9,7 @@ class BootstrapProductionInstance extends Command
 {
     protected $signature = 'app:bootstrap-production
         {--seed-class=Database\\Seeders\\ClientDefaultSeeder : Seeder base para inicializar la instancia}
+        {--with-seed : Ejecuta el seeder baseline (obligatorio explícito en producción)}
         {--skip-seed : Omite la carga de datos base}
         {--skip-storage-link : Omite storage:link}
         {--restart-workers : Reinicia queue workers / Horizon al final}';
@@ -21,8 +22,19 @@ class BootstrapProductionInstance extends Command
         $this->line('Entorno: '.app()->environment());
         $this->newLine();
 
+        $skipSeed = self::shouldSkipSeed(
+            skipSeedOption: (bool) $this->option('skip-seed'),
+            withSeedOption: (bool) $this->option('with-seed'),
+            isProduction: $this->app->environment('production'),
+        );
+
+        if ($this->app->environment('production') && ! (bool) $this->option('skip-seed') && ! (bool) $this->option('with-seed')) {
+            $this->warn('Seguridad: db:seed se omite por defecto en producción. Use --with-seed solo para primer arranque.');
+            $this->newLine();
+        }
+
         $steps = self::buildStepPlan(
-            skipSeed: (bool) $this->option('skip-seed'),
+            skipSeed: $skipSeed,
             skipStorageLink: (bool) $this->option('skip-storage-link'),
             restartWorkers: (bool) $this->option('restart-workers'),
             seedClass: (string) $this->option('seed-class'),
@@ -46,6 +58,19 @@ class BootstrapProductionInstance extends Command
         $this->line('Siguiente paso: validar acceso con el super_admin del baseline.');
 
         return self::SUCCESS;
+    }
+
+    public static function shouldSkipSeed(bool $skipSeedOption, bool $withSeedOption, bool $isProduction): bool
+    {
+        if ($skipSeedOption) {
+            return true;
+        }
+
+        if ($isProduction) {
+            return ! $withSeedOption;
+        }
+
+        return false;
     }
 
     /**
