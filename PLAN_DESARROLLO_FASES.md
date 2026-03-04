@@ -1,7 +1,7 @@
 # Plan Maestro de Desarrollo por Fases (Con Checklist)
 
 **Fecha de inicio propuesta**: 2026-02-09  
-**Última actualización**: 2026-02-21  
+**Última actualización**: 2026-03-04  
 **Estado general**: En progreso
 
 ---
@@ -184,6 +184,34 @@ Permitir que `receptionist` distribuya un documento a una o varias oficinas/depa
 
 ---
 
+## Fase 2.3 - Notificaciones en Tiempo Real (Laravel Reverb) (2026-03-04 a 2026-03-08)
+
+### Objetivo
+Eliminar dependencia exclusiva de polling para campana/notificaciones y activar entrega en tiempo real para todos los eventos de `app/Notifications`.
+
+### Atomic Execution por tareas
+
+#### A. Infraestructura Realtime
+- [x] A.1 Instalar `laravel/reverb` y publicar configuración (`config/broadcasting.php`, `config/reverb.php`)
+- [x] A.2 Habilitar `routes/channels.php` en `bootstrap/app.php`
+- [x] A.3 Definir variables base de entorno para Reverb y Vite en `.env.example`
+
+#### B. Backend de notificaciones
+- [x] B.1 Incluir canal `broadcast` en notificaciones de negocio (`Approval*`, `Document*`)
+- [x] B.2 Mantener `database` como fuente de verdad para historial y estados de lectura
+- [x] B.3 Validar cobertura con prueba automatizada de canales (`tests/Feature/RealtimeNotificationChannelsTest.php`)
+
+#### C. Frontend portal/web
+- [x] C.1 Agregar cliente Echo/Reverb (`resources/js/echo.js`)
+- [x] C.2 Integrar suscripción por usuario (`App.Models.User.{id}`) en campana del layout
+- [x] C.3 Mantener polling de 30s como fallback operativo
+
+### Criterio de salida
+- [x] Una notificación nueva aparece sin recargar página cuando hay evento broadcast.
+- [x] El listado y contador se mantienen consistentes por refresco server-side.
+
+---
+
 ## Fase 3 - Cierre de Brechas Funcionales (2026-03-16 a 2026-04-03)
 
 ### Objetivo
@@ -308,6 +336,7 @@ Usar esta sección para trazabilidad diaria/semanal.
 | 2026-02-21 | Fase IA | Fase 6 | Panel IA en vista de documento (resumen/sugerencias) + acciones portal `Regenerar IA`, `Aplicar sugerencias` y `Marcar incorrecto` + visibilidad de entidades/confianza por rol | `php artisan test tests/Feature/DocumentAiPortalActionsTest.php` | Completado |
 | 2026-02-21 | Fase IA | Fase 7 (parcial) | Redacción PII + throttling portal + budget mensual + circuit breaker (incluye pruebas con fallos reales del gateway) + observabilidad admin (métricas rápidas, página dedicada por empresa y export CSV) | `php artisan test tests/Feature/AiGatewayTest.php tests/Feature/AiPipelineTest.php tests/Feature/DocumentAiPortalActionsTest.php tests/Feature/Filament/CompanyAiSettingsTest.php` | En progreso |
 | 2026-02-23 | Fase 2.2 | Diagnóstico inicial distribución multi-oficina | Se valida que workflows/aprobaciones no cubren múltiples destinatarios con seguimiento independiente; se abre fase atómica de implementación | `PLAN_DESARROLLO_FASES.md`, revisión de `WorkflowDefinition/WorkflowHistory/WorkflowService` | Completado |
+| 2026-03-04 | Fase 2.3 | Realtime de notificaciones | Se integra Laravel Reverb + Echo, canales privados por usuario y broadcast en notificaciones del dominio | `config/reverb.php`, `config/broadcasting.php`, `resources/js/echo.js`, `tests/Feature/RealtimeNotificationChannelsTest.php` | Completado |
 
 ---
 

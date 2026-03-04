@@ -13,6 +13,7 @@ class DocumentAssigned extends Notification implements ShouldQueue
     use Queueable;
 
     protected $document;
+
     protected $assignedBy;
 
     /**
@@ -29,7 +30,7 @@ class DocumentAssigned extends Notification implements ShouldQueue
      */
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['database', 'broadcast'];
     }
 
     /**
@@ -40,7 +41,7 @@ class DocumentAssigned extends Notification implements ShouldQueue
         return [
             'type' => 'document_assigned',
             'title' => 'Documento asignado',
-            'message' => 'Se te ha asignado el documento: ' . $this->document->title,
+            'message' => 'Se te ha asignado el documento: '.$this->document->title,
             'document_id' => $this->document->id,
             'document_title' => $this->document->title,
             'document_number' => $this->document->document_number,
@@ -60,9 +61,9 @@ class DocumentAssigned extends Notification implements ShouldQueue
         return (new MailMessage)
             ->subject('Nuevo documento asignado')
             ->line('Se te ha asignado un nuevo documento.')
-            ->line('Documento: ' . $this->document->title)
-            ->line('Prioridad: ' . $this->document->priority->getLabel())
+            ->line('Documento: '.$this->document->title)
+            ->line('Prioridad: '.$this->document->priority->getLabel())
             ->action('Ver Documento', route('documents.show', $this->document->id))
-            ->line('Gracias por usar ' . config('app.name'));
+            ->line('Gracias por usar '.config('app.name'));
     }
 }

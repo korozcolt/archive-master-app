@@ -16,6 +16,7 @@ class DocumentUpdate extends Notification implements ShouldQueue
     use Queueable;
 
     public $tries = 3;
+
     public $timeout = 60;
 
     /**
@@ -37,7 +38,7 @@ class DocumentUpdate extends Notification implements ShouldQueue
      */
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        return ['mail', 'database', 'broadcast'];
     }
 
     /**
@@ -45,17 +46,17 @@ class DocumentUpdate extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $subject = 'Document Updated: ' . $this->document->title;
-        
+        $subject = 'Document Updated: '.$this->document->title;
+
         $message = (new MailMessage)
             ->subject($subject)
-            ->greeting('Hello ' . $notifiable->name)
-            ->line('The document "' . $this->document->title . '" has been updated by ' . $this->updatedBy->name . '.')
-            ->line('Document Number: ' . $this->document->document_number)
-            ->line('Company: ' . ($this->document->company->name ?? 'N/A'));
+            ->greeting('Hello '.$notifiable->name)
+            ->line('The document "'.$this->document->title.'" has been updated by '.$this->updatedBy->name.'.')
+            ->line('Document Number: '.$this->document->document_number)
+            ->line('Company: '.($this->document->company->name ?? 'N/A'));
 
         // Add changes information
-        if (!empty($this->changes)) {
+        if (! empty($this->changes)) {
             $message->line('Changes made:');
             foreach ($this->changes as $field => $change) {
                 if (is_array($change) && isset($change['old'], $change['new'])) {
@@ -67,7 +68,7 @@ class DocumentUpdate extends Notification implements ShouldQueue
 
         // Add comment if provided
         if ($this->comment) {
-            $message->line('Comment: ' . $this->comment);
+            $message->line('Comment: '.$this->comment);
         }
 
         // Add action button
@@ -104,7 +105,7 @@ class DocumentUpdate extends Notification implements ShouldQueue
      */
     public function uniqueId(): string
     {
-        return 'document_update_' . $this->document->id . '_' . now()->timestamp;
+        return 'document_update_'.$this->document->id.'_'.now()->timestamp;
     }
 
     /**

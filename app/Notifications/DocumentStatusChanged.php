@@ -9,7 +9,6 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use Illuminate\Notifications\Messages\DatabaseMessage;
 
 class DocumentStatusChanged extends Notification implements ShouldQueue
 {
@@ -29,13 +28,13 @@ class DocumentStatusChanged extends Notification implements ShouldQueue
      */
     public function via(object $notifiable): array
     {
-        $channels = ['database'];
-        
+        $channels = ['database', 'broadcast'];
+
         // Agregar email si el usuario tiene configurado recibir notificaciones por email
         if ($notifiable->email && $this->shouldSendEmail($notifiable)) {
             $channels[] = 'mail';
         }
-        
+
         return $channels;
     }
 
@@ -48,7 +47,7 @@ class DocumentStatusChanged extends Notification implements ShouldQueue
         $oldStatusName = $this->getStatusName($this->oldStatus);
         $newStatusName = $this->getStatusName($this->newStatus);
         $changedByName = $this->changedBy->name;
-        
+
         return (new MailMessage)
             ->subject("Estado de documento actualizado: {$documentTitle}")
             ->greeting("Hola {$notifiable->name},")
@@ -56,7 +55,7 @@ class DocumentStatusChanged extends Notification implements ShouldQueue
             ->line("**Estado anterior:** {$oldStatusName}")
             ->line("**Estado actual:** {$newStatusName}")
             ->line("**Actualizado por:** {$changedByName}")
-            ->line("**Fecha:** " . now()->format('d/m/Y H:i'))
+            ->line('**Fecha:** '.now()->format('d/m/Y H:i'))
             ->action('Ver Documento', url("/admin/documents/{$this->document->id}"))
             ->line('Gracias por usar nuestro sistema de gestión documental.');
     }
@@ -106,11 +105,11 @@ class DocumentStatusChanged extends Notification implements ShouldQueue
     private function getStatusName(Status $status): string
     {
         $name = $status->name;
-        
+
         if (is_array($name)) {
             return $status->getTranslation('name', app()->getLocale());
         }
-        
+
         return $name;
     }
 }

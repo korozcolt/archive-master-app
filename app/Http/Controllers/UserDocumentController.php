@@ -31,6 +31,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Role as SpatieRole;
+use Throwable;
 
 class UserDocumentController extends Controller
 {
@@ -61,7 +62,9 @@ class UserDocumentController extends Controller
                 }
 
                 if ($user->hasRole(Role::ArchiveManager->value)) {
-                    $q->orWhere('company_id', $user->company_id);
+                    $q->orWhereHas('distributions.targets', function ($targetQuery) use ($user) {
+                        $targetQuery->where('department_id', $user->department_id);
+                    });
                 }
             });
 
@@ -886,13 +889,33 @@ class UserDocumentController extends Controller
             ])->withInput();
         }
 
-        $movementType = $document->physical_location_id ? 'moved' : 'stored';
-        $saved = $document->moveToLocation(
-            newLocation: $location,
-            notes: $validated['archive_note'] ?? null,
-            movedBy: $user,
-            movementType: $movementType
-        );
+        try {
+            $saved = DB::transaction(function () use ($document, $location, $user, $validated): bool {
+                $movementType = $document->physical_location_id ? 'moved' : 'stored';
+                $saved = $document->moveToLocation(
+                    newLocation: $location,
+                    notes: $validated['archive_note'] ?? null,
+                    movedBy: $user,
+                    movementType: $movementType
+                );
+
+                if (! $saved) {
+                    return false;
+                }
+
+                if (! $document->is_archived) {
+                    $archiveComment = trim((string) ($validated['archive_note'] ?? ''));
+                    $archiveComment = $archiveComment !== '' ? $archiveComment : 'Documento archivado al asignar ubicación física.';
+                    $saved = $document->archive($user, $archiveComment);
+                }
+
+                return $saved;
+            });
+        } catch (Throwable $exception) {
+            report($exception);
+
+            $saved = false;
+        }
 
         if (! $saved) {
             return back()->withErrors([
@@ -1342,6 +1365,15 @@ class UserDocumentController extends Controller
             ->where(function ($q) use ($user) {
                 $q->where('assigned_to', $user->id)
                     ->orWhere('created_by', $user->id);
+
+                if (
+                    $user->department_id &&
+                    $user->hasAnyRole([Role::OfficeManager->value, Role::ArchiveManager->value])
+                ) {
+                    $q->orWhereHas('distributions.targets', function ($targetQuery) use ($user) {
+                        $targetQuery->where('department_id', $user->department_id);
+                    });
+                }
             });
 
         // Aplicar filtros de búsqueda

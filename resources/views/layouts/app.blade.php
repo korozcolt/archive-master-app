@@ -53,25 +53,46 @@
                     <!-- Right Side: Notifications + User -->
                     <div class="flex items-center gap-2 sm:gap-3">
                         <!-- Notifications Bell -->
-                        <div class="relative" x-data="{ open: false, count: {{ Auth::user()->unreadNotifications()->count() }}, notifications: [] }"
-                             x-init="
-                                 // Load notifications on init
-                                 fetch('{{ route('notifications.unread') }}')
-                                     .then(res => res.json())
-                                     .then(data => {
-                                         notifications = data.notifications;
-                                         count = data.count;
-                                     });
-
-                                 // Poll for new notifications every 30 seconds
-                                 setInterval(() => {
+                        @php
+                            $initialUnreadNotifications = Auth::user()->unreadNotifications()
+                                ->take(10)
+                                ->get()
+                                ->map(fn ($notification) => \App\Support\NotificationPresenter::present($notification))
+                                ->values();
+                        @endphp
+                        <div class="relative"
+                             x-data="{
+                                 open: false,
+                                 count: {{ Auth::user()->unreadNotifications()->count() }},
+                                 notifications: @js($initialUnreadNotifications),
+                                 userId: {{ (int) Auth::id() }},
+                                 realtimeChannel: null,
+                                 refreshNotifications() {
                                      fetch('{{ route('notifications.unread') }}')
-                                         .then(res => res.json())
-                                         .then(data => {
-                                             notifications = data.notifications;
-                                             count = data.count;
+                                         .then((res) => res.json())
+                                         .then((data) => {
+                                             this.notifications = data.notifications;
+                                             this.count = data.count;
+                                         })
+                                         .catch(() => {
+                                             // Keep server-rendered notifications if request fails.
                                          });
-                                 }, 30000);
+                                 },
+                                 bootstrapRealtime() {
+                                     if (!window.ArchiveMasterRealtime) {
+                                         return;
+                                     }
+
+                                     this.realtimeChannel = window.ArchiveMasterRealtime.subscribeToUserNotifications(
+                                         this.userId,
+                                         () => this.refreshNotifications(),
+                                     );
+                                 },
+                             }"
+                             x-init="
+                                 refreshNotifications();
+                                 setInterval(() => refreshNotifications(), 30000);
+                                 bootstrapRealtime();
                              ">
                             <button @click="open = !open" class="relative rounded-xl border border-slate-200/80 bg-white/90 p-2 text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 hover:text-slate-900 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-sky-300/40 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white">
                                 <!-- Bell Icon -->

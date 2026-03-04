@@ -85,7 +85,10 @@
                                         :data-file-ext="$documentFileExtension"
                                     />
                                     <div class="min-w-0">
-                                        <div class="truncate text-sm font-medium text-slate-900 dark:text-white">{{ $document->title }}</div>
+                                        <a href="{{ route('documents.show', $document) }}"
+                                           class="truncate text-sm font-medium text-slate-900 transition hover:text-sky-700 dark:text-white dark:hover:text-sky-300">
+                                            {{ $document->title }}
+                                        </a>
                                         <div class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{{ $document->document_number }}</div>
                                     </div>
                                 </div>

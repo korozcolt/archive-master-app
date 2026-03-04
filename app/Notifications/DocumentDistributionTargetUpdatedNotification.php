@@ -23,7 +23,7 @@ class DocumentDistributionTargetUpdatedNotification extends Notification impleme
 
     public function via(object $notifiable): array
     {
-        $channels = ['database'];
+        $channels = ['database', 'broadcast'];
 
         if (! empty($notifiable->email)) {
             $channels[] = 'mail';

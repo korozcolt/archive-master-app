@@ -493,7 +493,8 @@ class DocumentTest extends TestCase
         $this->actingAs($archiveManager)
             ->get('/portal')
             ->assertOk()
-            ->assertSee('Documento para Archivo');
+            ->assertSee('Documento para Archivo')
+            ->assertSee(route('documents.show', $document));
 
         $this->actingAs($archiveManager)
             ->get('/portal/reports')
@@ -593,6 +594,7 @@ class DocumentTest extends TestCase
         $this->assertDatabaseHas('documents', [
             'id' => $document->id,
             'physical_location_id' => $location->id,
+            'is_archived' => true,
         ]);
 
         $this->assertDatabaseHas('document_location_history', [
@@ -601,6 +603,111 @@ class DocumentTest extends TestCase
             'movement_type' => 'stored',
             'moved_by' => $archiveManager->id,
         ]);
+
+        $this->assertSame('archived', $document->fresh()->status?->slug);
+    }
+
+    public function test_archive_manager_can_download_sticker_without_physical_location()
+    {
+        $archiveRole = SpatieRole::firstOrCreate(['name' => 'archive_manager', 'guard_name' => 'web']);
+        $archiveManager = User::factory()->create([
+            'company_id' => $this->company->id,
+        ]);
+        $archiveManager->assignRole($archiveRole);
+
+        $creator = User::factory()->create([
+            'company_id' => $this->company->id,
+        ]);
+
+        $document = Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $this->status->id,
+            'category_id' => $this->category->id,
+            'created_by' => $creator->id,
+            'assigned_to' => $creator->id,
+            'physical_location_id' => null,
+        ]);
+
+        $stickerService = \Mockery::mock(StickerService::class);
+        $stickerService->shouldReceive('generatePDFForDocument')
+            ->once()
+            ->withArgs(function (Document $requestedDocument, string $template, array $options) use ($document): bool {
+                return $requestedDocument->id === $document->id
+                    && $template === 'standard'
+                    && $options === [];
+            })
+            ->andReturn('%PDF-1.4 fake');
+
+        $this->app->instance(StickerService::class, $stickerService);
+
+        $response = $this->actingAs($archiveManager)
+            ->get(route('stickers.documents.download', ['document' => $document->id]));
+
+        $response->assertOk();
+        $response->assertHeader('Content-Type', 'application/pdf');
+    }
+
+    public function test_archive_manager_only_sees_related_documents_in_documents_index()
+    {
+        $archiveRole = SpatieRole::firstOrCreate(['name' => 'archive_manager', 'guard_name' => 'web']);
+        $receptionRole = SpatieRole::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'web']);
+
+        $archiveDepartment = Department::factory()->create(['company_id' => $this->company->id]);
+        $receptionDepartment = Department::factory()->create(['company_id' => $this->company->id]);
+
+        $archiveManager = User::factory()->create([
+            'company_id' => $this->company->id,
+            'department_id' => $archiveDepartment->id,
+            'is_active' => true,
+        ]);
+        $archiveManager->assignRole($archiveRole);
+
+        $receptionist = User::factory()->create([
+            'company_id' => $this->company->id,
+            'department_id' => $receptionDepartment->id,
+            'is_active' => true,
+        ]);
+        $receptionist->assignRole($receptionRole);
+
+        $distributedToArchive = Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $this->status->id,
+            'category_id' => $this->category->id,
+            'created_by' => $receptionist->id,
+            'assigned_to' => $receptionist->id,
+            'title' => 'Visible para archivo',
+        ]);
+
+        $distribution = $distributedToArchive->distributions()->create([
+            'company_id' => $this->company->id,
+            'created_by' => $receptionist->id,
+            'status' => 'open',
+            'sent_at' => now(),
+        ]);
+
+        $distribution->targets()->create([
+            'department_id' => $archiveDepartment->id,
+            'status' => 'sent',
+            'response_type' => 'none',
+            'sent_at' => now(),
+            'last_activity_at' => now(),
+            'last_updated_by' => $receptionist->id,
+        ]);
+
+        Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $this->status->id,
+            'category_id' => $this->category->id,
+            'created_by' => $receptionist->id,
+            'assigned_to' => $receptionist->id,
+            'title' => 'No visible para archivo',
+        ]);
+
+        $response = $this->actingAs($archiveManager)->get('/documents');
+
+        $response->assertOk()
+            ->assertSee('Visible para archivo')
+            ->assertDontSee('No visible para archivo');
     }
 
     public function test_non_archive_manager_cannot_assign_physical_location_from_portal()

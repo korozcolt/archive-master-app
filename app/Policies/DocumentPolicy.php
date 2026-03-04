@@ -43,7 +43,7 @@ class DocumentPolicy
         }
 
         if ($user->hasRole('archive_manager')) {
-            return $document->physical_location_id !== null;
+            return true;
         }
 
         return $document->created_by === $user->id || $document->assigned_to === $user->id;

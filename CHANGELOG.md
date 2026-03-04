@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2026-03-04
+
+- Notificaciones en tiempo real con Laravel Reverb:
+  - instalación y configuración base de broadcasting (`config/broadcasting.php`) y servidor Reverb (`config/reverb.php`)
+  - habilitación de canales privados (`routes/channels.php`) en `bootstrap/app.php`
+  - cliente Echo/Reverb en frontend (`resources/js/echo.js`) e integración en `resources/js/app.js`
+  - campana del layout web suscrita al canal privado del usuario para refresco inmediato de contador/listado
+- Canal `broadcast` agregado a las notificaciones de dominio:
+  - `ApprovalApproved`, `ApprovalRejected`, `ApprovalRequested`
+  - `DocumentAssigned`, `DocumentDueSoon`, `DocumentOverdue`, `DocumentStatusChanged`, `DocumentUpdate`
+  - `DocumentDistributedToOfficeNotification`, `DocumentDistributionTargetUpdatedNotification`
+- Test de regresión para asegurar cobertura realtime en notificaciones:
+  - `tests/Feature/RealtimeNotificationChannelsTest.php`
+
+### Changed - 2026-03-04
+
+- `.env.example` actualizado para operación de Reverb y variables Vite asociadas.
+- Documentación operativa de despliegue actualizada en README (migrate + storage:link + cachés + reverb).
+
 ### Added - 2026-02-23
 
 - Portal / Documentos: nuevo wizard de carga **`Subir Nuevos Documentos`** (uno o varios archivos) con:

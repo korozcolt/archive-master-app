@@ -190,6 +190,48 @@ php artisan queue:work
 
 O usar un supervisor en producción.
 
+### Notificaciones en Tiempo Real (Laravel Reverb)
+
+El proyecto usa Reverb para entregar notificaciones en tiempo real (campana en header) y mantiene polling como fallback.
+
+1. Variables de entorno requeridas:
+
+```bash
+BROADCAST_CONNECTION=reverb
+REVERB_APP_ID=archivemaster
+REVERB_APP_KEY=archivemaster-key
+REVERB_APP_SECRET=archivemaster-secret
+REVERB_HOST=tu-dominio-o-ip
+REVERB_PORT=8080
+REVERB_SCHEME=http
+REVERB_SERVER_HOST=0.0.0.0
+REVERB_SERVER_PORT=8080
+
+VITE_REVERB_APP_KEY="${REVERB_APP_KEY}"
+VITE_REVERB_HOST="${REVERB_HOST}"
+VITE_REVERB_PORT="${REVERB_PORT}"
+VITE_REVERB_SCHEME="${REVERB_SCHEME}"
+```
+
+2. Levantar servicios:
+
+```bash
+php artisan reverb:start
+php artisan queue:work
+npm run build
+```
+
+3. En despliegue con contenedor, ejecutar migraciones y symlink de storage en cada release:
+
+```bash
+php artisan migrate --force
+php artisan storage:link || true
+php artisan optimize:clear
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+```
+
 ### Tareas Programadas
 
 Agregar a crontab:

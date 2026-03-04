@@ -7,7 +7,6 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use Illuminate\Notifications\Messages\DatabaseMessage;
 
 class DocumentOverdue extends Notification implements ShouldQueue
 {
@@ -19,7 +18,7 @@ class DocumentOverdue extends Notification implements ShouldQueue
     ) {
         $this->onQueue('notifications');
     }
-    
+
     /**
      * Get days overdue for backward compatibility
      */
@@ -33,13 +32,13 @@ class DocumentOverdue extends Notification implements ShouldQueue
      */
     public function via(object $notifiable): array
     {
-        $channels = ['database'];
-        
+        $channels = ['database', 'broadcast'];
+
         // Enviar email solo si han pasado más de 72 horas (3 días)
         if ($this->hoursOverdue >= 72) {
             $channels[] = 'mail';
         }
-        
+
         return $channels;
     }
 
@@ -50,16 +49,16 @@ class DocumentOverdue extends Notification implements ShouldQueue
     {
         $urgencyLevel = $this->getUrgencyLevel();
         $subject = "⚠️ Documento Vencido - {$this->document->document_number}";
-        
+
         if ($urgencyLevel === 'critical') {
-            $subject = "🚨 URGENTE: " . $subject;
+            $subject = '🚨 URGENTE: '.$subject;
         }
-        
+
         $daysOverdue = $this->getDaysOverdue();
-        $timeOverdueText = $this->hoursOverdue < 24 
+        $timeOverdueText = $this->hoursOverdue < 24
             ? "{$this->hoursOverdue} horas"
             : "{$daysOverdue} días";
-        
+
         return (new MailMessage)
             ->subject($subject)
             ->greeting("Hola {$notifiable->name},")
@@ -69,7 +68,7 @@ class DocumentOverdue extends Notification implements ShouldQueue
             ->line("**Categoría:** {$this->getCategoryName()}")
             ->line("**Fecha límite:** {$this->document->due_at->format('d/m/Y H:i')}")
             ->when($this->document->priority === 'high', function ($message) {
-                return $message->line("⚠️ **Este documento tiene prioridad ALTA**");
+                return $message->line('⚠️ **Este documento tiene prioridad ALTA**');
             })
             ->action('Ver Documento', url("/admin/documents/{$this->document->id}"))
             ->line('Por favor, toma las acciones necesarias lo antes posible.')
@@ -82,10 +81,10 @@ class DocumentOverdue extends Notification implements ShouldQueue
     public function toDatabase(object $notifiable): array
     {
         $daysOverdue = $this->getDaysOverdue();
-        $timeOverdueText = $this->hoursOverdue < 24 
+        $timeOverdueText = $this->hoursOverdue < 24
             ? "{$this->hoursOverdue} horas"
             : "{$daysOverdue} días";
-            
+
         return [
             'type' => 'document_overdue',
             'document_id' => $this->document->id,
@@ -130,11 +129,11 @@ class DocumentOverdue extends Notification implements ShouldQueue
     private function getStatusName(): string
     {
         $statusName = $this->document->status->name;
-        
+
         if (is_array($statusName)) {
             return $this->document->status->getTranslation('name', app()->getLocale());
         }
-        
+
         return $statusName;
     }
 
@@ -143,16 +142,16 @@ class DocumentOverdue extends Notification implements ShouldQueue
      */
     private function getCategoryName(): string
     {
-        if (!$this->document->category) {
+        if (! $this->document->category) {
             return 'Sin categoría';
         }
-        
+
         $categoryName = $this->document->category->name;
-        
+
         if (is_array($categoryName)) {
             return $this->document->category->getTranslation('name', app()->getLocale());
         }
-        
+
         return $categoryName;
     }
 
@@ -165,12 +164,12 @@ class DocumentOverdue extends Notification implements ShouldQueue
         if ($this->document->status->is_final) {
             return false;
         }
-        
+
         // No enviar si el usuario no tiene permisos para ver el documento
-        if (!$notifiable->can('view', $this->document)) {
+        if (! $notifiable->can('view', $this->document)) {
             return false;
         }
-        
+
         return true;
     }
 
@@ -185,13 +184,13 @@ class DocumentOverdue extends Notification implements ShouldQueue
     /**
      * Determine the time at which the notification should be sent.
      */
-    public function delay(object $notifiable): \DateTime|null
+    public function delay(object $notifiable): ?\DateTime
     {
         // Enviar inmediatamente para documentos críticos
         if ($this->getUrgencyLevel() === 'critical') {
             return null;
         }
-        
+
         // Retrasar 1 hora para otros casos para evitar spam
         return now()->addHour();
     }

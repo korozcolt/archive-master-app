@@ -14,8 +14,11 @@ class ApprovalRejected extends Notification implements ShouldQueue
     use Queueable;
 
     protected $document;
+
     protected $approver;
+
     protected $level;
+
     protected $comments;
 
     public function __construct(Document $document, User $approver, int $level, string $comments)
@@ -28,7 +31,7 @@ class ApprovalRejected extends Notification implements ShouldQueue
 
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['database', 'broadcast'];
     }
 
     public function toArray(object $notifiable): array
@@ -36,7 +39,7 @@ class ApprovalRejected extends Notification implements ShouldQueue
         return [
             'type' => 'approval_rejected',
             'title' => 'Aprobación rechazada',
-            'message' => $this->approver->name . ' rechazó: ' . $this->document->title,
+            'message' => $this->approver->name.' rechazó: '.$this->document->title,
             'document_id' => $this->document->id,
             'document_title' => $this->document->title,
             'document_number' => $this->document->document_number,
@@ -52,11 +55,11 @@ class ApprovalRejected extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Aprobación rechazada - Nivel ' . $this->level)
+            ->subject('Aprobación rechazada - Nivel '.$this->level)
             ->line('Tu documento ha sido rechazado.')
-            ->line('Documento: ' . $this->document->title)
-            ->line('Rechazado por: ' . $this->approver->name)
-            ->line('Motivo: ' . $this->comments)
+            ->line('Documento: '.$this->document->title)
+            ->line('Rechazado por: '.$this->approver->name)
+            ->line('Motivo: '.$this->comments)
             ->action('Ver Documento', route('documents.show', $this->document->id))
             ->line('Por favor, realiza las correcciones necesarias.');
     }

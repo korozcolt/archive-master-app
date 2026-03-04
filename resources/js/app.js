@@ -1,3 +1,5 @@
+import './echo';
+
 // Mejoras de UX - Semana 4
 // Funcionalidades de productividad y mejoras de interfaz
 
@@ -7,10 +9,39 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeKeyboardShortcuts();
     initializeTooltips();
     initializeNotifications();
+    initializeRealtimeNotifications();
     initializeConfirmationDialogs();
     initializeFormEnhancements();
     initializeLoadingStates();
 });
+
+function initializeRealtimeNotifications() {
+    window.ArchiveMasterRealtime = {
+        subscribeToUserNotifications(userId, onNotification) {
+            if (!window.Echo || !userId) {
+                return null;
+            }
+
+            const channelName = `App.Models.User.${userId}`;
+            const channel = window.Echo.private(channelName);
+
+            channel.notification((notification) => {
+                if (typeof onNotification === 'function') {
+                    onNotification(notification);
+                }
+            });
+
+            return channelName;
+        },
+        leaveUserNotifications(userId) {
+            if (!window.Echo || !userId) {
+                return;
+            }
+
+            window.Echo.leave(`private-App.Models.User.${userId}`);
+        },
+    };
+}
 
 // Funciones principales de mejoras UX
 function initializeUXEnhancements() {

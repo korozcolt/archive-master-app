@@ -13,6 +13,7 @@ class DocumentDueSoon extends Notification implements ShouldQueue
     use Queueable;
 
     protected $document;
+
     protected $daysRemaining;
 
     /**
@@ -29,7 +30,7 @@ class DocumentDueSoon extends Notification implements ShouldQueue
      */
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['database', 'broadcast'];
     }
 
     /**
@@ -43,8 +44,8 @@ class DocumentDueSoon extends Notification implements ShouldQueue
             'type' => 'document_due_soon',
             'title' => 'Documento próximo a vencer',
             'message' => $this->daysRemaining === 0
-                ? 'El documento "' . $this->document->title . '" vence hoy'
-                : 'El documento "' . $this->document->title . '" vence en ' . $this->daysRemaining . ' día(s)',
+                ? 'El documento "'.$this->document->title.'" vence hoy'
+                : 'El documento "'.$this->document->title.'" vence en '.$this->daysRemaining.' día(s)',
             'document_id' => $this->document->id,
             'document_title' => $this->document->title,
             'document_number' => $this->document->document_number,
@@ -71,8 +72,8 @@ class DocumentDueSoon extends Notification implements ShouldQueue
             ->line($this->daysRemaining === 0
                 ? 'Un documento asignado a ti vence hoy.'
                 : 'Un documento asignado a ti vencerá pronto.')
-            ->line('Documento: ' . $this->document->title)
-            ->line('Días restantes: ' . $this->daysRemaining)
+            ->line('Documento: '.$this->document->title)
+            ->line('Días restantes: '.$this->daysRemaining)
             ->action('Ver Documento', route('documents.show', $this->document->id))
             ->line('Por favor, toma las acciones necesarias.');
     }
