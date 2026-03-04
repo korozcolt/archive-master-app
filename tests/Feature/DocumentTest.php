@@ -16,6 +16,7 @@ use App\Notifications\DocumentDistributionTargetUpdatedNotification;
 use App\Services\StickerService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Activity;
@@ -449,6 +450,104 @@ class DocumentTest extends TestCase
 
         Notification::assertSentTo($officeUserOne, DocumentDistributedToOfficeNotification::class);
         Notification::assertSentTo($officeUserTwo, DocumentDistributedToOfficeNotification::class);
+    }
+
+    public function test_archive_manager_can_see_distributed_documents_in_portal_dashboard_and_reports()
+    {
+        $receptionRole = SpatieRole::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'web']);
+        $archiveRole = SpatieRole::firstOrCreate(['name' => 'archive_manager', 'guard_name' => 'web']);
+
+        $archiveDepartment = Department::factory()->create(['company_id' => $this->company->id]);
+        $receptionDepartment = Department::factory()->create(['company_id' => $this->company->id]);
+
+        $receptionist = User::factory()->create([
+            'company_id' => $this->company->id,
+            'department_id' => $receptionDepartment->id,
+            'is_active' => true,
+        ]);
+        $receptionist->assignRole($receptionRole);
+
+        $archiveManager = User::factory()->create([
+            'company_id' => $this->company->id,
+            'department_id' => $archiveDepartment->id,
+            'is_active' => true,
+        ]);
+        $archiveManager->assignRole($archiveRole);
+
+        $document = Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $this->status->id,
+            'category_id' => $this->category->id,
+            'created_by' => $receptionist->id,
+            'assigned_to' => $receptionist->id,
+            'title' => 'Documento para Archivo',
+        ]);
+
+        $this->actingAs($receptionist)
+            ->post(route('documents.distributions.store', $document), [
+                'department_ids' => [$archiveDepartment->id],
+                'routing_note' => 'Revisión de archivo',
+            ])
+            ->assertRedirect(route('documents.show', $document));
+
+        $this->actingAs($archiveManager)
+            ->get('/portal')
+            ->assertOk()
+            ->assertSee('Documento para Archivo');
+
+        $this->actingAs($archiveManager)
+            ->get('/portal/reports')
+            ->assertOk()
+            ->assertSee('Documento para Archivo');
+    }
+
+    public function test_distribution_creates_database_notification_without_queue_worker_dependency()
+    {
+        $receptionRole = SpatieRole::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'web']);
+        $archiveRole = SpatieRole::firstOrCreate(['name' => 'archive_manager', 'guard_name' => 'web']);
+
+        $archiveDepartment = Department::factory()->create(['company_id' => $this->company->id]);
+        $receptionDepartment = Department::factory()->create(['company_id' => $this->company->id]);
+
+        $receptionist = User::factory()->create([
+            'company_id' => $this->company->id,
+            'department_id' => $receptionDepartment->id,
+            'is_active' => true,
+        ]);
+        $receptionist->assignRole($receptionRole);
+
+        $archiveManager = User::factory()->create([
+            'company_id' => $this->company->id,
+            'department_id' => $archiveDepartment->id,
+            'is_active' => true,
+        ]);
+        $archiveManager->assignRole($archiveRole);
+
+        $document = Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $this->status->id,
+            'category_id' => $this->category->id,
+            'created_by' => $receptionist->id,
+            'assigned_to' => $receptionist->id,
+            'title' => 'Documento con notificación inmediata',
+        ]);
+
+        $this->actingAs($receptionist)
+            ->post(route('documents.distributions.store', $document), [
+                'department_ids' => [$archiveDepartment->id],
+                'routing_note' => 'Notificar archivo',
+            ])
+            ->assertRedirect(route('documents.show', $document));
+
+        $notification = DatabaseNotification::query()
+            ->where('notifiable_type', User::class)
+            ->where('notifiable_id', $archiveManager->id)
+            ->latest('created_at')
+            ->first();
+
+        $this->assertNotNull($notification);
+        $this->assertSame('document_distributed_to_office', data_get($notification->data, 'type'));
+        $this->assertSame($document->id, data_get($notification->data, 'document_id'));
     }
 
     public function test_archive_manager_can_view_document_without_location_and_assign_physical_location()

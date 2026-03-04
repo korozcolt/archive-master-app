@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Portal;
 
+use App\Enums\Role;
 use App\Models\Document;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,7 +21,7 @@ class Reports extends Component
         $user = Auth::user();
 
         $sentQuery = $this->baseQuery($user)->where('created_by', $user->id);
-        $receivedQuery = $this->baseQuery($user)->where('assigned_to', $user->id);
+        $receivedQuery = $this->receivedQuery($user);
 
         $summary = [
             'sent' => (clone $sentQuery)->count(),
@@ -60,5 +61,22 @@ class Reports extends Component
         }
 
         return $query;
+    }
+
+    private function receivedQuery(User $user): Builder
+    {
+        return $this->baseQuery($user)
+            ->where(function (Builder $query) use ($user): void {
+                $query->where('assigned_to', $user->id);
+
+                if (
+                    $user->department_id &&
+                    $user->hasAnyRole([Role::OfficeManager->value, Role::ArchiveManager->value])
+                ) {
+                    $query->orWhereHas('distributions.targets', function (Builder $targetQuery) use ($user): void {
+                        $targetQuery->where('department_id', $user->department_id);
+                    });
+                }
+            });
     }
 }

@@ -975,7 +975,7 @@ class UserDocumentController extends Controller
                     ->get();
 
                 foreach ($officeUsers as $officeUser) {
-                    $officeUser->notify(new DocumentDistributedToOfficeNotification(
+                    $officeUser->notifyNow(new DocumentDistributedToOfficeNotification(
                         $document,
                         $target->fresh(['department', 'distribution']),
                         $user->name
