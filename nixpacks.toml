@@ -21,4 +21,4 @@ cmds = [
 ]
 
 [start]
-cmd = "bash /app/scripts/deploy-bootstrap.sh && node /assets/scripts/prestart.mjs /assets/nginx.template.conf /nginx.conf && (php-fpm -y /assets/php-fpm.conf & nginx -c /nginx.conf)"
+cmd = "bash /app/scripts/deploy-bootstrap.sh && node /assets/scripts/prestart.mjs /assets/nginx.template.conf /nginx.conf && bash /app/scripts/run-runtime-services.sh"

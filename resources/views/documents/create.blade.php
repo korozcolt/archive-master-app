@@ -884,6 +884,7 @@
             uploadTempUrl: @js(route('documents.upload-drafts.temp-file')),
             saveDraftUrl: @js(route('documents.upload-drafts.save')),
             draftItemDeleteUrlTemplate: @js(route('documents.upload-drafts.items.destroy', ['draft' => '__DRAFT__', 'item' => '__ITEM__'])),
+            defaultChunkSizeBytes: 5_242_880,
             init() {
                 const previousBulkRows = Array.from(document.querySelectorAll('input[name^="bulk_items["][name$="[title]"]'));
                 if (previousBulkRows.length > 0) {
@@ -898,123 +899,118 @@
             csrfToken() {
                 return document.querySelector('input[name=\"_token\"]')?.value ?? '';
             },
-            uploadFileToDraft(file, row) {
+            uploadChunkToDraft({ chunkBlob, uploadId, draftId, chunkIndex, totalChunks, fileSize, chunkSize, row }) {
                 return new Promise((resolve, reject) => {
                     const formData = new FormData();
                     formData.append('_token', this.csrfToken());
-                    formData.append('file', file);
-                    if (this.draftId) {
-                        formData.append('draft_id', String(this.draftId));
-                    }
+                    formData.append('upload_mode', 'chunk');
+                    formData.append('draft_id', String(draftId));
+                    formData.append('upload_id', String(uploadId));
+                    formData.append('chunk_index', String(chunkIndex));
+                    formData.append('total_chunks', String(totalChunks));
+                    formData.append('chunk', chunkBlob, `chunk-${chunkIndex}.part`);
 
                     const xhr = new XMLHttpRequest();
-                    let inactivityTimer = null;
-                    let abortedByWatchdog = false;
-                    let settled = false;
-
-                    const finish = (callback) => {
-                        if (settled) {
-                            return;
-                        }
-
-                        settled = true;
-                        clearInactivityTimer();
-                        callback();
-                    };
-
-                    const resolveFromResponse = () => {
-                        finish(() => {
-                            if (xhr.status < 200 || xhr.status >= 300) {
-                                reject(new Error('No se pudo cargar uno de los archivos.'));
-                                return;
-                            }
-
-                            try {
-                                const payload = JSON.parse(xhr.responseText);
-                                resolve(payload);
-                            } catch (error) {
-                                reject(new Error('Respuesta inválida al cargar archivo.'));
-                            }
-                        });
-                    };
-
-                    const clearInactivityTimer = () => {
-                        if (inactivityTimer) {
-                            clearTimeout(inactivityTimer);
-                            inactivityTimer = null;
-                        }
-                    };
-                    const resetInactivityTimer = () => {
-                        clearInactivityTimer();
-                        inactivityTimer = setTimeout(() => {
-                            abortedByWatchdog = true;
-                            try {
-                                xhr.abort();
-                            } catch (error) {
-                                reject(new Error('La carga del archivo se quedó sin respuesta. Intenta de nuevo.'));
-                            }
-                        }, 30000);
-                    };
-
                     xhr.open('POST', this.uploadTempUrl, true);
-                    xhr.timeout = 45000;
+                    xhr.timeout = 60000;
                     xhr.withCredentials = true;
                     xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-                    resetInactivityTimer();
 
                     xhr.upload.addEventListener('progress', (event) => {
-                        resetInactivityTimer();
                         if (!event.lengthComputable) {
                             return;
                         }
-                        row.progress = Math.min(99, Math.round((event.loaded / event.total) * 100));
+
+                        const loadedBeforeChunk = chunkIndex * chunkSize;
+                        const loadedTotal = Math.min(fileSize, loadedBeforeChunk + event.loaded);
+                        row.progress = Math.min(99, Math.round((loadedTotal / fileSize) * 100));
                     });
 
-                    xhr.onreadystatechange = () => {
-                        resetInactivityTimer();
-                    };
-
                     xhr.onload = () => {
-                        resolveFromResponse();
-                    };
-
-                    xhr.onloadend = () => {
-                        if (settled) {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            resolve();
                             return;
                         }
 
-                        if (xhr.readyState === XMLHttpRequest.DONE && xhr.status >= 200 && xhr.status < 300) {
-                            resolveFromResponse();
-                            return;
-                        }
-
-                        finish(() => {
-                            reject(new Error('No se pudo completar la carga del archivo.'));
-                        });
+                        reject(new Error('No se pudo cargar una parte del archivo.'));
                     };
 
-                    xhr.onerror = () => {
-                        finish(() => {
-                            reject(new Error('Error de red durante la carga del archivo.'));
-                        });
-                    };
-                    xhr.onabort = () => {
-                        finish(() => {
-                            if (abortedByWatchdog) {
-                                reject(new Error('La carga del archivo se quedó sin respuesta y fue reiniciada. Intenta de nuevo.'));
-                                return;
-                            }
-
-                            reject(new Error('La carga del archivo fue cancelada.'));
-                        });
-                    };
-                    xhr.ontimeout = () => {
-                        finish(() => {
-                            reject(new Error('La carga del archivo tardó demasiado. Intenta de nuevo.'));
-                        });
-                    };
+                    xhr.onerror = () => reject(new Error('Error de red durante la carga del archivo.'));
+                    xhr.ontimeout = () => reject(new Error('Una parte del archivo tardó demasiado en subirse.'));
+                    xhr.onabort = () => reject(new Error('La carga del archivo fue cancelada.'));
                     xhr.send(formData);
                 });
+            },
+            async uploadFileToDraft(file, row) {
+                const initForm = new FormData();
+                initForm.append('_token', this.csrfToken());
+                initForm.append('upload_mode', 'init');
+                initForm.append('file_name', file.name);
+                initForm.append('file_size', String(file.size));
+                initForm.append('mime_type', file.type || 'application/octet-stream');
+                if (this.draftId) {
+                    initForm.append('draft_id', String(this.draftId));
+                }
+
+                const initResponse = await fetch(this.uploadTempUrl, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                    },
+                    body: initForm,
+                });
+
+                if (!initResponse.ok) {
+                    throw new Error('No se pudo iniciar la carga resumible del archivo.');
+                }
+
+                const initPayload = await initResponse.json();
+                const draftId = Number(initPayload.draft_id);
+                const uploadId = String(initPayload.upload_id);
+                const chunkSize = Number(initPayload.chunk_size || this.defaultChunkSizeBytes);
+                const totalChunks = Number(initPayload.total_chunks || Math.max(1, Math.ceil(file.size / chunkSize)));
+
+                for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+                    const start = chunkIndex * chunkSize;
+                    const end = Math.min(start + chunkSize, file.size);
+                    const chunkBlob = file.slice(start, end);
+
+                    await this.uploadChunkToDraft({
+                        chunkBlob,
+                        uploadId,
+                        draftId,
+                        chunkIndex,
+                        totalChunks,
+                        fileSize: file.size,
+                        chunkSize,
+                        row,
+                    });
+                }
+
+                const completeForm = new FormData();
+                completeForm.append('_token', this.csrfToken());
+                completeForm.append('upload_mode', 'complete');
+                completeForm.append('draft_id', String(draftId));
+                completeForm.append('upload_id', uploadId);
+                completeForm.append('total_chunks', String(totalChunks));
+
+                const completeResponse = await fetch(this.uploadTempUrl, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                    },
+                    body: completeForm,
+                });
+
+                if (!completeResponse.ok) {
+                    throw new Error('No se pudo finalizar la carga del archivo.');
+                }
+
+                return completeResponse.json();
             },
             async uploadFileWithRetry(file, row, maxAttempts = 2) {
                 let lastError = null;

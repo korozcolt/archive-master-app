@@ -28,13 +28,17 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Role as SpatieRole;
 use Throwable;
 
 class UserDocumentController extends Controller
 {
+    private const TEMP_UPLOAD_CHUNK_SIZE_BYTES = 5_242_880;
+
     protected DocumentFileService $documentFileService;
 
     public function __construct(DocumentFileService $documentFileService)
@@ -249,27 +253,25 @@ class UserDocumentController extends Controller
     {
         $user = Auth::user();
 
+        $uploadMode = (string) $request->input('upload_mode', '');
+
+        if ($uploadMode !== '') {
+            return match ($uploadMode) {
+                'init' => $this->initChunkedDraftUpload($request, $user),
+                'chunk' => $this->storeChunkedDraftUploadChunk($request, $user),
+                'complete' => $this->completeChunkedDraftUpload($request, $user),
+                default => response()->json([
+                    'message' => 'Modo de carga inválido.',
+                ], 422),
+            };
+        }
+
         $validated = $request->validate([
             'file' => 'required|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png',
             'draft_id' => 'nullable|integer',
         ]);
 
-        $draft = null;
-        if (! empty($validated['draft_id'])) {
-            $draft = $this->findOwnedUploadDraft($user, (int) $validated['draft_id']);
-        }
-
-        if (! $draft) {
-            $draft = DocumentUploadDraft::create([
-                'user_id' => $user->id,
-                'company_id' => $user->company_id,
-                'branch_id' => $user->branch_id,
-                'department_id' => $user->department_id,
-                'status' => 'draft',
-                'priority' => 'medium',
-                'current_step' => 1,
-            ]);
-        }
+        $draft = $this->resolveOrCreateOwnedUploadDraft($user, $validated['draft_id'] ?? null);
 
         /** @var UploadedFile $uploadedFile */
         $uploadedFile = $validated['file'];
@@ -285,6 +287,170 @@ class UserDocumentController extends Controller
             'mime_type' => $stored['mime_type'],
             'size_bytes' => $stored['size_bytes'],
             'title' => $this->makeTitleFromFilename($uploadedFile),
+        ]);
+
+        return response()->json([
+            'draft_id' => $draft->id,
+            'item' => $this->serializeUploadDraftItem($item),
+        ]);
+    }
+
+    private function initChunkedDraftUpload(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'draft_id' => 'nullable|integer',
+            'file_name' => 'required|string|max:255',
+            'file_size' => 'required|integer|min:1',
+            'mime_type' => 'nullable|string|max:255',
+        ]);
+
+        $extension = mb_strtolower((string) pathinfo($validated['file_name'], PATHINFO_EXTENSION));
+        $allowedExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png'];
+
+        if (! in_array($extension, $allowedExtensions, true)) {
+            throw ValidationException::withMessages([
+                'file_name' => 'El tipo de archivo no está permitido.',
+            ]);
+        }
+
+        $draft = $this->resolveOrCreateOwnedUploadDraft($user, $validated['draft_id'] ?? null);
+        $uploadId = (string) Str::uuid();
+        $totalChunks = max(1, (int) ceil(((int) $validated['file_size']) / self::TEMP_UPLOAD_CHUNK_SIZE_BYTES));
+
+        $metaPath = $this->chunkedUploadMetaPath($user->id, $uploadId);
+        Storage::disk('local')->put($metaPath, json_encode([
+            'upload_id' => $uploadId,
+            'draft_id' => $draft->id,
+            'user_id' => $user->id,
+            'file_name' => $validated['file_name'],
+            'file_size' => (int) $validated['file_size'],
+            'mime_type' => $validated['mime_type'] ?? null,
+            'total_chunks' => $totalChunks,
+            'created_at' => now()->toIso8601String(),
+        ], JSON_THROW_ON_ERROR));
+
+        return response()->json([
+            'draft_id' => $draft->id,
+            'upload_id' => $uploadId,
+            'chunk_size' => self::TEMP_UPLOAD_CHUNK_SIZE_BYTES,
+            'total_chunks' => $totalChunks,
+        ]);
+    }
+
+    private function storeChunkedDraftUploadChunk(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'draft_id' => 'required|integer',
+            'upload_id' => 'required|string|max:100',
+            'chunk_index' => 'required|integer|min:0',
+            'total_chunks' => 'required|integer|min:1',
+            'chunk' => 'required|file',
+        ]);
+
+        $meta = $this->loadChunkedUploadMeta($user->id, $validated['upload_id']);
+        if ((int) $meta['draft_id'] !== (int) $validated['draft_id']) {
+            return response()->json(['message' => 'El borrador no coincide con la carga en curso.'], 422);
+        }
+
+        if ((int) $meta['total_chunks'] !== (int) $validated['total_chunks']) {
+            return response()->json(['message' => 'El total de partes no coincide con la sesión de carga.'], 422);
+        }
+
+        $chunkPath = $this->chunkedUploadChunkPath($user->id, $validated['upload_id'], (int) $validated['chunk_index']);
+        /** @var UploadedFile $chunk */
+        $chunk = $validated['chunk'];
+        Storage::disk('local')->put($chunkPath, file_get_contents($chunk->getRealPath()));
+
+        return response()->json([
+            'ok' => true,
+            'chunk_index' => (int) $validated['chunk_index'],
+        ]);
+    }
+
+    private function completeChunkedDraftUpload(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'draft_id' => 'required|integer',
+            'upload_id' => 'required|string|max:100',
+            'total_chunks' => 'required|integer|min:1',
+        ]);
+
+        $draft = $this->findOwnedUploadDraft($user, (int) $validated['draft_id']);
+        if (! $draft) {
+            return response()->json(['message' => 'No se encontró el borrador para finalizar la carga.'], 404);
+        }
+
+        $meta = $this->loadChunkedUploadMeta($user->id, $validated['upload_id']);
+        if ((int) $meta['draft_id'] !== (int) $draft->id) {
+            return response()->json(['message' => 'El borrador no coincide con la carga en curso.'], 422);
+        }
+
+        $totalChunks = (int) $validated['total_chunks'];
+        if ((int) $meta['total_chunks'] !== $totalChunks) {
+            return response()->json(['message' => 'El total de partes no coincide con la sesión de carga.'], 422);
+        }
+
+        $missingChunk = null;
+        for ($index = 0; $index < $totalChunks; $index++) {
+            if (! Storage::disk('local')->exists($this->chunkedUploadChunkPath($user->id, $validated['upload_id'], $index))) {
+                $missingChunk = $index;
+                break;
+            }
+        }
+
+        if ($missingChunk !== null) {
+            return response()->json([
+                'message' => "Falta la parte {$missingChunk} para completar la carga.",
+            ], 422);
+        }
+
+        $directory = 'temp/document-upload-drafts/'.($user->id ?: 'guest').'/'.now()->format('Y/m/d');
+        $extension = pathinfo((string) $meta['file_name'], PATHINFO_EXTENSION);
+        $filename = Str::uuid()->toString().($extension ? '.'.$extension : '');
+        $outputPath = $directory.'/'.$filename;
+
+        $disk = Storage::disk('local');
+        $disk->makeDirectory($directory);
+
+        $outputAbsolutePath = $disk->path($outputPath);
+        $outputHandle = fopen($outputAbsolutePath, 'wb');
+        if (! is_resource($outputHandle)) {
+            return response()->json(['message' => 'No fue posible crear el archivo temporal final.'], 500);
+        }
+
+        try {
+            for ($index = 0; $index < $totalChunks; $index++) {
+                $chunkAbsolutePath = $disk->path($this->chunkedUploadChunkPath($user->id, $validated['upload_id'], $index));
+                $chunkHandle = fopen($chunkAbsolutePath, 'rb');
+                if (! is_resource($chunkHandle)) {
+                    throw new \RuntimeException("No fue posible leer la parte {$index}.");
+                }
+
+                stream_copy_to_stream($chunkHandle, $outputHandle);
+                fclose($chunkHandle);
+            }
+        } catch (Throwable $throwable) {
+            fclose($outputHandle);
+            $disk->delete($outputPath);
+
+            return response()->json([
+                'message' => $throwable->getMessage(),
+            ], 500);
+        }
+
+        fclose($outputHandle);
+        $this->cleanupChunkedUpload($user->id, $validated['upload_id']);
+
+        $nextOrder = ((int) $draft->items()->max('sort_order')) + 1;
+        $item = $draft->items()->create([
+            'sort_order' => $nextOrder,
+            'original_name' => (string) $meta['file_name'],
+            'stored_name' => basename($outputPath),
+            'temp_disk' => 'local',
+            'temp_path' => $outputPath,
+            'mime_type' => $meta['mime_type'] ?? null,
+            'size_bytes' => (int) ($meta['file_size'] ?? $disk->size($outputPath)),
+            'title' => $this->makeTitleFromFilename((string) $meta['file_name']),
         ]);
 
         return response()->json([
@@ -386,7 +552,7 @@ class UserDocumentController extends Controller
 
         $draftItem = $uploadDraft->items()->whereKey($item)->firstOrFail();
         if ($draftItem->temp_path) {
-            \Illuminate\Support\Facades\Storage::disk($draftItem->temp_disk ?: 'local')->delete($draftItem->temp_path);
+            Storage::disk($draftItem->temp_disk ?: 'local')->delete($draftItem->temp_path);
         }
         $draftItem->delete();
 
@@ -634,6 +800,74 @@ class UserDocumentController extends Controller
             ->where('user_id', $user->id)
             ->where('company_id', $user->company_id)
             ->first();
+    }
+
+    private function resolveOrCreateOwnedUploadDraft(User $user, ?int $draftId): DocumentUploadDraft
+    {
+        if ($draftId) {
+            $existingDraft = $this->findOwnedUploadDraft($user, $draftId);
+            if ($existingDraft) {
+                return $existingDraft;
+            }
+        }
+
+        return DocumentUploadDraft::create([
+            'user_id' => $user->id,
+            'company_id' => $user->company_id,
+            'branch_id' => $user->branch_id,
+            'department_id' => $user->department_id,
+            'status' => 'draft',
+            'priority' => 'medium',
+            'current_step' => 1,
+        ]);
+    }
+
+    private function chunkedUploadBaseDir(int $userId, string $uploadId): string
+    {
+        return "temp/document-upload-chunks/{$userId}/{$uploadId}";
+    }
+
+    private function chunkedUploadMetaPath(int $userId, string $uploadId): string
+    {
+        return $this->chunkedUploadBaseDir($userId, $uploadId).'/meta.json';
+    }
+
+    private function chunkedUploadChunkPath(int $userId, string $uploadId, int $chunkIndex): string
+    {
+        return $this->chunkedUploadBaseDir($userId, $uploadId)."/parts/{$chunkIndex}.part";
+    }
+
+    /**
+     * @return array{upload_id:string,draft_id:int,user_id:int,file_name:string,file_size:int,mime_type:?string,total_chunks:int,created_at:string}
+     */
+    private function loadChunkedUploadMeta(int $userId, string $uploadId): array
+    {
+        $metaPath = $this->chunkedUploadMetaPath($userId, $uploadId);
+        if (! Storage::disk('local')->exists($metaPath)) {
+            throw ValidationException::withMessages([
+                'upload_id' => 'La sesión de carga no existe o expiró.',
+            ]);
+        }
+
+        $decoded = json_decode((string) Storage::disk('local')->get($metaPath), true);
+        if (! is_array($decoded)) {
+            throw ValidationException::withMessages([
+                'upload_id' => 'La sesión de carga está corrupta.',
+            ]);
+        }
+
+        if ((int) ($decoded['user_id'] ?? 0) !== $userId) {
+            throw ValidationException::withMessages([
+                'upload_id' => 'No tienes permiso para usar esta sesión de carga.',
+            ]);
+        }
+
+        return $decoded;
+    }
+
+    private function cleanupChunkedUpload(int $userId, string $uploadId): void
+    {
+        Storage::disk('local')->deleteDirectory($this->chunkedUploadBaseDir($userId, $uploadId));
     }
 
     private function serializeUploadDraftForView(DocumentUploadDraft $draft): array
@@ -1344,9 +1578,10 @@ class UserDocumentController extends Controller
         return $number;
     }
 
-    private function makeTitleFromFilename(UploadedFile $file): string
+    private function makeTitleFromFilename(UploadedFile|string $file): string
     {
-        $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+        $originalName = $file instanceof UploadedFile ? $file->getClientOriginalName() : $file;
+        $filename = pathinfo($originalName, PATHINFO_FILENAME);
         $normalized = preg_replace('/[_\-]+/', ' ', $filename) ?? $filename;
         $normalized = preg_replace('/\s+/', ' ', (string) $normalized) ?? (string) $normalized;
 

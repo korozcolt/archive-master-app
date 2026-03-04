@@ -330,6 +330,118 @@ class DocumentTest extends TestCase
         ]);
     }
 
+    public function test_user_can_upload_temp_file_in_chunks()
+    {
+        Storage::fake('local');
+
+        $fileName = 'expediente-masivo.pdf';
+        $content = str_repeat('A', (6 * 1024 * 1024) + 1250);
+
+        $initResponse = $this->actingAs($this->user)->postJson(route('documents.upload-drafts.temp-file'), [
+            'upload_mode' => 'init',
+            'file_name' => $fileName,
+            'file_size' => strlen($content),
+            'mime_type' => 'application/pdf',
+        ]);
+
+        $initResponse->assertOk();
+
+        $draftId = (int) $initResponse->json('draft_id');
+        $uploadId = (string) $initResponse->json('upload_id');
+        $chunkSize = (int) $initResponse->json('chunk_size');
+        $totalChunks = (int) $initResponse->json('total_chunks');
+
+        expect($draftId)->toBeGreaterThan(0);
+        expect($uploadId)->not->toBe('');
+        expect($totalChunks)->toBeGreaterThan(1);
+
+        for ($chunkIndex = 0; $chunkIndex < $totalChunks; $chunkIndex++) {
+            $start = $chunkIndex * $chunkSize;
+            $piece = substr($content, $start, $chunkSize);
+            $chunkFile = UploadedFile::fake()->createWithContent("chunk-{$chunkIndex}.part", $piece);
+
+            $this->actingAs($this->user)
+                ->post(route('documents.upload-drafts.temp-file'), [
+                    'upload_mode' => 'chunk',
+                    'draft_id' => $draftId,
+                    'upload_id' => $uploadId,
+                    'chunk_index' => $chunkIndex,
+                    'total_chunks' => $totalChunks,
+                    'chunk' => $chunkFile,
+                ])
+                ->assertOk();
+        }
+
+        $completeResponse = $this->actingAs($this->user)->postJson(route('documents.upload-drafts.temp-file'), [
+            'upload_mode' => 'complete',
+            'draft_id' => $draftId,
+            'upload_id' => $uploadId,
+            'total_chunks' => $totalChunks,
+        ]);
+
+        $completeResponse->assertOk();
+        $itemId = (int) $completeResponse->json('item.id');
+
+        $this->assertDatabaseHas('document_upload_drafts', [
+            'id' => $draftId,
+            'user_id' => $this->user->id,
+        ]);
+
+        $this->assertDatabaseHas('document_upload_draft_items', [
+            'id' => $itemId,
+            'document_upload_draft_id' => $draftId,
+            'original_name' => $fileName,
+            'size_bytes' => strlen($content),
+        ]);
+
+        $draftItem = \App\Models\DocumentUploadDraftItem::query()->findOrFail($itemId);
+        Storage::disk($draftItem->temp_disk)->assertExists($draftItem->temp_path);
+        expect(Storage::disk($draftItem->temp_disk)->size($draftItem->temp_path))->toBe(strlen($content));
+    }
+
+    public function test_chunked_upload_complete_fails_when_a_chunk_is_missing()
+    {
+        Storage::fake('local');
+
+        $content = str_repeat('B', (6 * 1024 * 1024) + 330);
+        $initResponse = $this->actingAs($this->user)->postJson(route('documents.upload-drafts.temp-file'), [
+            'upload_mode' => 'init',
+            'file_name' => 'faltante.pdf',
+            'file_size' => strlen($content),
+            'mime_type' => 'application/pdf',
+        ]);
+
+        $initResponse->assertOk();
+
+        $draftId = (int) $initResponse->json('draft_id');
+        $uploadId = (string) $initResponse->json('upload_id');
+        $chunkSize = (int) $initResponse->json('chunk_size');
+        $totalChunks = (int) $initResponse->json('total_chunks');
+
+        $firstChunk = UploadedFile::fake()->createWithContent('chunk-0.part', substr($content, 0, $chunkSize));
+
+        $this->actingAs($this->user)
+            ->post(route('documents.upload-drafts.temp-file'), [
+                'upload_mode' => 'chunk',
+                'draft_id' => $draftId,
+                'upload_id' => $uploadId,
+                'chunk_index' => 0,
+                'total_chunks' => $totalChunks,
+                'chunk' => $firstChunk,
+            ])
+            ->assertOk();
+
+        $this->actingAs($this->user)
+            ->postJson(route('documents.upload-drafts.temp-file'), [
+                'upload_mode' => 'complete',
+                'draft_id' => $draftId,
+                'upload_id' => $uploadId,
+                'total_chunks' => $totalChunks,
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Falta la parte 1 para completar la carga.');
+    }
+
     public function test_user_can_create_documents_from_saved_draft_with_temp_files()
     {
         Storage::fake('local');
