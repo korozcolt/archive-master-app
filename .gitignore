@@ -21,9 +21,7 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
-package-lock.json
 yarn.lock
-composer.lock
 
 # Claude Code
 /.claude
