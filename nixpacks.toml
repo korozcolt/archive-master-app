@@ -19,3 +19,6 @@ cmds = [
 cmds = [
   "npm run build"
 ]
+
+[start]
+cmd = "bash /app/scripts/deploy-bootstrap.sh && node /assets/scripts/prestart.mjs /assets/nginx.template.conf /nginx.conf && (php-fpm -y /assets/php-fpm.conf & nginx -c /nginx.conf)"

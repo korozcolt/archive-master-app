@@ -341,7 +341,7 @@ function openQuickSearch() {
         searchInput.focus();
         searchInput.select();
     } else {
-        showNotification('Función de búsqueda rápida activada (Ctrl+K)', 'info');
+        window.showNotification?.('Función de búsqueda rápida activada (Ctrl+K)', 'info');
     }
 }
 
@@ -351,7 +351,7 @@ function createNewDocument() {
     if (newDocBtn) {
         newDocBtn.click();
     } else {
-        showNotification('Atajo para nuevo documento activado (Ctrl+N)', 'info');
+        window.showNotification?.('Atajo para nuevo documento activado (Ctrl+N)', 'info');
     }
 }
 
@@ -375,7 +375,7 @@ function saveCurrentForm() {
         if (saveBtn) {
             saveBtn.click();
         } else {
-            showNotification('Formulario guardado automáticamente', 'success');
+            window.showNotification?.('Formulario guardado automáticamente', 'success');
         }
     }
 }
@@ -389,7 +389,7 @@ function autoSaveForm(form) {
     localStorage.setItem(`autosave-${formId}`, JSON.stringify(data));
     
     // Mostrar indicador de guardado
-    showNotification('Borrador guardado automáticamente', 'info', 2000);
+    window.showNotification?.('Borrador guardado automáticamente', 'info', 2000);
 }
 
 function validateField(e) {
@@ -513,7 +513,7 @@ function isValidEmail(email) {
 
 // Exportar funciones para uso global
 window.UXEnhancements = {
-    showNotification,
+    showNotification: window.showNotification,
     showButtonLoading,
     showPageLoading,
     validateField,

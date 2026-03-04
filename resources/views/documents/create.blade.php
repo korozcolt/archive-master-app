@@ -910,6 +910,34 @@
                     const xhr = new XMLHttpRequest();
                     let inactivityTimer = null;
                     let abortedByWatchdog = false;
+                    let settled = false;
+
+                    const finish = (callback) => {
+                        if (settled) {
+                            return;
+                        }
+
+                        settled = true;
+                        clearInactivityTimer();
+                        callback();
+                    };
+
+                    const resolveFromResponse = () => {
+                        finish(() => {
+                            if (xhr.status < 200 || xhr.status >= 300) {
+                                reject(new Error('No se pudo cargar uno de los archivos.'));
+                                return;
+                            }
+
+                            try {
+                                const payload = JSON.parse(xhr.responseText);
+                                resolve(payload);
+                            } catch (error) {
+                                reject(new Error('Respuesta inválida al cargar archivo.'));
+                            }
+                        });
+                    };
+
                     const clearInactivityTimer = () => {
                         if (inactivityTimer) {
                             clearTimeout(inactivityTimer);
@@ -947,36 +975,43 @@
                     };
 
                     xhr.onload = () => {
-                        clearInactivityTimer();
-                        if (xhr.status < 200 || xhr.status >= 300) {
-                            reject(new Error('No se pudo cargar uno de los archivos.'));
+                        resolveFromResponse();
+                    };
+
+                    xhr.onloadend = () => {
+                        if (settled) {
                             return;
                         }
 
-                        try {
-                            const payload = JSON.parse(xhr.responseText);
-                            resolve(payload);
-                        } catch (error) {
-                            reject(new Error('Respuesta inválida al cargar archivo.'));
+                        if (xhr.readyState === XMLHttpRequest.DONE && xhr.status >= 200 && xhr.status < 300) {
+                            resolveFromResponse();
+                            return;
                         }
+
+                        finish(() => {
+                            reject(new Error('No se pudo completar la carga del archivo.'));
+                        });
                     };
 
                     xhr.onerror = () => {
-                        clearInactivityTimer();
-                        reject(new Error('Error de red durante la carga del archivo.'));
+                        finish(() => {
+                            reject(new Error('Error de red durante la carga del archivo.'));
+                        });
                     };
                     xhr.onabort = () => {
-                        clearInactivityTimer();
-                        if (abortedByWatchdog) {
-                            reject(new Error('La carga del archivo se quedó sin respuesta y fue reiniciada. Intenta de nuevo.'));
-                            return;
-                        }
+                        finish(() => {
+                            if (abortedByWatchdog) {
+                                reject(new Error('La carga del archivo se quedó sin respuesta y fue reiniciada. Intenta de nuevo.'));
+                                return;
+                            }
 
-                        reject(new Error('La carga del archivo fue cancelada.'));
+                            reject(new Error('La carga del archivo fue cancelada.'));
+                        });
                     };
                     xhr.ontimeout = () => {
-                        clearInactivityTimer();
-                        reject(new Error('La carga del archivo tardó demasiado. Intenta de nuevo.'));
+                        finish(() => {
+                            reject(new Error('La carga del archivo tardó demasiado. Intenta de nuevo.'));
+                        });
                     };
                     xhr.send(formData);
                 });
