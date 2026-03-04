@@ -618,6 +618,14 @@
             categoryOptions: @js($categoryOptions),
             statusOptions: @js($statusOptions),
             isDragging: false,
+            notify(type, message) {
+                if (window.showNotification) {
+                    window.showNotification(type, 'Atención', message);
+                    return;
+                }
+
+                console.warn(`[${type}] ${message}`);
+            },
             goToStep(step) {
                 const targetStep = Number(step);
 
@@ -656,23 +664,23 @@
 
                 if (stepNumber === 1) {
                     if (!this.hasAtLeastOneFile()) {
-                        alert('Debes seleccionar al menos un archivo para continuar.');
+                        this.notify('warning', 'Debes seleccionar al menos un archivo para continuar.');
                         return false;
                     }
 
                     if (this.isUploading || this.hasUploadingRows()) {
-                        alert('Espera a que termine la carga de los archivos antes de continuar.');
+                        this.notify('warning', 'Espera a que termine la carga de los archivos antes de continuar.');
                         return false;
                     }
 
                     if (this.rows.some((row) => row.uploadStatus === 'error')) {
-                        alert('Hay archivos con error de carga. Corrige o elimina esos archivos antes de continuar.');
+                        this.notify('danger', 'Hay archivos con error de carga. Corrige o elimina esos archivos antes de continuar.');
                         return false;
                     }
 
                     const hasEmptyTitle = this.rows.some((row) => !String(row.title ?? '').trim());
                     if (hasEmptyTitle) {
-                        alert('Todos los archivos del lote deben tener título antes de continuar.');
+                        this.notify('warning', 'Todos los archivos del lote deben tener título antes de continuar.');
                         return false;
                     }
                 }
@@ -726,7 +734,7 @@
             },
             validateWizardBeforeSubmit() {
                 if (this.isUploading || this.hasUploadingRows()) {
-                    alert('Espera a que termine la carga de archivos antes de crear los documentos.');
+                    this.notify('warning', 'Espera a que termine la carga de archivos antes de crear los documentos.');
                     return false;
                 }
 
@@ -999,7 +1007,7 @@
             },
             async uploadFiles(files, append = true) {
                 if (this.isUploading || this.hasUploadingRows()) {
-                    alert('Ya hay una carga en progreso. Espera a que termine antes de agregar más archivos.');
+                    this.notify('warning', 'Ya hay una carga en progreso. Espera a que termine antes de agregar más archivos.');
                     return;
                 }
 
@@ -1053,7 +1061,7 @@
                         pendingRow.uploadError = error?.message || 'Error al cargar archivo.';
                     }
                     this.refreshUploadingState();
-                    alert(error?.message || 'Error al cargar archivos.');
+                    this.notify('danger', error?.message || 'Error al cargar archivos.');
                 } finally {
                     this.refreshUploadingState();
                     this.persistDraftSilently();
@@ -1088,7 +1096,7 @@
             async persistDraft(showMessage = false) {
                 if (!this.draftId && this.rows.length === 0) {
                     if (showMessage) {
-                        alert('Primero selecciona al menos un archivo para guardar un borrador.');
+                        this.notify('warning', 'Primero selecciona al menos un archivo para guardar un borrador.');
                     }
                     return false;
                 }
@@ -1131,7 +1139,7 @@
                     return true;
                 } catch (error) {
                     if (showMessage) {
-                        alert(error?.message || 'No se pudo guardar el borrador.');
+                        this.notify('danger', error?.message || 'No se pudo guardar el borrador.');
                     }
                     return false;
                 } finally {

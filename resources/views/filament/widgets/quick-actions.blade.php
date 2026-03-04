@@ -110,10 +110,30 @@
                 <x-filament::button 
                     color="warning"
                     icon="heroicon-o-chart-bar"
-                    onclick="showNotification('info', 'Funcionalidad en desarrollo', 'Esta característica estará disponible pronto.')">
+                    onclick="notifyQuickActionSoon()">
                     Reportes
                 </x-filament::button>
             </div>
         </div>
+
+        <script>
+            function notifyQuickActionSoon() {
+                if (typeof FilamentNotification !== 'undefined') {
+                    new FilamentNotification()
+                        .title('Funcionalidad en desarrollo')
+                        .body('Esta característica estará disponible pronto.')
+                        .info()
+                        .send();
+                    return;
+                }
+
+                if (window.showNotification) {
+                    window.showNotification('info', 'Funcionalidad en desarrollo', 'Esta característica estará disponible pronto.');
+                    return;
+                }
+
+                console.warn('Funcionalidad en desarrollo: Esta característica estará disponible pronto.');
+            }
+        </script>
     </x-filament::section>
 </x-filament-widgets::widget>

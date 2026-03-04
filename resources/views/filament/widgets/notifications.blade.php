@@ -3,12 +3,12 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- System Alerts -->
             <div class="lg:col-span-1">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
                     🚨 Alertas del Sistema
                 </h3>
                 <div class="space-y-3">
                     @forelse($alerts as $alert)
-                        <div class="p-4 rounded-lg transition-all duration-200
+                        <div class="am-alert rounded-2xl border p-4 transition-all duration-200
                             @if($alert['type'] === 'warning') bg-yellow-50 border border-yellow-200 dark:bg-yellow-900/10 dark:border-yellow-800
                             @elseif($alert['type'] === 'info') bg-blue-50 border border-blue-200 dark:bg-blue-900/10 dark:border-blue-800
                             @else bg-white dark:bg-gray-800 ring-1 ring-gray-950/5 dark:ring-white/10
@@ -52,12 +52,12 @@
             
             <!-- Recent Notifications -->
             <div class="lg:col-span-1">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
                     🔔 Notificaciones Recientes
                 </h3>
                 <div class="space-y-3 max-h-96 overflow-y-auto">
                     @forelse($notifications as $notification)
-                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg ring-1 ring-gray-950/5 dark:ring-white/10 transition-all duration-200
+                        <div class="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm transition-all duration-200 dark:border-gray-700 dark:bg-gray-800
                             @if(!$notification['read']) ring-2 ring-primary-500 @endif">
                             <div class="flex items-start">
                                 <div class="text-xl mr-3">{{ $notification['icon'] }}</div>
@@ -97,12 +97,12 @@
             
             <!-- Reminders -->
             <div class="lg:col-span-1">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
                     📅 Recordatorios
                 </h3>
                 <div class="space-y-3">
                     @forelse($reminders as $reminder)
-                        <div class="bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 p-4 rounded-lg border border-purple-200 dark:border-purple-700 transition-all duration-200">
+                        <div class="rounded-2xl border border-cyan-200/80 bg-gradient-to-r from-cyan-50 to-sky-100 p-4 transition-all duration-200 dark:border-cyan-700 dark:from-cyan-900/20 dark:to-sky-900/20">
                             <div class="flex items-start">
                                 <div class="text-2xl mr-3">{{ $reminder['icon'] }}</div>
                                 <div class="flex-1">
@@ -110,7 +110,7 @@
                                     <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">{{ $reminder['message'] }}</p>
                                     @if(isset($reminder['action_url']))
                                         <a href="{{ $reminder['action_url'] }}" 
-                                           class="inline-flex items-center text-sm font-medium text-purple-700 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300">
+                                           class="inline-flex items-center text-sm font-medium text-sky-700 hover:text-sky-800 dark:text-sky-400 dark:hover:text-sky-300">
                                             {{ $reminder['action_text'] }}
                                             <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>

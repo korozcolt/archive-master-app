@@ -73,43 +73,43 @@
                                          });
                                  }, 30000);
                              ">
-                            <button @click="open = !open" class="relative rounded-xl border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-300/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white">
+                            <button @click="open = !open" class="relative rounded-xl border border-slate-200/80 bg-white/90 p-2 text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 hover:text-slate-900 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-sky-300/40 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white">
                                 <!-- Bell Icon -->
                                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
                                 </svg>
                                 <!-- Counter Badge -->
-                                <span x-show="count > 0" x-text="count" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full"></span>
+                                <span x-show="count > 0" x-text="count" class="absolute top-0 right-0 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-gradient-to-r from-rose-500 to-red-500 px-1.5 text-[10px] font-bold leading-none text-white shadow-sm ring-2 ring-white/90 -translate-y-1/2 translate-x-1/2 dark:ring-slate-900"></span>
                             </button>
 
                             <!-- Notifications Dropdown -->
-                            <div x-show="open" @click.away="open = false" class="absolute right-0 mt-12 w-96 bg-white dark:bg-gray-800 rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 z-50">
-                                <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                                    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Notificaciones</h3>
-                                    <a href="{{ route('notifications.index') }}" class="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400">Ver todas</a>
+                            <div x-show="open" @click.away="open = false" class="am-dropdown-panel absolute right-0 z-50 mt-12 w-96 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-xl ring-1 ring-slate-900/5 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/95 dark:ring-white/10">
+                                <div class="flex items-center justify-between border-b border-slate-200/80 px-4 py-3 dark:border-slate-700">
+                                    <h3 class="text-sm font-semibold uppercase tracking-[0.14em] text-slate-700 dark:text-slate-200">Notificaciones</h3>
+                                    <a href="{{ route('notifications.index') }}" class="text-xs font-semibold uppercase tracking-[0.14em] text-sky-600 transition hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300">Ver todas</a>
                                 </div>
 
-                                <div class="max-h-96 overflow-y-auto">
+                                <div class="max-h-96 overflow-y-auto bg-gradient-to-b from-white to-slate-50/60 dark:from-slate-900 dark:to-slate-900/70">
                                     <template x-if="notifications.length === 0">
-                                        <div class="p-8 text-center text-gray-500 dark:text-gray-400">
-                                            <svg class="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <div class="p-8 text-center text-slate-500 dark:text-slate-400">
+                                            <svg class="mx-auto mb-2 h-12 w-12 text-slate-300 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
                                             </svg>
-                                            <p>No tienes notificaciones nuevas</p>
+                                            <p class="text-sm">No tienes notificaciones nuevas</p>
                                         </div>
                                     </template>
 
                                     <template x-for="notification in notifications" :key="notification.id">
-                                        <a :href="notification.action_url" class="block p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                        <a :href="notification.action_url" class="group block border-b border-slate-200/70 px-4 py-3 transition hover:bg-slate-100/70 dark:border-slate-700 dark:hover:bg-slate-800/60">
                                             <div class="flex items-start">
                                                 <div class="flex-shrink-0">
-                                                    <div class="w-10 h-10 rounded-full flex items-center justify-center"
+                                                    <div class="flex h-10 w-10 items-center justify-center rounded-xl shadow-sm"
                                                          :class="{
-                                                             'bg-blue-100 text-blue-600': notification.color === 'blue',
-                                                             'bg-yellow-100 text-yellow-600': notification.color === 'yellow',
-                                                             'bg-red-100 text-red-600': notification.color === 'red',
-                                                             'bg-green-100 text-green-600': notification.color === 'green',
-                                                             'bg-gray-100 text-gray-600': notification.color === 'gray'
+                                                             'bg-blue-100 text-blue-600 ring-1 ring-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:ring-blue-500/30': notification.color === 'blue',
+                                                             'bg-amber-100 text-amber-600 ring-1 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:ring-amber-500/30': notification.color === 'yellow',
+                                                             'bg-rose-100 text-rose-600 ring-1 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-300 dark:ring-rose-500/30': notification.color === 'red',
+                                                             'bg-emerald-100 text-emerald-600 ring-1 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/30': notification.color === 'green',
+                                                             'bg-slate-100 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:ring-slate-600': notification.color === 'gray'
                                                          }">
                                                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                                             <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
@@ -117,9 +117,9 @@
                                                     </div>
                                                 </div>
                                                 <div class="ml-3 flex-1">
-                                                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100" x-text="notification.title"></p>
-                                                    <p class="text-sm text-gray-600 dark:text-gray-400" x-text="notification.message"></p>
-                                                    <p class="text-xs text-gray-500 dark:text-gray-500 mt-1" x-text="notification.created_at"></p>
+                                                    <p class="text-sm font-semibold text-slate-800 transition group-hover:text-slate-950 dark:text-slate-100 dark:group-hover:text-white" x-text="notification.title"></p>
+                                                    <p class="text-sm text-slate-600 dark:text-slate-400" x-text="notification.message"></p>
+                                                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-500" x-text="notification.created_at"></p>
                                                 </div>
                                             </div>
                                         </a>
@@ -127,10 +127,10 @@
                                 </div>
 
                                 <template x-if="count > 0">
-                                    <div class="p-3 border-t border-gray-200 dark:border-gray-700">
+                                    <div class="border-t border-slate-200/80 p-3 dark:border-slate-700">
                                         <form method="POST" action="{{ route('notifications.markAllAsRead') }}">
                                             @csrf
-                                            <button type="submit" class="w-full text-center text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+                                            <button type="submit" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.14em] text-slate-600 transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-sky-500/30 dark:hover:bg-sky-500/10 dark:hover:text-sky-300">
                                                 Marcar todas como leídas
                                             </button>
                                         </form>
@@ -164,22 +164,38 @@
         <!-- Page Content -->
         <main class="py-8 sm:py-10">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <!-- Success Message -->
                 @if (session('success'))
-                    <div class="mb-4 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-emerald-800 shadow-sm dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200" role="alert">
-                        <span class="block sm:inline">{{ session('success') }}</span>
-                    </div>
+                    <x-ui.alert type="success" title="Operación completada" class="mb-4">
+                        {{ session('success') }}
+                    </x-ui.alert>
                 @endif
 
-                <!-- Error Messages -->
+                @if (session('error'))
+                    <x-ui.alert type="danger" title="No fue posible completar la acción" class="mb-4">
+                        {{ session('error') }}
+                    </x-ui.alert>
+                @endif
+
+                @if (session('warning'))
+                    <x-ui.alert type="warning" title="Atención" class="mb-4">
+                        {{ session('warning') }}
+                    </x-ui.alert>
+                @endif
+
+                @if (session('info'))
+                    <x-ui.alert type="info" title="Información" class="mb-4">
+                        {{ session('info') }}
+                    </x-ui.alert>
+                @endif
+
                 @if ($errors->any())
-                    <div class="mb-4 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-rose-800 shadow-sm dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200" role="alert">
-                        <ul class="list-inside list-disc">
+                    <x-ui.alert type="danger" title="Revisa los datos enviados" class="mb-4">
+                        <ul class="space-y-1">
                             @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
+                                <li>• {{ $error }}</li>
                             @endforeach
                         </ul>
-                    </div>
+                    </x-ui.alert>
                 @endif
 
                 @isset($slot)

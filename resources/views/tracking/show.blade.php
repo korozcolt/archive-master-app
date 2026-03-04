@@ -220,6 +220,23 @@
     </footer>
 
     <script>
+        function showTrackingToast(message, variant = 'info') {
+            const palette = {
+                success: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+                danger: 'border-rose-200 bg-rose-50 text-rose-700',
+                info: 'border-sky-200 bg-sky-50 text-sky-700',
+            };
+
+            const toast = document.createElement('div');
+            toast.className = `fixed right-4 top-4 z-50 rounded-xl border px-4 py-3 text-sm font-medium shadow-lg backdrop-blur ${palette[variant] || palette.info}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 2800);
+        }
+
         function copyTrackingCode() {
             const code = '{{ $document['tracking_code'] }}';
             navigator.clipboard.writeText(code).then(() => {
@@ -234,7 +251,7 @@
                     btn.classList.remove('bg-green-50', 'text-green-600');
                 }, 2000);
             }).catch(err => {
-                alert('Error al copiar el código. Por favor cópielo manualmente.');
+                showTrackingToast('Error al copiar el código. Por favor cópielo manualmente.', 'danger');
             });
         }
     </script>

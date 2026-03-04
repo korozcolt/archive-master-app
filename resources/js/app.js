@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeKeyboardShortcuts();
     initializeTooltips();
     initializeNotifications();
+    initializeConfirmationDialogs();
     initializeFormEnhancements();
     initializeLoadingStates();
 });
@@ -79,17 +80,85 @@ function initializeTooltips() {
 
 // Sistema de notificaciones mejorado
 function initializeNotifications() {
-    window.showNotification = function(message, type = 'info', duration = 5000) {
+    const normalizeType = (value) => {
+        const candidate = String(value ?? 'info').toLowerCase();
+        if (candidate === 'error') {
+            return 'danger';
+        }
+
+        return ['info', 'success', 'warning', 'danger'].includes(candidate) ? candidate : 'info';
+    };
+
+    const ensureToastStack = () => {
+        let stack = document.getElementById('am-toast-stack');
+
+        if (!stack) {
+            stack = document.createElement('div');
+            stack.id = 'am-toast-stack';
+            stack.className = 'fixed right-4 top-4 z-50 flex w-full max-w-sm flex-col gap-3 pointer-events-none';
+            document.body.appendChild(stack);
+        }
+
+        return stack;
+    };
+
+    window.showNotification = function(first, second = 'info', third = 5000, fourth = undefined) {
+        let type = 'info';
+        let title = '';
+        let message = '';
+        let duration = 5000;
+
+        const isLegacySignature = ['info', 'success', 'warning', 'danger', 'error'].includes(String(first).toLowerCase())
+            && typeof second === 'string'
+            && typeof third === 'string';
+
+        if (isLegacySignature) {
+            type = normalizeType(first);
+            title = String(second);
+            message = String(third);
+            duration = typeof fourth === 'number' ? fourth : 5000;
+        } else {
+            message = String(first ?? '');
+            type = normalizeType(second);
+            duration = typeof third === 'number' ? third : 5000;
+        }
+
         const notification = document.createElement('div');
-        notification.className = `notification-${type} fixed top-4 right-4 z-50 max-w-sm slide-in-right`;
-        notification.innerHTML = `
-            <div class="flex items-center justify-between">
-                <span>${message}</span>
-                <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-lg font-bold">&times;</button>
-            </div>
-        `;
-        
-        document.body.appendChild(notification);
+        notification.className = `am-toast am-toast--${type} pointer-events-auto slide-in-right`;
+        notification.setAttribute('role', 'status');
+        notification.setAttribute('aria-live', 'polite');
+
+        const content = document.createElement('div');
+        content.className = 'flex items-start justify-between gap-3';
+
+        const textWrapper = document.createElement('div');
+        textWrapper.className = 'min-w-0 flex-1';
+
+        if (title) {
+            const titleElement = document.createElement('p');
+            titleElement.className = 'text-sm font-semibold tracking-tight';
+            titleElement.textContent = title;
+            textWrapper.appendChild(titleElement);
+        }
+
+        const text = document.createElement('p');
+        text.className = title ? 'mt-1 block text-sm leading-5' : 'block text-sm leading-5';
+        text.textContent = message;
+        textWrapper.appendChild(text);
+
+        const closeButton = document.createElement('button');
+        closeButton.type = 'button';
+        closeButton.className = 'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-current/70 transition hover:bg-white/50 hover:text-current';
+        closeButton.setAttribute('aria-label', 'Cerrar notificación');
+        closeButton.innerHTML = '&times;';
+        closeButton.addEventListener('click', () => notification.remove());
+
+        content.appendChild(textWrapper);
+        content.appendChild(closeButton);
+        notification.appendChild(content);
+
+        const stack = ensureToastStack();
+        stack.appendChild(notification);
         
         // Auto-remover después del tiempo especificado
         setTimeout(() => {
@@ -99,6 +168,124 @@ function initializeNotifications() {
             }
         }, duration);
     };
+}
+
+function initializeConfirmationDialogs() {
+    const forms = document.querySelectorAll('form[data-confirm-message]');
+
+    forms.forEach((form) => {
+        if (form.dataset.confirmBound === '1') {
+            return;
+        }
+
+        form.dataset.confirmBound = '1';
+
+        form.addEventListener('submit', async (event) => {
+            if (form.dataset.confirmBypassed === '1') {
+                return;
+            }
+
+            event.preventDefault();
+
+            const confirmed = await openConfirmModal({
+                title: form.dataset.confirmTitle || 'Confirmar acción',
+                message: form.dataset.confirmMessage || '¿Estás seguro de continuar?',
+                confirmText: form.dataset.confirmButton || 'Confirmar',
+                cancelText: form.dataset.cancelButton || 'Cancelar',
+                tone: form.dataset.confirmTone || 'danger',
+            });
+
+            if (!confirmed) {
+                return;
+            }
+
+            form.dataset.confirmBypassed = '1';
+            form.requestSubmit();
+            delete form.dataset.confirmBypassed;
+        });
+    });
+}
+
+function openConfirmModal({
+    title = 'Confirmar acción',
+    message = '¿Estás seguro de continuar?',
+    confirmText = 'Confirmar',
+    cancelText = 'Cancelar',
+    tone = 'danger',
+} = {}) {
+    return new Promise((resolve) => {
+        const toneMap = {
+            danger: {
+                confirmButton: 'bg-rose-600 text-white hover:bg-rose-700 focus:ring-rose-300/60',
+                badge: 'bg-rose-100 text-rose-700 ring-1 ring-rose-200',
+            },
+            warning: {
+                confirmButton: 'bg-amber-500 text-white hover:bg-amber-600 focus:ring-amber-300/60',
+                badge: 'bg-amber-100 text-amber-700 ring-1 ring-amber-200',
+            },
+            info: {
+                confirmButton: 'bg-sky-600 text-white hover:bg-sky-700 focus:ring-sky-300/60',
+                badge: 'bg-sky-100 text-sky-700 ring-1 ring-sky-200',
+            },
+        };
+
+        const selectedTone = toneMap[tone] ? tone : 'danger';
+        const palette = toneMap[selectedTone];
+
+        const overlay = document.createElement('div');
+        overlay.className = 'fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm';
+
+        const dialog = document.createElement('div');
+        dialog.className = 'w-full max-w-md rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900';
+
+        dialog.innerHTML = `
+            <div class="flex items-start gap-3">
+                <span class="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${palette.badge}">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.008v.008H12V16.5Zm9-4.5a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    </svg>
+                </span>
+                <div class="min-w-0 flex-1">
+                    <h3 class="text-base font-semibold text-slate-900 dark:text-white">${title}</h3>
+                    <p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">${message}</p>
+                </div>
+            </div>
+            <div class="mt-5 flex items-center justify-end gap-2">
+                <button type="button" data-cancel class="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300/50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+                    ${cancelText}
+                </button>
+                <button type="button" data-confirm class="inline-flex h-10 items-center justify-center rounded-xl px-4 text-sm font-semibold transition focus:outline-none focus:ring-2 ${palette.confirmButton}">
+                    ${confirmText}
+                </button>
+            </div>
+        `;
+
+        const finish = (result) => {
+            document.removeEventListener('keydown', handleEsc);
+            overlay.remove();
+            resolve(result);
+        };
+
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay) {
+                finish(false);
+            }
+        });
+
+        dialog.querySelector('[data-cancel]')?.addEventListener('click', () => finish(false));
+        dialog.querySelector('[data-confirm]')?.addEventListener('click', () => finish(true));
+
+        const handleEsc = (event) => {
+            if (event.key === 'Escape') {
+                finish(false);
+            }
+        };
+
+        document.addEventListener('keydown', handleEsc);
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        dialog.querySelector('[data-confirm]')?.focus();
+    });
 }
 
 // Mejoras para formularios

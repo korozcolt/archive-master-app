@@ -123,6 +123,106 @@
     animation: fadeOut 0.3s ease;
 }
 
+/* Unified alert + toast system */
+.am-alert {
+    --am-accent: #0ea5e9;
+}
+
+.am-alert::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0.32rem;
+    border-radius: 1rem;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--am-accent) 85%, #ffffff 15%), var(--am-accent));
+    opacity: 0.9;
+}
+
+.am-alert--success {
+    --am-accent: #10b981;
+}
+
+.am-alert--danger {
+    --am-accent: #f43f5e;
+}
+
+.am-alert--warning {
+    --am-accent: #f59e0b;
+}
+
+.am-alert--info {
+    --am-accent: #0ea5e9;
+}
+
+.am-toast {
+    border-radius: 1rem;
+    border: 1px solid color-mix(in srgb, var(--am-toast-accent) 24%, #ffffff 76%);
+    background: linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--am-toast-accent) 14%, #ffffff 86%),
+        color-mix(in srgb, var(--am-toast-accent) 8%, #ffffff 92%)
+    );
+    color: color-mix(in srgb, var(--am-toast-accent) 58%, #111827 42%);
+    box-shadow: 0 10px 25px color-mix(in srgb, var(--am-toast-accent) 18%, transparent);
+    backdrop-filter: blur(10px);
+    padding: 0.8rem 0.95rem;
+}
+
+.am-toast--info {
+    --am-toast-accent: #0284c7;
+}
+
+.am-toast--success {
+    --am-toast-accent: #059669;
+}
+
+.am-toast--warning {
+    --am-toast-accent: #d97706;
+}
+
+.am-toast--danger,
+.am-toast--error {
+    --am-toast-accent: #e11d48;
+}
+
+/* Filament notifications look & feel */
+.fi-no-notification {
+    border-radius: 1rem !important;
+    overflow: hidden;
+    box-shadow:
+        0 14px 35px -20px rgba(2, 6, 23, 0.45),
+        0 10px 15px -10px rgba(15, 23, 42, 0.2) !important;
+    backdrop-filter: blur(8px);
+}
+
+.fi-no-notification .fi-no-notification-title {
+    letter-spacing: 0.01em;
+}
+
+.fi-no-notification .fi-no-notification-body {
+    color: rgb(71 85 105);
+}
+
+.dark .fi-no-notification .fi-no-notification-body {
+    color: rgb(148 163 184);
+}
+
+.fi-no-notification.fi-status-success .fi-no-notification-icon {
+    color: rgb(5 150 105);
+}
+
+.fi-no-notification.fi-status-danger .fi-no-notification-icon {
+    color: rgb(225 29 72);
+}
+
+.fi-no-notification.fi-status-warning .fi-no-notification-icon {
+    color: rgb(217 119 6);
+}
+
+.fi-no-notification.fi-status-info .fi-no-notification-icon {
+    color: rgb(2 132 199);
+}
+
 @keyframes fadeOut {
     from { opacity: 1; }
     to { opacity: 0; }

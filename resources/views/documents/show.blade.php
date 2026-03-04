@@ -892,7 +892,16 @@
         <section class="rounded-2xl border border-rose-200 bg-rose-50/60 p-5 shadow-sm dark:border-rose-900/40 dark:bg-rose-950/20">
             <h2 class="text-sm font-semibold uppercase tracking-[0.14em] text-rose-700 dark:text-rose-300">Zona de peligro</h2>
             <p class="mt-2 text-sm text-rose-700/90 dark:text-rose-200/90">Una vez eliminado, este documento no se puede recuperar.</p>
-            <form action="{{ route('documents.destroy', $document) }}" method="POST" class="mt-4" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este documento?');">
+            <form
+                action="{{ route('documents.destroy', $document) }}"
+                method="POST"
+                class="mt-4"
+                data-confirm-title="Eliminar documento"
+                data-confirm-message="¿Estás seguro de que quieres eliminar este documento? Esta acción no se puede deshacer."
+                data-confirm-button="Sí, eliminar"
+                data-cancel-button="Cancelar"
+                data-confirm-tone="danger"
+            >
                 @csrf
                 @method('DELETE')
                 <button type="submit" class="inline-flex h-10 items-center justify-center rounded-xl bg-rose-600 px-4 text-sm font-semibold text-white hover:bg-rose-700">

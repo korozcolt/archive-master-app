@@ -32,10 +32,10 @@
                 <!-- Card Body -->
                 <div class="p-8">
                     @if(session('error'))
-                        <div class="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r">
+                        <div class="mb-6 rounded-xl border border-rose-200 bg-rose-50/90 p-4 shadow-sm">
                             <div class="flex items-center">
-                                <i class="fas fa-exclamation-circle text-red-500 mr-3"></i>
-                                <p class="text-red-700 font-medium">{{ session('error') }}</p>
+                                <i class="fas fa-exclamation-circle mr-3 text-rose-500"></i>
+                                <p class="font-medium text-rose-700">{{ session('error') }}</p>
                             </div>
                         </div>
                     @endif

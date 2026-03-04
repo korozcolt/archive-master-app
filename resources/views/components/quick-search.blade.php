@@ -334,6 +334,37 @@ function showSearchState(state) {
     }
 }
 
+function quickSearchNotify(type, title, message) {
+    if (window.showNotification) {
+        window.showNotification(type, title, message);
+        return;
+    }
+
+    if (typeof FilamentNotification !== 'undefined') {
+        const notification = new FilamentNotification().title(title).body(message);
+
+        if (type === 'success') {
+            notification.success().send();
+            return;
+        }
+
+        if (type === 'warning') {
+            notification.warning().send();
+            return;
+        }
+
+        if (type === 'danger' || type === 'error') {
+            notification.danger().send();
+            return;
+        }
+
+        notification.info().send();
+        return;
+    }
+
+    console.warn(`[${type}] ${title}: ${message}`);
+}
+
 function selectResult(type, id) {
     // Handle result selection
     switch (type) {
@@ -341,7 +372,7 @@ function selectResult(type, id) {
             window.location.href = `/admin/documents/${id}/edit`;
             break;
         case 'user':
-            showNotification('info', 'Usuario seleccionado', `Navegando al perfil del usuario ID: ${id}`);
+            quickSearchNotify('info', 'Usuario seleccionado', `Navegando al perfil del usuario ID: ${id}`);
             break;
         case 'category':
             window.location.href = `/admin/documents?tableFilters[category_id][value]=${id}`;
@@ -352,11 +383,11 @@ function selectResult(type, id) {
 
 function showAdvancedSearch() {
     closeQuickSearch();
-    showNotification('info', 'Búsqueda Avanzada', 'Funcionalidad en desarrollo. Próximamente disponible.');
+    quickSearchNotify('info', 'Búsqueda Avanzada', 'Funcionalidad en desarrollo. Próximamente disponible.');
 }
 
 function showSearchHelp() {
-    showNotification('info', 'Ayuda de Búsqueda', 'Usa palabras clave, números de documento o filtra por tipo de contenido para mejores resultados.');
+    quickSearchNotify('info', 'Ayuda de Búsqueda', 'Usa palabras clave, números de documento o filtra por tipo de contenido para mejores resultados.');
 }
 
 // Initialize search input listener

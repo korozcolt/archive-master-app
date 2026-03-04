@@ -15,7 +15,15 @@
                     </button>
                 </form>
 
-                <form method="POST" action="{{ route('notifications.clearRead') }}" onsubmit="return confirm('¿Estás seguro de eliminar todas las notificaciones leídas?')">
+                <form
+                    method="POST"
+                    action="{{ route('notifications.clearRead') }}"
+                    data-confirm-title="Limpiar notificaciones leídas"
+                    data-confirm-message="¿Estás seguro de eliminar todas las notificaciones leídas?"
+                    data-confirm-button="Sí, limpiar"
+                    data-cancel-button="Cancelar"
+                    data-confirm-tone="danger"
+                >
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-700 active:bg-red-900 focus:outline-none focus:border-red-900 focus:ring ring-red-300 disabled:opacity-25 transition ease-in-out duration-150">
@@ -31,12 +39,6 @@
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            @if(session('success'))
-                <div class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
-                    <span class="block sm:inline">{{ session('success') }}</span>
-                </div>
-            @endif
-
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
                     @if($notifications->count() > 0)
@@ -168,7 +170,16 @@
                                                         </form>
                                                     @endif
 
-                                                    <form method="POST" action="{{ route('notifications.destroy', $notification->id) }}" class="inline" onsubmit="return confirm('¿Eliminar esta notificación?')">
+                                                    <form
+                                                        method="POST"
+                                                        action="{{ route('notifications.destroy', $notification->id) }}"
+                                                        class="inline"
+                                                        data-confirm-title="Eliminar notificación"
+                                                        data-confirm-message="¿Eliminar esta notificación?"
+                                                        data-confirm-button="Sí, eliminar"
+                                                        data-cancel-button="Cancelar"
+                                                        data-confirm-tone="danger"
+                                                    >
                                                         @csrf
                                                         @method('DELETE')
                                                         <button type="submit" class="inline-flex items-center text-sm font-medium text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
