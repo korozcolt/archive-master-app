@@ -1095,7 +1095,7 @@
                     this.notify('danger', error?.message || 'Error al cargar archivos.');
                 } finally {
                     this.refreshUploadingState();
-                    this.persistDraftSilently();
+                    await this.persistDraft(false, true);
                 }
             },
             collectDraftPayload() {
@@ -1124,7 +1124,7 @@
                     })),
                 };
             },
-            async persistDraft(showMessage = false) {
+            async persistDraft(showMessage = false, syncRowsFromServer = false) {
                 if (!this.draftId && this.rows.length === 0) {
                     if (showMessage) {
                         this.notify('warning', 'Primero selecciona al menos un archivo para guardar un borrador.');
@@ -1157,7 +1157,7 @@
                     this.updateDraftUrl();
 
                     if (payload.draft) {
-                        this.applyDraftToForm(payload.draft, false);
+                        this.applyDraftToForm(payload.draft, syncRowsFromServer);
                     }
 
                     if (showMessage) {

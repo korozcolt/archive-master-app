@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ArchiveMaster Flows</title>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'dark', securityLevel: 'loose' });
+  </script>
+  <style>
+    body { margin: 0; background: #090f1f; color: #e5e7eb; font-family: ui-sans-serif, system-ui; }
+    .wrap { width: 1400px; margin: 0 auto; padding: 24px; }
+    .card { background: linear-gradient(180deg, #0f172a, #111827); border: 1px solid #243244; border-radius: 16px; padding: 18px; margin: 0 0 24px; }
+    h2 { margin: 0 0 12px; font-size: 26px; color: #f8fafc; }
+    .diagram { min-height: 320px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h2>Flujo Operativo del Portal</h2>
+      <div class="diagram mermaid">
+flowchart LR
+  REC["Recepcionista\nRegistra y distribuye"] --> OFI["Encargado de Oficina\nRecibe y gestiona"]
+  OFI --> ARC["Encargado de Archivo\nUbica y etiqueta"]
+  REC --> NOTI["Notificaciones"]
+  OFI --> NOTI
+  ARC --> NOTI
+  USER["Usuario Regular\nConsulta"] --> HIST["Historial y trazabilidad"]
+  NOTI --> HIST
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Ciclo de Vida del Documento</h2>
+      <div class="diagram mermaid">
+flowchart TD
+  A["Carga de documento"] --> B["Metadatos y validación"] --> C["Envío a oficinas"] --> D["Gestión del destino"]
+  D --> E["Aprobado o rechazado"]
+  E --> F["Recepción en archivo"]
+  F --> G["Asignación de ubicación física"]
+  G --> H["Estado archivado + etiqueta"]
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Flujo de Administración y Gobierno</h2>
+      <div class="diagram mermaid">
+flowchart LR
+  CAT["Catálogos\n(Estados, categorías, etiquetas)"] --> USR["Usuarios y roles"]
+  USR --> WF["Workflows y reglas"]
+  WF --> OPS["Operación diaria"]
+  OPS --> REP["Reportes y métricas"]
+  REP --> AUD["Auditoría"]
+  AUD --> CAT
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Flujo de Notificaciones en Tiempo Real</h2>
+      <div class="diagram mermaid">
+flowchart LR
+  EV["Evento de negocio"] --> LN["Laravel Notification"] --> CH["Canales\nDB + Broadcast"] --> UI["Portal / Admin UI"] --> NC["Centro de notificaciones"]
+      </div>
+    </div>
+  </div>
+</body>
+</html>
