@@ -28,6 +28,6 @@
   "bundle": {
     "active": true,
     "targets": ["nsis", "app", "deb"],
-    "icon": ["icons/app-icon.svg"]
+    "icon": ["icons/app-icon.svg", "icons/icon.png", "icons/icon.ico"]
   }
 }
