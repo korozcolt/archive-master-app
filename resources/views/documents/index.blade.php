@@ -52,7 +52,7 @@
 @endphp
 
 <div class="space-y-6">
-    <section class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-duration-300 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
         <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
                 <div class="mb-1 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
@@ -67,7 +67,7 @@
             </div>
             <div class="flex flex-wrap items-center gap-3">
                 <a href="{{ route('documents.create') }}"
-                   class="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-900/20 transition hover:from-sky-400 hover:to-indigo-500">
+                   class="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-900/20 transition hover:from-sky-400 hover:to-indigo-500 motion-safe:hover:animate-jump motion-safe:hover:animate-duration-200 am-motion-safe">
                     <span>Subir / Crear</span>
                 </a>
                 @if($documents->total() > 0)
@@ -80,7 +80,7 @@
         </div>
     </section>
 
-    <section class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-100 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
         <form method="GET" action="{{ route('documents.index') }}" class="space-y-5">
             <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_auto]">
                 <div class="relative">
@@ -176,7 +176,7 @@
         </form>
     </section>
 
-    <section class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-150 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
         @if($documents->isEmpty())
             <div class="px-6 py-14 text-center">
                 <x-file-extension-icon class="mx-auto mb-4 h-12 w-12" size="h-6 w-6" />
@@ -219,7 +219,7 @@
                                     ?: \App\Support\FileExtensionIcon::extensionFromPath($latestVersionForIcon?->file_path)
                                     ?: \App\Support\FileExtensionIcon::normalizeExtension($latestVersionForIcon?->file_extension);
                             @endphp
-                            <tr class="group hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                            <tr class="group hover:bg-slate-50/80 motion-safe:animate-fade-in-up motion-safe:animate-duration-300 dark:hover:bg-slate-800/40 am-motion-safe">
                                 <td class="px-6 py-4">
                                     <a href="{{ route('documents.show', $document) }}" class="flex items-center gap-4">
                                         <x-file-extension-icon :extension="$documentFileExtension" class="h-10 w-10 shrink-0" size="h-5 w-5" :data-file-ext="$documentFileExtension" />
@@ -259,7 +259,7 @@
                                     {{ $document->created_at?->format('d/m/Y') }}
                                 </td>
                                 <td class="px-4 py-4 text-right">
-                                    <div class="flex justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition">
+                                    <div class="flex justify-end gap-2 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
                                         <a href="{{ route('documents.show', $document) }}" class="rounded-lg px-2 py-1 text-xs font-medium text-sky-700 hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-slate-800">Ver</a>
                                         @if($document->created_by == Auth::id() || $document->assigned_to == Auth::id())
                                             <a href="{{ route('documents.edit', $document) }}" class="rounded-lg px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-slate-800">Editar</a>

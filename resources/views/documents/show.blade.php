@@ -43,7 +43,7 @@
 @endphp
 
 <div class="space-y-6">
-    <section class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-duration-300 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
         <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
             <div class="min-w-0">
                 <div class="mb-2 flex flex-wrap items-center gap-2 text-sm">
@@ -67,7 +67,7 @@
                     </a>
                 @endif
                 @if($hasPreview)
-                    <a href="{{ route('documents.download', $document) }}" class="inline-flex h-10 items-center justify-center rounded-xl border border-sky-300/20 bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:from-sky-400 hover:to-indigo-500">
+                    <a href="{{ route('documents.download', $document) }}" class="inline-flex h-10 items-center justify-center rounded-xl border border-sky-300/20 bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:from-sky-400 hover:to-indigo-500 motion-safe:hover:animate-jump motion-safe:hover:animate-duration-200 am-motion-safe">
                         Descargar
                     </a>
                 @endif
@@ -79,7 +79,7 @@
     </section>
 
     <section class="grid grid-cols-1 gap-6 2xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-100 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
             <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
                 <div class="flex items-center gap-3">
                     <h2 class="text-sm font-semibold uppercase tracking-[0.14em] text-slate-600 dark:text-slate-300">Previsualización</h2>
@@ -130,7 +130,7 @@
             </div>
         </div>
 
-        <aside class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <aside class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-150 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
             <div class="border-b border-slate-200 px-4 py-4 dark:border-slate-800">
                 <div class="mb-3 flex items-start justify-between gap-3">
                     <x-file-extension-icon :extension="$documentFileExtension" class="h-10 w-10" size="h-5 w-5" />
@@ -199,7 +199,7 @@
                             </div>
                         </div>
 
-                        <form method="POST" action="{{ route('documents.archive-location.update', $document) }}" class="space-y-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                        <form method="POST" action="{{ route('documents.archive-location.update', $document) }}" class="space-y-3 rounded-xl border border-slate-200 bg-white p-3 motion-safe:animate-fade-in-up motion-safe:animate-delay-200 dark:border-slate-700 dark:bg-slate-900 am-motion-safe">
                             @csrf
                             <div>
                                 <label for="physical_location_id" class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Asignar ubicación</label>

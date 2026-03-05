@@ -90,7 +90,7 @@
     @csrf
     <input type="hidden" name="draft_id" x-model="draftId">
 
-    <div class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-duration-300 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
         <div class="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.16em] text-sky-600 dark:text-sky-400">Documentos</p>
@@ -153,7 +153,7 @@
 
         <section class="lg:col-span-9 space-y-6">
             <div x-show="currentStep === 1" x-cloak x-ref="step1" class="space-y-6">
-                <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-100 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
                     <div
                         class="group relative overflow-hidden rounded-xl border-2 border-dashed border-sky-300/40 bg-slate-50/70 p-8 text-center transition hover:border-sky-500 dark:border-sky-700/40 dark:bg-slate-950/30 md:p-10"
                         :class="{ 'ring-2 ring-sky-300/40 border-sky-500': isDragging }"
@@ -231,7 +231,7 @@
 
                     <div class="space-y-3">
                         <template x-for="(row, index) in rows" :key="row.uid">
-                            <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-sky-300 dark:border-slate-800 dark:bg-slate-900">
+                            <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-sky-300 motion-safe:animate-fade-in-up motion-safe:animate-duration-300 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
                                 <div class="flex items-start gap-4">
                                     <div class="relative mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-white/10"
                                          :class="fileIconMeta(row.extension).bgClass">
@@ -312,7 +312,7 @@
             </div>
 
             <div x-show="currentStep === 2" x-cloak x-ref="step2" class="space-y-6">
-                <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-150 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
                     <div class="mb-5">
                         <h2 class="text-lg font-bold text-slate-900 dark:text-white">Metadatos</h2>
                         <p class="text-sm text-slate-500 dark:text-slate-400">
@@ -456,7 +456,7 @@
             </div>
 
             <div x-show="currentStep === 3" x-cloak x-ref="step3" class="space-y-6">
-                <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-200 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
                     <div class="mb-5">
                         <h2 class="text-lg font-bold text-slate-900 dark:text-white">Configuración</h2>
                         <p class="text-sm text-slate-500 dark:text-slate-400">Acceso, prioridad y parámetros operativos para los archivos cargados.</p>
@@ -528,7 +528,7 @@
             </div>
 
             <div x-show="currentStep === 4" x-cloak x-ref="step4" class="space-y-6">
-                <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-250 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
                     <div class="mb-5">
                         <h2 class="text-lg font-bold text-slate-900 dark:text-white">Revisión</h2>
                         <p class="text-sm text-slate-500 dark:text-slate-400">Confirma los datos de la carga antes de crear los documentos.</p>

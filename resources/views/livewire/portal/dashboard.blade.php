@@ -20,39 +20,39 @@
 @endphp
 
 <div class="space-y-6">
-    <div class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-duration-300 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.16em] text-sky-600 dark:text-sky-400">Portal Operativo</p>
                 <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Resumen personal de documentos</h1>
                 <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">Visión rápida de tus documentos, estados y actividad reciente.</p>
             </div>
-            <a href="{{ route('documents.create') }}" class="inline-flex h-11 items-center justify-center rounded-xl border border-sky-300/30 bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-900/20 transition hover:from-sky-400 hover:to-indigo-500">
+            <a href="{{ route('documents.create') }}" class="inline-flex h-11 items-center justify-center rounded-xl border border-sky-300/30 bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-900/20 transition hover:from-sky-400 hover:to-indigo-500 motion-safe:hover:animate-jump motion-safe:hover:animate-duration-200 am-motion-safe">
                 Nuevo Documento
             </a>
         </div>
     </div>
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div class="rounded-2xl border border-white/70 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div class="rounded-2xl border border-white/70 bg-white p-4 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-100 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Total</p>
             <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ $summary['total'] }}</p>
         </div>
-        <div class="rounded-2xl border border-white/70 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div class="rounded-2xl border border-white/70 bg-white p-4 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-150 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Enviados</p>
             <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ $summary['sent'] }}</p>
         </div>
-        <div class="rounded-2xl border border-white/70 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div class="rounded-2xl border border-white/70 bg-white p-4 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-200 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Recibidos</p>
             <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ $summary['received'] }}</p>
         </div>
-        <div class="rounded-2xl border border-white/70 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div class="rounded-2xl border border-white/70 bg-white p-4 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-250 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Pendientes</p>
             <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ $summary['pending'] }}</p>
         </div>
     </div>
 
-    <div class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-300 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
         <div class="flex items-center justify-between border-b border-slate-200/80 px-5 py-4 dark:border-slate-800">
             <h2 class="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">Documentos recientes</h2>
             <a href="{{ route('documents.index') }}" class="inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-medium text-sky-700 transition hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-slate-800">Ver todos</a>

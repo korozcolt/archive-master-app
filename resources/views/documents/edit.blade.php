@@ -37,7 +37,7 @@
 @endphp
 
 <div class="space-y-6">
-    <section class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-duration-300 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
         <div class="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.16em] text-sky-600 dark:text-sky-400">Documentos</p>
@@ -53,7 +53,7 @@
                 </a>
                 @if($hasAttachment)
                     <a href="{{ route('documents.download', $document) }}"
-                       class="inline-flex h-10 items-center justify-center rounded-lg border border-sky-300/20 bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:from-sky-400 hover:to-indigo-500">
+                       class="inline-flex h-10 items-center justify-center rounded-lg border border-sky-300/20 bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:from-sky-400 hover:to-indigo-500 motion-safe:hover:animate-jump motion-safe:hover:animate-duration-200 am-motion-safe">
                         Descargar adjunto
                     </a>
                 @endif
@@ -66,7 +66,7 @@
         @method('PUT')
 
         <div class="space-y-6">
-            <section class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <section class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-100 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
                 <div class="mb-5">
                     <h2 class="text-lg font-bold text-slate-900 dark:text-white">Información principal</h2>
                     <p class="text-sm text-slate-500 dark:text-slate-400">Datos descriptivos y clasificación del documento.</p>
@@ -151,7 +151,7 @@
                 </div>
             </section>
 
-            <section class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <section class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-150 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
                 <div class="mb-5">
                     <h2 class="text-lg font-bold text-slate-900 dark:text-white">Adjunto</h2>
                     <p class="text-sm text-slate-500 dark:text-slate-400">Reemplaza el archivo actual si es necesario. El sistema mantendrá el documento y actualizará el adjunto.</p>
@@ -205,7 +205,7 @@
         </div>
 
         <aside class="space-y-6">
-            <section class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <section class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-200 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
                 <h2 class="text-sm font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Opciones</h2>
 
                 <label class="mt-4 flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/40">
@@ -232,7 +232,7 @@
                 </div>
             </section>
 
-            <section class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <section class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-250 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
                 <h2 class="text-sm font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Resumen</h2>
                 <dl class="mt-4 grid grid-cols-[110px_1fr] gap-y-3 text-sm">
                     <dt class="text-slate-500 dark:text-slate-400">ID</dt>

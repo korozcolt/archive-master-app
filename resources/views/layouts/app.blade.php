@@ -15,10 +15,10 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
-<body class="font-sans antialiased">
+<body class="font-sans antialiased motion-safe:animate-fade-in motion-safe:animate-duration-300 am-motion-safe">
     <div class="min-h-screen bg-slate-100 dark:bg-slate-950">
         <!-- Navigation -->
-        <nav class="sticky top-0 z-40 border-b border-white/70 bg-white/80 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/85">
+        <nav class="sticky top-0 z-40 border-b border-white/70 bg-white/80 backdrop-blur-xl motion-safe:animate-slide-in-top motion-safe:animate-duration-300 dark:border-slate-800 dark:bg-slate-900/85 am-motion-safe">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between h-16">
                     <div class="flex">
@@ -94,7 +94,7 @@
                                  setInterval(() => refreshNotifications(), 30000);
                                  bootstrapRealtime();
                              ">
-                            <button @click="open = !open" class="relative rounded-xl border border-slate-200/80 bg-white/90 p-2 text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 hover:text-slate-900 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-sky-300/40 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white">
+                            <button @click="open = !open" class="relative rounded-xl border border-slate-200/80 bg-white/90 p-2 text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 hover:text-slate-900 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-sky-300/40 motion-safe:hover:animate-pulse-fade-in motion-safe:hover:animate-duration-200 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white am-motion-safe">
                                 <!-- Bell Icon -->
                                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
@@ -104,7 +104,7 @@
                             </button>
 
                             <!-- Notifications Dropdown -->
-                            <div x-show="open" @click.away="open = false" class="am-dropdown-panel absolute right-0 z-50 mt-12 w-96 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-xl ring-1 ring-slate-900/5 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/95 dark:ring-white/10">
+                            <div x-show="open" @click.away="open = false" class="am-dropdown-panel absolute right-0 z-50 mt-12 w-96 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-xl ring-1 ring-slate-900/5 backdrop-blur-xl motion-safe:animate-fade-in-down motion-safe:animate-duration-200 dark:border-slate-700 dark:bg-slate-900/95 dark:ring-white/10 am-motion-safe">
                                 <div class="flex items-center justify-between border-b border-slate-200/80 px-4 py-3 dark:border-slate-700">
                                     <h3 class="text-sm font-semibold uppercase tracking-[0.14em] text-slate-700 dark:text-slate-200">Notificaciones</h3>
                                     <a href="{{ route('notifications.index') }}" class="text-xs font-semibold uppercase tracking-[0.14em] text-sky-600 transition hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300">Ver todas</a>
@@ -183,34 +183,34 @@
         @endif
 
         <!-- Page Content -->
-        <main class="py-8 sm:py-10">
+        <main class="py-8 sm:py-10 motion-safe:animate-fade-in-up motion-safe:animate-duration-300 am-motion-safe">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 @if (session('success'))
-                    <x-ui.alert type="success" title="Operación completada" class="mb-4">
+                    <x-ui.alert type="success" title="Operación completada" class="mb-4 motion-safe:animate-slide-in-right motion-safe:animate-duration-300 am-motion-safe">
                         {{ session('success') }}
                     </x-ui.alert>
                 @endif
 
                 @if (session('error'))
-                    <x-ui.alert type="danger" title="No fue posible completar la acción" class="mb-4">
+                    <x-ui.alert type="danger" title="No fue posible completar la acción" class="mb-4 motion-safe:animate-slide-in-right motion-safe:animate-duration-300 am-motion-safe">
                         {{ session('error') }}
                     </x-ui.alert>
                 @endif
 
                 @if (session('warning'))
-                    <x-ui.alert type="warning" title="Atención" class="mb-4">
+                    <x-ui.alert type="warning" title="Atención" class="mb-4 motion-safe:animate-slide-in-right motion-safe:animate-duration-300 am-motion-safe">
                         {{ session('warning') }}
                     </x-ui.alert>
                 @endif
 
                 @if (session('info'))
-                    <x-ui.alert type="info" title="Información" class="mb-4">
+                    <x-ui.alert type="info" title="Información" class="mb-4 motion-safe:animate-slide-in-right motion-safe:animate-duration-300 am-motion-safe">
                         {{ session('info') }}
                     </x-ui.alert>
                 @endif
 
                 @if ($errors->any())
-                    <x-ui.alert type="danger" title="Revisa los datos enviados" class="mb-4">
+                    <x-ui.alert type="danger" title="Revisa los datos enviados" class="mb-4 motion-safe:animate-shake motion-safe:animate-duration-300 am-motion-safe">
                         <ul class="space-y-1">
                             @foreach ($errors->all() as $error)
                                 <li>• {{ $error }}</li>

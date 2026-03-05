@@ -23,6 +23,7 @@
         "pusher-js": "^8.4.0",
         "react": "^19.1.1",
         "react-dom": "^19.1.1",
+        "tailwind-animations": "^1.0.1",
         "tailwindcss": "^4.1.11",
         "vite": "^7.0.6"
     }

@@ -1,13 +1,13 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex justify-between items-center">
+        <div class="flex justify-between items-center motion-safe:animate-fade-in-up motion-safe:animate-duration-300 am-motion-safe">
             <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
                 {{ __('Notificaciones') }}
             </h2>
             <div class="flex space-x-2">
                 <form method="POST" action="{{ route('notifications.markAllAsRead') }}">
                     @csrf
-                    <button type="submit" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 active:bg-blue-900 focus:outline-none focus:border-blue-900 focus:ring ring-blue-300 disabled:opacity-25 transition ease-in-out duration-150">
+                    <button type="submit" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 active:bg-blue-900 focus:outline-none focus:border-blue-900 focus:ring ring-blue-300 disabled:opacity-25 transition ease-in-out duration-150 motion-safe:hover:animate-jump motion-safe:hover:animate-duration-200 am-motion-safe">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                         </svg>
@@ -26,7 +26,7 @@
                 >
                     @csrf
                     @method('DELETE')
-                    <button type="submit" class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-700 active:bg-red-900 focus:outline-none focus:border-red-900 focus:ring ring-red-300 disabled:opacity-25 transition ease-in-out duration-150">
+                    <button type="submit" class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-700 active:bg-red-900 focus:outline-none focus:border-red-900 focus:ring ring-red-300 disabled:opacity-25 transition ease-in-out duration-150 motion-safe:hover:animate-shake motion-safe:hover:animate-duration-300 am-motion-safe">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                         </svg>
@@ -39,7 +39,7 @@
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg motion-safe:animate-fade-in-up motion-safe:animate-delay-100 am-motion-safe">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
                     @if($notifications->count() > 0)
                         <div class="mb-4 flex justify-between items-center">
@@ -78,7 +78,7 @@
                                     ];
                                 @endphp
 
-                                <div class="border rounded-lg p-4 {{ $colorClasses[$color] ?? $colorClasses['gray'] }} {{ $isUnread ? 'border-l-4' : '' }} transition-all hover:shadow-md">
+                                <div class="border rounded-lg p-4 {{ $colorClasses[$color] ?? $colorClasses['gray'] }} {{ $isUnread ? 'border-l-4' : '' }} transition-all hover:shadow-md motion-safe:animate-fade-in-up motion-safe:animate-duration-300 am-motion-safe">
                                     <div class="flex items-start justify-between">
                                         <div class="flex items-start flex-1">
                                             <!-- Icon -->

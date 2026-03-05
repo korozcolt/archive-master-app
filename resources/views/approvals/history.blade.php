@@ -1,6 +1,6 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex justify-between items-center">
+        <div class="flex justify-between items-center motion-safe:animate-fade-in-up motion-safe:animate-duration-300 am-motion-safe">
             <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
                 {{ __('Historial de Aprobaciones') }}
             </h2>
@@ -13,7 +13,7 @@
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <!-- Información del documento -->
-            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg mb-6">
+            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg mb-6 motion-safe:animate-fade-in-up motion-safe:animate-delay-100 am-motion-safe">
                 <div class="p-6">
                     <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                         {{ $document->title }}
@@ -25,7 +25,7 @@
             </div>
 
             <!-- Historial de aprobaciones -->
-            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg motion-safe:animate-fade-in-up motion-safe:animate-delay-150 am-motion-safe">
                 <div class="p-6">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
                         Historial de Aprobaciones
@@ -43,7 +43,7 @@
                                     $statusColor = $statusColors[$approval->status] ?? 'bg-gray-100 text-gray-800 border-gray-200';
                                 @endphp
 
-                                <div class="border dark:border-gray-700 rounded-lg p-4 {{ $statusColor }}">
+                                <div class="border dark:border-gray-700 rounded-lg p-4 {{ $statusColor }} motion-safe:animate-fade-in-up motion-safe:animate-duration-300 am-motion-safe">
                                     <div class="flex items-start justify-between">
                                         <div class="flex-1">
                                             <div class="flex items-center gap-3 mb-2">

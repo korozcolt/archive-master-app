@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tailwind-animations";
 
 /* Configuración de Tailwind v4 */
 @source "resources/views/**/*.blade.php";
@@ -197,6 +198,14 @@
 
 .fi-no-notification .fi-no-notification-title {
     letter-spacing: 0.01em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .am-motion-safe {
+        animation: none !important;
+        transition: none !important;
+        transform: none !important;
+    }
 }
 
 .fi-no-notification .fi-no-notification-body {

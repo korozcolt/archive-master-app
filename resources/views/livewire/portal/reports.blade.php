@@ -20,13 +20,13 @@
 @endphp
 
 <div class="space-y-6">
-    <div class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-duration-300 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-400">Reportes</p>
         <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Reportes personales</h1>
         <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">Documentos enviados y recibidos por tu usuario</p>
     </div>
 
-    <div class="rounded-2xl border border-white/70 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div class="rounded-2xl border border-white/70 bg-white p-4 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-100 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
         <div class="grid grid-cols-1 gap-4 lg:grid-cols-4">
             <div class="rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-800/60">
                 <label for="date_from" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">Desde</label>
@@ -48,11 +48,11 @@
                     class="block h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                 >
             </div>
-            <div class="rounded-xl border border-slate-200 bg-gradient-to-br from-white to-sky-50 p-4 dark:border-slate-700 dark:from-slate-900 dark:to-slate-800">
+            <div class="rounded-xl border border-slate-200 bg-gradient-to-br from-white to-sky-50 p-4 motion-safe:animate-fade-in-left motion-safe:animate-delay-150 dark:border-slate-700 dark:from-slate-900 dark:to-slate-800 am-motion-safe">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Enviados</p>
                 <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ $summary['sent'] }}</p>
             </div>
-            <div class="rounded-xl border border-slate-200 bg-gradient-to-br from-white to-indigo-50 p-4 dark:border-slate-700 dark:from-slate-900 dark:to-slate-800">
+            <div class="rounded-xl border border-slate-200 bg-gradient-to-br from-white to-indigo-50 p-4 motion-safe:animate-fade-in-right motion-safe:animate-delay-200 dark:border-slate-700 dark:from-slate-900 dark:to-slate-800 am-motion-safe">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Recibidos</p>
                 <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ $summary['received'] }}</p>
             </div>
@@ -60,7 +60,7 @@
     </div>
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-250 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
             <div class="border-b border-slate-200/80 px-5 py-4 dark:border-slate-800">
                 <h2 class="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">Enviados</h2>
             </div>
@@ -99,7 +99,7 @@
             </div>
         </div>
 
-        <div class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-300 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
             <div class="border-b border-slate-200/80 px-5 py-4 dark:border-slate-800">
                 <h2 class="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">Recibidos</h2>
             </div>

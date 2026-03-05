@@ -19,7 +19,7 @@
         @vite('resources/css/app.css')
     </head>
 
-    <body class="antialiased">
+    <body class="antialiased motion-safe:animate-fade-in motion-safe:animate-duration-300 am-motion-safe">
         {{ $slot }}
 
         @filamentScripts
