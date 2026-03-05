@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "ArchiveMaster Desktop",
+  "version": "0.1.0",
+  "identifier": "dev.kronnos.archive.desktop",
+  "build": {
+    "beforeDevCommand": "echo 'Use profile render script before running desktop'",
+    "beforeBuildCommand": "echo 'Use profile render script before building desktop'",
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:8000"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "ArchiveMaster Desktop",
+        "width": 1460,
+        "height": 920,
+        "minWidth": 1180,
+        "minHeight": 760,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "app", "deb"],
+    "icon": ["icons/app-icon.svg"]
+  }
+}

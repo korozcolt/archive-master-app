@@ -1,0 +1,7 @@
+/Volumes/NAS(MAC)/Data/Herd/archive-master-app/desktop/tauri/src-tauri/target/debug/deps/once_cell-42430b5d7dbbeae3.d: /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/once_cell-1.21.3/src/lib.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/once_cell-1.21.3/src/imp_std.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/once_cell-1.21.3/src/race.rs
+
+/Volumes/NAS(MAC)/Data/Herd/archive-master-app/desktop/tauri/src-tauri/target/debug/deps/libonce_cell-42430b5d7dbbeae3.rmeta: /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/once_cell-1.21.3/src/lib.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/once_cell-1.21.3/src/imp_std.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/once_cell-1.21.3/src/race.rs
+
+/Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/once_cell-1.21.3/src/lib.rs:
+/Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/once_cell-1.21.3/src/imp_std.rs:
+/Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/once_cell-1.21.3/src/race.rs:

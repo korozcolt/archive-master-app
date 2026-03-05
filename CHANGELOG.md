@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2026-03-05
+
+- Fase 2.4 (ATD) iniciada para Desktop Tauri multi‑instancia:
+  - `ATD-2.4-01`: módulo desktop creado en `desktop/tauri`
+  - `ATD-2.4-02`: perfiles por entorno/cliente en `desktop/tauri/profiles/*.json`
+  - `ATD-2.4-03`: contrato de cabecera de observabilidad (`X-ArchiveMaster-Client`) en runtime desktop
+  - `ATD-2.4-04`: variables de configuración multi‑instancia documentadas y parseadas (`ARCHIVE_*`)
+  - `ATD-2.4-05`: política de seguridad de navegación por allowlist implementada
+  - `ATD-2.4-06`: modo TI para cambio de instancia con validación de hash de PIN
+- Activos de iconografía oficial ArchiveMaster (ATD-2.4-12..16):
+  - ícono oficial de aplicación: `resources/icons/archive-master/app-icon.svg`
+  - set inicial de iconos UI: `resources/icons/archive-master/ui/*.svg`
+  - componentes Blade reutilizables: `x-icons.archive-bell`, `x-icons.archive-inbox`
+- Manual operativo TI para provisión por instalador:
+  - `desktop/tauri/OPERACION_TI.md` (`ATD-2.4-19`)
+- Guía de iconografía:
+  - `.docs/ICONOGRAFIA_ARCHIVEMASTER.md`
+- Pipeline CI inicial para desktop (`ATD-2.4-17`):
+  - `.github/workflows/desktop-tauri.yml`
+  - job automático de tests + render de perfiles
+  - job manual de build Windows (NSIS) por perfil (`workflow_dispatch`)
+- Checklist de release desktop (`ATD-2.4-18`):
+  - `desktop/tauri/RELEASE_CHECKLIST.md`
+
+### Changed - 2026-03-05
+
+- `README.md` actualizado con:
+  - sección de Desktop Tauri multi‑instancia configurable por instalador
+  - flujo de perfiles y render de runtime config
+  - reglas de seguridad de navegación y pruebas desktop
+  - guía para ejecutar desktop en macOS contra instancia cloud por perfil
+- `.env.example` ampliado con variables públicas de configuración desktop (`ARCHIVE_*`).
+- `package.json` y `desktop/tauri/package.json` con scripts para:
+  - tests de desktop
+  - render por perfil
+  - render de todos los perfiles
+  - arranque Tauri por perfil cloud (`desktop:tauri:dev`)
+- `resources/views/layouts/app.blade.php` usa iconografía oficial en:
+  - campana de notificaciones
+  - estado vacío de notificaciones
+
+### Fixed - 2026-03-05
+
+- Se evita dependencia de dominio hardcodeado para desktop: la instancia objetivo ahora se resuelve por perfil de instalación (`ARCHIVE_BASE_URL` + allowlist).
+
+### Security - 2026-03-05
+
+- Protección de navegación desktop:
+  - clasificación interna/externa por host permitido
+  - bloqueo explícito de hosts fuera de allowlist
+- Control del switch de instancia bajo modo TI con hash de PIN.
+
+### Tests - 2026-03-05
+
+- Nuevas pruebas automatizadas del módulo desktop:
+  - `desktop/tauri/tests/desktop-config.test.mjs`
+  - `desktop/tauri/tests/navigation-policy.test.mjs`
+  - `desktop/tauri/tests/it-mode.test.mjs`
+- Verificaciones ejecutadas en implementación:
+  - `npm run desktop:test`
+  - `npm run desktop:profile -- --profile prod`
+
 ### Added - 2026-03-04
 
 - Notificaciones en tiempo real con Laravel Reverb:

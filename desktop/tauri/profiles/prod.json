@@ -1,0 +1,8 @@
+{
+  "ARCHIVE_INSTANCE_NAME": "ArchiveMaster Producción",
+  "ARCHIVE_BASE_URL": "https://archive.kronnos.dev",
+  "ARCHIVE_ALLOWED_HOSTS": "archive.kronnos.dev",
+  "ARCHIVE_ENV_LABEL": "production",
+  "ARCHIVE_ENABLE_INSTANCE_SWITCH": "false",
+  "ARCHIVE_IT_MODE_ENABLED": "false"
+}

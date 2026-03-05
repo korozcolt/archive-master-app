@@ -1,0 +1,99 @@
+name: Desktop Tauri
+
+on:
+  push:
+    branches: ["main", "develop"]
+    paths:
+      - "desktop/tauri/**"
+      - ".github/workflows/desktop-tauri.yml"
+      - "package.json"
+  pull_request:
+    paths:
+      - "desktop/tauri/**"
+      - ".github/workflows/desktop-tauri.yml"
+      - "package.json"
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "Perfil de build"
+        required: true
+        default: "prod"
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+          - cliente-a
+          - cliente-b
+      build_installer:
+        description: "Compilar instalador NSIS en Windows"
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  desktop-config-and-tests:
+    name: Desktop config + tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run desktop unit tests
+        run: npm run desktop:test
+
+      - name: Render all installer profiles
+        run: npm run desktop:profile:all
+
+      - name: Upload runtime config artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-runtime-config
+          path: desktop/tauri/dist/runtime-config.json
+          if-no-files-found: error
+
+  desktop-build-windows:
+    name: Desktop installer (Windows)
+    runs-on: windows-latest
+    if: github.event_name == 'workflow_dispatch' && inputs.build_installer
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked
+
+      - name: Render selected runtime profile
+        run: npm run desktop:profile -- --profile ${{ inputs.profile }}
+
+      - name: Render selected Tauri profile config
+        run: npm run desktop:tauri:profile -- --profile ${{ inputs.profile }}
+
+      - name: Build Tauri installer (NSIS)
+        working-directory: desktop/tauri/src-tauri
+        env:
+          CARGO_TERM_COLOR: always
+        run: cargo tauri build --config ../dist/tauri.profile.conf.json --bundles nsis
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-installer-${{ inputs.profile }}
+          path: |
+            desktop/tauri/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: warn

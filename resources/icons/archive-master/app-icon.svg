@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">ArchiveMaster App Icon</title>
+  <desc id="desc">Monograma A con carpeta de archivo y acento tecnológico.</desc>
+  <defs>
+    <linearGradient id="amGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#4f46e5" />
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="224" height="224" rx="56" fill="#0f172a" />
+  <path d="M56 168h36l12-28h48l12 28h36L146 56h-36L56 168zm62-58l10-24 10 24h-20z" fill="url(#amGradient)"/>
+  <rect x="56" y="182" width="144" height="18" rx="9" fill="#1e293b"/>
+  <rect x="72" y="188" width="72" height="6" rx="3" fill="#38bdf8"/>
+</svg>

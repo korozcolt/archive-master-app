@@ -1,0 +1,8 @@
+{
+  "ARCHIVE_INSTANCE_NAME": "ArchiveMaster Local",
+  "ARCHIVE_BASE_URL": "http://localhost:8000",
+  "ARCHIVE_ALLOWED_HOSTS": "localhost:8000,127.0.0.1:8000",
+  "ARCHIVE_ENV_LABEL": "development",
+  "ARCHIVE_ENABLE_INSTANCE_SWITCH": "true",
+  "ARCHIVE_IT_MODE_ENABLED": "true"
+}

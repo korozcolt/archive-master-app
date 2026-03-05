@@ -885,6 +885,7 @@
             saveDraftUrl: @js(route('documents.upload-drafts.save')),
             draftItemDeleteUrlTemplate: @js(route('documents.upload-drafts.items.destroy', ['draft' => '__DRAFT__', 'item' => '__ITEM__'])),
             defaultChunkSizeBytes: 5_242_880,
+            requestTimeoutMs: 60_000,
             init() {
                 const previousBulkRows = Array.from(document.querySelectorAll('input[name^="bulk_items["][name$="[title]"]'));
                 if (previousBulkRows.length > 0) {
@@ -898,6 +899,33 @@
             },
             csrfToken() {
                 return document.querySelector('input[name=\"_token\"]')?.value ?? '';
+            },
+            async postFormWithTimeout(url, formData, timeoutMs = this.requestTimeoutMs) {
+                const controller = new AbortController();
+                const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                        },
+                        body: formData,
+                        signal: controller.signal,
+                    });
+
+                    return response;
+                } catch (error) {
+                    if (error?.name === 'AbortError') {
+                        throw new Error('La carga del archivo superó el tiempo de espera. Intenta nuevamente.');
+                    }
+
+                    throw error;
+                } finally {
+                    window.clearTimeout(timeoutId);
+                }
             },
             uploadChunkToDraft({ chunkBlob, uploadId, draftId, chunkIndex, totalChunks, fileSize, chunkSize, row }) {
                 return new Promise((resolve, reject) => {
@@ -952,15 +980,7 @@
                     initForm.append('draft_id', String(this.draftId));
                 }
 
-                const initResponse = await fetch(this.uploadTempUrl, {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json',
-                    },
-                    body: initForm,
-                });
+                const initResponse = await this.postFormWithTimeout(this.uploadTempUrl, initForm);
 
                 if (!initResponse.ok) {
                     throw new Error('No se pudo iniciar la carga resumible del archivo.');
@@ -996,15 +1016,7 @@
                 completeForm.append('upload_id', uploadId);
                 completeForm.append('total_chunks', String(totalChunks));
 
-                const completeResponse = await fetch(this.uploadTempUrl, {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json',
-                    },
-                    body: completeForm,
-                });
+                const completeResponse = await this.postFormWithTimeout(this.uploadTempUrl, completeForm);
 
                 if (!completeResponse.ok) {
                     throw new Error('No se pudo finalizar la carga del archivo.');
@@ -1096,6 +1108,14 @@
                 } finally {
                     this.refreshUploadingState();
                     await this.persistDraft(false, true);
+                    this.rows.forEach((row) => {
+                        if (row.uploadStatus === 'uploading' && row.id) {
+                            row.uploadStatus = 'ready';
+                            row.progress = 100;
+                            row.uploadError = '';
+                        }
+                    });
+                    this.refreshUploadingState();
                 }
             },
             collectDraftPayload() {

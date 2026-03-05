@@ -1,0 +1,11 @@
+/Volumes/NAS(MAC)/Data/Herd/archive-master-app/desktop/tauri/src-tauri/target/debug/deps/semver-6b4c84ca4b7a5d92.d: /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/semver-1.0.27/src/lib.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/semver-1.0.27/src/display.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/semver-1.0.27/src/error.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/semver-1.0.27/src/eval.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/semver-1.0.27/src/identifier.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/semver-1.0.27/src/impls.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/semver-1.0.27/src/parse.rs
+
+/Volumes/NAS(MAC)/Data/Herd/archive-master-app/desktop/tauri/src-tauri/target/debug/deps/libsemver-6b4c84ca4b7a5d92.rmeta: /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/semver-1.0.27/src/lib.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/semver-1.0.27/src/display.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/semver-1.0.27/src/error.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/semver-1.0.27/src/eval.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/semver-1.0.27/src/identifier.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/semver-1.0.27/src/impls.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/semver-1.0.27/src/parse.rs
+
+/Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/semver-1.0.27/src/lib.rs:
+/Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/semver-1.0.27/src/display.rs:
+/Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/semver-1.0.27/src/error.rs:
+/Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/semver-1.0.27/src/eval.rs:
+/Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/semver-1.0.27/src/identifier.rs:
+/Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/semver-1.0.27/src/impls.rs:
+/Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/semver-1.0.27/src/parse.rs:

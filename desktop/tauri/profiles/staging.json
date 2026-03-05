@@ -1,0 +1,8 @@
+{
+  "ARCHIVE_INSTANCE_NAME": "ArchiveMaster Staging",
+  "ARCHIVE_BASE_URL": "https://staging.archive.kronnos.dev",
+  "ARCHIVE_ALLOWED_HOSTS": "staging.archive.kronnos.dev",
+  "ARCHIVE_ENV_LABEL": "staging",
+  "ARCHIVE_ENABLE_INSTANCE_SWITCH": "true",
+  "ARCHIVE_IT_MODE_ENABLED": "true"
+}

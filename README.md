@@ -232,6 +232,88 @@ php artisan route:cache
 php artisan view:cache
 ```
 
+### Cliente Desktop (Tauri) Multi‑Instancia
+
+El proyecto incluye un módulo desktop en:
+
+- `desktop/tauri`
+
+Este cliente reutiliza Portal/Admin existentes y se conecta a una instancia configurable por instalador (sin hardcode a un dominio único).
+
+#### Variables de runtime desktop
+
+- `ARCHIVE_INSTANCE_NAME`
+- `ARCHIVE_BASE_URL`
+- `ARCHIVE_ALLOWED_HOSTS`
+- `ARCHIVE_ENV_LABEL`
+- `ARCHIVE_ENABLE_INSTANCE_SWITCH` (default `false`)
+- `ARCHIVE_IT_MODE_ENABLED` (default `false`)
+- `ARCHIVE_IT_SUPPORT_PIN_HASH`
+- `ARCHIVE_CLIENT_HEADER_NAME`
+- `ARCHIVE_CLIENT_HEADER_VALUE`
+
+#### Perfiles por entorno/cliente
+
+Perfiles JSON disponibles:
+
+- `desktop/tauri/profiles/dev.json`
+- `desktop/tauri/profiles/staging.json`
+- `desktop/tauri/profiles/prod.json`
+- `desktop/tauri/profiles/cliente-a.json`
+- `desktop/tauri/profiles/cliente-b.json`
+
+Render de configuración por perfil:
+
+```bash
+npm run desktop:profile -- --profile prod
+```
+
+Render de todos los perfiles registrados:
+
+```bash
+npm run desktop:profile:all
+```
+
+Salida:
+
+- `desktop/tauri/dist/runtime-config.json`
+
+#### Seguridad de navegación en desktop
+
+1. Solo se permite navegación interna a hosts definidos en `ARCHIVE_ALLOWED_HOSTS`.
+2. Hosts externos se clasifican como navegación externa.
+3. El cambio de instancia está restringido a modo TI cuando se habilita explícitamente.
+
+#### Tests de configuración desktop
+
+```bash
+npm run desktop:test
+```
+
+Cobertura incluida:
+
+- parseo/normalización de configuración por instancia
+- política de navegación por allowlist
+- validación de modo TI para switch de instancia
+
+#### Ejecutar Desktop en macOS contra cloud
+
+Con Rust + Tauri instalados:
+
+```bash
+npm run desktop:tauri:dev -- --profile prod
+```
+
+Esto abrirá la app desktop apuntando a la instancia definida en `desktop/tauri/profiles/prod.json` (`ARCHIVE_BASE_URL`).
+
+#### Pipeline CI de desktop
+
+Workflow: `.github/workflows/desktop-tauri.yml`
+
+1. Ejecuta tests del módulo desktop.
+2. Renderiza perfiles de instalación.
+3. Permite build manual de instalador Windows (NSIS) por perfil (`workflow_dispatch`).
+
 ### Tareas Programadas
 
 Agregar a crontab:

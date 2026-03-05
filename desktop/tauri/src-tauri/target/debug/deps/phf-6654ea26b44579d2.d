@@ -1,0 +1,11 @@
+/Volumes/NAS(MAC)/Data/Herd/archive-master-app/desktop/tauri/src-tauri/target/debug/deps/phf-6654ea26b44579d2.d: /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf-0.11.3/src/lib.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf-0.11.3/src/map.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf-0.11.3/src/ordered_map.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf-0.11.3/src/ordered_set.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf-0.11.3/src/set.rs
+
+/Volumes/NAS(MAC)/Data/Herd/archive-master-app/desktop/tauri/src-tauri/target/debug/deps/libphf-6654ea26b44579d2.rlib: /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf-0.11.3/src/lib.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf-0.11.3/src/map.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf-0.11.3/src/ordered_map.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf-0.11.3/src/ordered_set.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf-0.11.3/src/set.rs
+
+/Volumes/NAS(MAC)/Data/Herd/archive-master-app/desktop/tauri/src-tauri/target/debug/deps/libphf-6654ea26b44579d2.rmeta: /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf-0.11.3/src/lib.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf-0.11.3/src/map.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf-0.11.3/src/ordered_map.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf-0.11.3/src/ordered_set.rs /Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf-0.11.3/src/set.rs
+
+/Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf-0.11.3/src/lib.rs:
+/Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf-0.11.3/src/map.rs:
+/Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf-0.11.3/src/ordered_map.rs:
+/Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf-0.11.3/src/ordered_set.rs:
+/Users/korbytes/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/phf-0.11.3/src/set.rs:

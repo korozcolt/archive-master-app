@@ -1,0 +1,8 @@
+{
+  "ARCHIVE_INSTANCE_NAME": "Cliente A",
+  "ARCHIVE_BASE_URL": "https://archive.cliente-a.com",
+  "ARCHIVE_ALLOWED_HOSTS": "archive.cliente-a.com",
+  "ARCHIVE_ENV_LABEL": "cliente-a",
+  "ARCHIVE_ENABLE_INSTANCE_SWITCH": "false",
+  "ARCHIVE_IT_MODE_ENABLED": "false"
+}

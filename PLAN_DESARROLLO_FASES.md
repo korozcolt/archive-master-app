@@ -1,7 +1,7 @@
 # Plan Maestro de Desarrollo por Fases (Con Checklist)
 
 **Fecha de inicio propuesta**: 2026-02-09  
-**Última actualización**: 2026-03-04  
+**Última actualización**: 2026-03-05  
 **Estado general**: En progreso
 
 ---
@@ -212,6 +212,51 @@ Eliminar dependencia exclusiva de polling para campana/notificaciones y activar 
 
 ---
 
+## Fase 2.4 - Cliente Desktop (Tauri) Multi‑Instancia (Atomic Execution) (2026-03-05 a 2026-03-28)
+
+### Objetivo
+Habilitar un cliente desktop que reutilice Portal/Admin existentes y se conecte a una instancia configurable por instalador, con seguridad de navegación por allowlist, observabilidad por cabecera de cliente y modo de switch restringido para TI.
+
+### Atomic Execution por tareas
+
+#### Bloque A. Fundación Desktop
+- [x] `ATD-2.4-01` Inicializar cliente Tauri en módulo dedicado (`desktop/tauri`)
+- [x] `ATD-2.4-02` Definir perfiles de build por entorno/cliente (`dev`, `staging`, `prod`, `cliente-a`, `cliente-b`)
+- [x] `ATD-2.4-03` Integrar contrato de cabecera de cliente para observabilidad (`X-ArchiveMaster-Client`) a nivel de runtime desktop
+
+#### Bloque B. Multi‑instancia configurable
+- [x] `ATD-2.4-04` Implementar configuración por instalador (`ARCHIVE_INSTANCE_NAME`, `ARCHIVE_BASE_URL`, `ARCHIVE_ALLOWED_HOSTS`, `ARCHIVE_ENV_LABEL`)
+- [x] `ATD-2.4-05` Definir política de navegación por allowlist (interna/externa/bloqueada)
+- [x] `ATD-2.4-06` Implementar modo de cambio de instancia restringido a TI (feature flag + validación de pin hash)
+
+#### Bloque C. Paridad funcional Portal/Admin
+- [ ] `ATD-2.4-07` Login/logout y persistencia de sesión web
+- [ ] `ATD-2.4-08` Navegación por rol (Portal y Admin Filament)
+- [ ] `ATD-2.4-09` Carga de documentos, detalle, descarga y vista previa
+- [ ] `ATD-2.4-10` Flujo de Archivo (ubicación, archivado, impresión de etiqueta)
+- [ ] `ATD-2.4-11` Notificaciones realtime visibles en desktop sin recarga
+
+#### Bloque D. Iconografía oficial
+- [x] `ATD-2.4-12` Definir guía base de iconografía (`.docs/ICONOGRAFIA_ARCHIVEMASTER.md`)
+- [x] `ATD-2.4-13` Diseñar ícono oficial de app (`resources/icons/archive-master/app-icon.svg`)
+- [x] `ATD-2.4-14` Diseñar set inicial de iconos UI prioritarios (`resources/icons/archive-master/ui/*.svg`)
+- [~] `ATD-2.4-15` Integrar iconografía en Portal/Admin/Desktop (header + estado vacío notificaciones completados)
+- [x] `ATD-2.4-16` Publicar guía de uso y exportables base SVG
+
+#### Bloque E. Empaquetado y release
+- [x] `ATD-2.4-17` Pipeline CI inicial de desktop listo (`.github/workflows/desktop-tauri.yml`) + render local por perfil
+- [x] `ATD-2.4-18` Checklist de release documentado (`desktop/tauri/RELEASE_CHECKLIST.md`)
+- [x] `ATD-2.4-19` Manual operativo TI para provisión por instalador (`desktop/tauri/OPERACION_TI.md`)
+
+### Criterio de salida
+- [ ] Cliente desktop MVP operativo para Portal/Admin con sesión estable
+- [ ] Política de hosts permitidos validada en tests automatizados
+- [ ] Switch de instancia habilitable solo en modo TI
+- [ ] Iconografía oficial aplicada en componentes clave y documentada
+- [ ] Trazabilidad de tareas ATD reflejada en changelog
+
+---
+
 ## Fase 3 - Cierre de Brechas Funcionales (2026-03-16 a 2026-04-03)
 
 ### Objetivo
@@ -337,6 +382,8 @@ Usar esta sección para trazabilidad diaria/semanal.
 | 2026-02-21 | Fase IA | Fase 7 (parcial) | Redacción PII + throttling portal + budget mensual + circuit breaker (incluye pruebas con fallos reales del gateway) + observabilidad admin (métricas rápidas, página dedicada por empresa y export CSV) | `php artisan test tests/Feature/AiGatewayTest.php tests/Feature/AiPipelineTest.php tests/Feature/DocumentAiPortalActionsTest.php tests/Feature/Filament/CompanyAiSettingsTest.php` | En progreso |
 | 2026-02-23 | Fase 2.2 | Diagnóstico inicial distribución multi-oficina | Se valida que workflows/aprobaciones no cubren múltiples destinatarios con seguimiento independiente; se abre fase atómica de implementación | `PLAN_DESARROLLO_FASES.md`, revisión de `WorkflowDefinition/WorkflowHistory/WorkflowService` | Completado |
 | 2026-03-04 | Fase 2.3 | Realtime de notificaciones | Se integra Laravel Reverb + Echo, canales privados por usuario y broadcast en notificaciones del dominio | `config/reverb.php`, `config/broadcasting.php`, `resources/js/echo.js`, `tests/Feature/RealtimeNotificationChannelsTest.php` | Completado |
+| 2026-03-05 | Fase 2.4 | ATD-2.4-01..06, 12..16, 19 | Se crea módulo `desktop/tauri` con perfiles multi-instancia, validación de allowlist, modo TI, inyección de cabecera de cliente y guía oficial de iconografía + integración parcial de iconos en layout principal | `npm run desktop:test`, `npm run desktop:profile -- --profile prod`, `.docs/ICONOGRAFIA_ARCHIVEMASTER.md` | En progreso |
+| 2026-03-05 | Fase 2.4 | ATD-2.4-17..18 | Se agrega workflow CI de desktop con tests + render de perfiles + build manual NSIS por perfil, y checklist operativo de release | `.github/workflows/desktop-tauri.yml`, `desktop/tauri/RELEASE_CHECKLIST.md` | Completado |
 
 ---
 

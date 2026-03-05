@@ -1,0 +1,13 @@
+{
+  "name": "@archivemaster/desktop-tauri",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "profile:render": "node scripts/render-installer-config.mjs",
+    "profile:render:all": "node scripts/render-all-profiles.mjs",
+    "tauri:profile:render": "node scripts/render-tauri-profile-config.mjs",
+    "tauri:dev": "node scripts/run-tauri-dev.mjs"
+  }
+}

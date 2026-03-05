@@ -3,7 +3,12 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "vite",
+        "desktop:test": "npm --prefix desktop/tauri run test",
+        "desktop:profile": "npm --prefix desktop/tauri run profile:render --",
+        "desktop:profile:all": "npm --prefix desktop/tauri run profile:render:all",
+        "desktop:tauri:dev": "npm --prefix desktop/tauri run tauri:dev --",
+        "desktop:tauri:profile": "npm --prefix desktop/tauri run tauri:profile:render --"
     },
     "devDependencies": {
         "@tailwindcss/forms": "^0.5.10",
