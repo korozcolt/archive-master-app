@@ -36,7 +36,7 @@ class ListDocuments extends ListRecords
                 ->label('Pendientes')
                 ->icon('heroicon-o-clock')
                 ->action(function () {
-                    $this->tableFilters['overdue']['isActive'] = true;
+                    $this->tableFilters['warning']['isActive'] = true;
                     $this->resetTableSearch();
                     $this->resetTableColumnSearches();
                 }),
@@ -46,6 +46,33 @@ class ListDocuments extends ListRecords
                 ->color('warning')
                 ->action(function () {
                     $this->tableFilters['due_today']['isActive'] = true;
+                    $this->resetTableSearch();
+                    $this->resetTableColumnSearches();
+                }),
+            Actions\Action::make('slaOverdue')
+                ->label('SLA vencido')
+                ->icon('heroicon-o-fire')
+                ->color('danger')
+                ->action(function () {
+                    $this->tableFilters['overdue']['isActive'] = true;
+                    $this->resetTableSearch();
+                    $this->resetTableColumnSearches();
+                }),
+            Actions\Action::make('readyForArchive')
+                ->label('Listos para archivar')
+                ->icon('heroicon-o-archive-box')
+                ->color('info')
+                ->action(function () {
+                    $this->tableFilters['ready_for_archive']['isActive'] = true;
+                    $this->resetTableSearch();
+                    $this->resetTableColumnSearches();
+                }),
+            Actions\Action::make('archivePendingClassification')
+                ->label('Archivo incompleto')
+                ->icon('heroicon-o-exclamation-triangle')
+                ->color('warning')
+                ->action(function () {
+                    $this->tableFilters['archive_pending_classification']['isActive'] = true;
                     $this->resetTableSearch();
                     $this->resetTableColumnSearches();
                 }),

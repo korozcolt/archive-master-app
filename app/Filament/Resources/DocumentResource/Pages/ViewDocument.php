@@ -146,6 +146,7 @@ class ViewDocument extends ViewRecord
                                             ->hidden(fn (Document $record): bool => ! empty($record->metadata)),
                                         Infolists\Components\KeyValueEntry::make('metadata')
                                             ->label('Metadatos Adicionales')
+                                            ->state(fn (Document $record): array => $this->normalizeKeyValueState($record->metadata))
                                             ->hidden(fn (Document $record): bool => empty($record->metadata)),
                                         Infolists\Components\TextEntry::make('settings_empty_message')
                                             ->label('')
@@ -153,6 +154,7 @@ class ViewDocument extends ViewRecord
                                             ->hidden(fn (Document $record): bool => ! empty($record->settings)),
                                         Infolists\Components\KeyValueEntry::make('settings')
                                             ->label('Configuración')
+                                            ->state(fn (Document $record): array => $this->normalizeKeyValueState($record->settings))
                                             ->hidden(fn (Document $record): bool => empty($record->settings)),
                                     ]),
                             ]),
@@ -371,6 +373,31 @@ class ViewDocument extends ViewRecord
             ->hidden(fn ($record) => ! $record->file_path);
 
         return $actions;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $state
+     * @return array<string, string>
+     */
+    private function normalizeKeyValueState(?array $state): array
+    {
+        if ($state === null) {
+            return [];
+        }
+
+        return collect($state)
+            ->mapWithKeys(function (mixed $value, string|int $key): array {
+                if (is_array($value) || is_object($value)) {
+                    $value = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                }
+
+                if ($value === null) {
+                    $value = '';
+                }
+
+                return [(string) $key => (string) $value];
+            })
+            ->all();
     }
 
     private function localizedModelField(mixed $model, string $field): string

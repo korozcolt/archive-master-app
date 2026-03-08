@@ -74,7 +74,7 @@ Archive Master es un sistema avanzado de gestión documental empresarial constru
 - **Vite**: Build tool de siguiente generación
 - **Tailwind CSS 4**: Framework CSS utility-first
 - **Lucide React**: Iconos SVG de alta calidad
-- **Alpine.js**: Framework JavaScript ligero
+- **Alpine.js**: Framework JavaScript ligero integrado en el stack Livewire/Filament
 
 ### Paquetes Destacados
 - **Spatie Laravel Permission**: Gestión de roles y permisos
@@ -232,6 +232,102 @@ php artisan route:cache
 php artisan view:cache
 ```
 
+### Gobernanza Documental: SLA Legal PQRS + Archivo Formal
+
+ArchiveMaster maneja ahora un modelo dual por documento:
+
+- `Capa operativa/legal`: tipo PQRS, base legal, término de respuesta, estado SLA, alertas y congelamiento histórico.
+- `Capa archivística`: serie, subserie, tipo documental, nivel de acceso, fase archivística, retención y disposición final.
+
+#### Comportamiento funcional
+
+1. Cuando un documento se clasifica como PQRS, el sistema calcula su vencimiento legal en días hábiles.
+2. La matriz inicial por defecto corresponde a Colombia y se carga por empresa al bootstrap:
+   - `15 días hábiles`: petición general
+   - `10 días hábiles`: petición de información y documentos
+   - `30 días hábiles`: consulta
+3. Cuando el documento se responde/cierra y pasa a archivo, el SLA queda en estado `Histórico congelado`.
+4. La trazabilidad legal se conserva en `document_sla_events` y el expediente archivado conserva su numeración y clasificación.
+
+#### Fuente de verdad y configuración
+
+- Los fallbacks técnicos viven en `config/documents.php`.
+- La fuente operativa real vive en base de datos por empresa:
+  - `sla_policies`
+  - `business_calendars`
+  - `documentary_series`
+  - `documentary_subseries`
+  - `documentary_types`
+
+#### Operación admin
+
+- Los catálogos y políticas de gobernanza documental se administran desde el panel admin en español bajo `Gobernanza Documental`.
+- Los recursos visibles son:
+  - `Políticas SLA`
+  - `Calendarios Hábiles`
+  - `Series TRD`
+  - `Subseries TRD`
+  - `Tipos Documentales`
+  - `Tablas de Retención`
+  - `retention_schedules`
+
+#### Alertas configurables por empresa
+
+Cada empresa puede activar o desactivar desde admin:
+
+- alertas de documentos por vencer
+- alertas de documentos vencidos
+- escalamiento de vencidos a supervisores
+- alertas de documentos listos para archivo
+- alertas de archivo incompleto
+
+Los comandos operativos alineados a esta gobernanza son:
+
+```bash
+php artisan documents:check-due
+php artisan documents:check-overdue
+php artisan documents:notify-overdue
+```
+
+#### Reportes de gobernanza documental
+
+El módulo de reportes incluye dos salidas dedicadas:
+
+- `SLA legal PQRS`: seguimiento de tipo PQRS, base legal, fecha límite y estado SLA.
+- `Gobernanza archivística`: fase de archivo, clasificación TRD/TVD, acceso, retención, disposición final y ubicación física.
+  - `retention_schedules`
+- La empresa puede editar parámetros base desde `CompanyResource` en la sección `Gobernanza documental`.
+
+#### Bandejas operativas
+
+- En `DocumentResource` existen filtros operativos para `Por vencer`, `Vencidos`, `Listos para archivar` y `Archivados sin clasificación`.
+- El dashboard del portal muestra contadores de atención SLA y un panel `Atención SLA` con los documentos que requieren gestión inmediata.
+
+#### Administración dedicada
+
+Además del bloque base en `CompanyResource`, el panel de administración expone recursos específicos para gestionar:
+
+- políticas SLA
+- calendarios hábiles y excepciones
+- series y subseries TRD
+- tipos documentales
+- tablas de retención documental
+
+#### Seeder base
+
+El bootstrap por defecto ahora incluye:
+
+```bash
+php artisan db:seed --class=Database\\\\Seeders\\\\ColombiaDocumentGovernanceSeeder
+```
+
+Esto crea:
+
+- calendario hábil Colombia por empresa
+- políticas SLA iniciales
+- catálogo base TRD/TVD para expedientes PQRS
+- reglas iniciales de acceso y retención
+
 ### Cliente Desktop (Tauri) Multi‑Instancia
 
 El proyecto incluye un módulo desktop en:
@@ -305,6 +401,13 @@ npm run desktop:tauri:dev -- --profile prod
 ```
 
 Esto abrirá la app desktop apuntando a la instancia definida en `desktop/tauri/profiles/prod.json` (`ARCHIVE_BASE_URL`).
+
+Además, el shell desktop:
+
+- inyecta la cabecera `X-ArchiveMaster-Client` en `fetch` y `XMLHttpRequest`
+- expone `window.__ARCHIVE_MASTER_DESKTOP__` con metadata del instalador
+- bloquea navegación embebida a hosts no permitidos y abre externos en el navegador del sistema
+- reutiliza la persistencia de sesión nativa del webview para mantener login/logout entre ejecuciones
 
 #### Pipeline CI de desktop
 

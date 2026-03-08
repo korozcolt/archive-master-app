@@ -22,6 +22,7 @@ class ClientDefaultSeeder extends Seeder
             WorkflowDefinitionSeeder::class,
             DocumentTemplateSeeder::class,
             PhysicalLocationBootstrapSeeder::class,
+            ColombiaDocumentGovernanceSeeder::class,
         ]);
 
         $this->leaveOnlyConfiguredSuperAdmin();

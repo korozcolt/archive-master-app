@@ -2,10 +2,9 @@
 
 namespace App\Services;
 
+use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Http\UploadedFile;
-use Exception;
 
 class OCRService
 {
@@ -33,7 +32,7 @@ class OCRService
     {
         try {
             // Verificar que el archivo existe
-            if (!Storage::exists($filePath)) {
+            if (! Storage::exists($filePath)) {
                 throw new Exception("Archivo no encontrado: {$filePath}");
             }
 
@@ -41,7 +40,7 @@ class OCRService
             $fileInfo = $this->getFileInfo($filePath);
 
             // Verificar formato soportado
-            if (!in_array($fileInfo['extension'], self::SUPPORTED_FORMATS)) {
+            if (! in_array($fileInfo['extension'], self::SUPPORTED_FORMATS)) {
                 throw new Exception("Formato no soportado: {$fileInfo['extension']}");
             }
 
@@ -103,9 +102,9 @@ class OCRService
         // Si está escaneado, necesitaríamos convertir las páginas a imágenes primero
 
         // Intentar extraer texto nativo del PDF primero
-        $textOutput = shell_exec("pdftotext " . escapeshellarg($fullPath) . " - 2>/dev/null");
+        $textOutput = shell_exec('pdftotext '.escapeshellarg($fullPath).' - 2>/dev/null');
 
-        if (!empty(trim($textOutput))) {
+        if (! empty(trim($textOutput))) {
             // PDF tiene texto nativo, no necesita OCR
             return trim($textOutput);
         }
@@ -138,7 +137,7 @@ class OCRService
         exec($command, $output, $returnCode);
 
         // Leer el archivo de salida
-        $textFile = $outputFile . '.txt';
+        $textFile = $outputFile.'.txt';
         $extractedText = '';
 
         if (file_exists($textFile)) {
@@ -152,7 +151,7 @@ class OCRService
         }
 
         if ($returnCode !== 0) {
-            throw new \Exception('Error al procesar imagen con Tesseract: ' . implode("\n", $output));
+            throw new \Exception('Error al procesar imagen con Tesseract: '.implode("\n", $output));
         }
 
         return trim($extractedText);
@@ -167,10 +166,10 @@ class OCRService
         // Por simplicidad, informamos que se requiere preprocesamiento
         // En producción, usaríamos Imagick o GhostScript para convertir PDF a imágenes
 
-        return "NOTA: Este PDF parece estar escaneado y no contiene texto nativo.\n" .
-               "Para procesar PDFs escaneados, es necesario convertirlos a imágenes primero.\n" .
-               "Considere usar herramientas como ImageMagick o subir imágenes directamente.\n\n" .
-               "Archivo: " . basename($fullPath);
+        return "NOTA: Este PDF parece estar escaneado y no contiene texto nativo.\n".
+               "Para procesar PDFs escaneados, es necesario convertirlos a imágenes primero.\n".
+               "Considere usar herramientas como ImageMagick o subir imágenes directamente.\n\n".
+               'Archivo: '.basename($fullPath);
     }
 
     /**
@@ -308,7 +307,7 @@ class OCRService
         $stopWords = ['el', 'la', 'de', 'que', 'y', 'en', 'un', 'es', 'se', 'no', 'te', 'lo', 'le', 'da', 'su', 'por', 'son', 'con', 'para', 'del', 'los', 'las', 'una', 'este', 'esta', 'estos', 'estas'];
 
         $words = str_word_count(strtolower($text), 1);
-        $words = array_filter($words, fn($word) => strlen($word) > 3 && !in_array($word, $stopWords));
+        $words = array_filter($words, fn ($word) => strlen($word) > 3 && ! in_array($word, $stopWords));
 
         $wordCount = array_count_values($words);
         arsort($wordCount);
@@ -346,7 +345,16 @@ class OCRService
      */
     private function getFileInfo(string $filePath): array
     {
-        $fullPath = Storage::path($filePath);
+        if (! Storage::exists($filePath)) {
+            return [
+                'path' => $filePath,
+                'name' => basename($filePath),
+                'extension' => strtolower(pathinfo($filePath, PATHINFO_EXTENSION)),
+                'size' => null,
+                'mime_type' => null,
+                'last_modified' => null,
+            ];
+        }
 
         return [
             'path' => $filePath,
@@ -363,12 +371,9 @@ class OCRService
      */
     public function isTesseractAvailable(): bool
     {
-        // En producción, verificar si Tesseract está instalado
-        // exec('tesseract --version', $output, $returnCode);
-        // return $returnCode === 0;
+        $path = trim((string) shell_exec('command -v tesseract 2>/dev/null'));
 
-        // Para demostración, simular que está disponible
-        return true;
+        return $path !== '';
     }
 
     /**
@@ -400,8 +405,8 @@ class OCRService
 
         return [
             'total_files' => count($filePaths),
-            'successful' => count(array_filter($results, fn($r) => $r['success'])),
-            'failed' => count(array_filter($results, fn($r) => !$r['success'])),
+            'successful' => count(array_filter($results, fn ($r) => $r['success'])),
+            'failed' => count(array_filter($results, fn ($r) => ! $r['success'])),
             'results' => $results,
         ];
     }

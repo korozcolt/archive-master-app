@@ -1,7 +1,7 @@
 # Plan Maestro de Desarrollo por Fases (Con Checklist)
 
 **Fecha de inicio propuesta**: 2026-02-09  
-**Última actualización**: 2026-03-05  
+**Última actualización**: 2026-03-07  
 **Estado general**: En progreso
 
 ---
@@ -248,6 +248,9 @@ Habilitar un cliente desktop que reutilice Portal/Admin existentes y se conecte 
 - [x] `ATD-2.4-18` Checklist de release documentado (`desktop/tauri/RELEASE_CHECKLIST.md`)
 - [x] `ATD-2.4-19` Manual operativo TI para provisión por instalador (`desktop/tauri/OPERACION_TI.md`)
 
+#### Bloque F. Hardening local y validación web
+- [x] `ATD-2.4-20` Alinear Reverb local con Herd TLS (`archive-master-app.test:8080`) para evitar errores `wss://localhost` y permitir validación realtime local
+
 ### Criterio de salida
 - [ ] Cliente desktop MVP operativo para Portal/Admin con sesión estable
 - [ ] Política de hosts permitidos validada en tests automatizados
@@ -312,6 +315,65 @@ Dejar control de calidad continuo y preparación para producción.
 ### Criterio de salida
 - [ ] Pipeline activo con criterio de aceptación definido
 - [ ] Proyecto listo para ciclo de release controlado
+
+---
+
+## Fase 2.5 - SLA Legal PQRS y Archivo Formal (Atomic Execution) (2026-03-07 a 2026-03-28)
+
+### Objetivo
+Incorporar un modelo dual por documento con capa legal PQRS + SLA y capa archivística formal TRD/TVD, manteniendo trazabilidad integral y configuración editable por empresa.
+
+### Atomic Execution por tareas
+
+#### Bloque A. Gobernanza y trazabilidad
+- [x] `ATD-2.5-01` Registrar la fase 2.5 en `PLAN_DESARROLLO_FASES.md` con trazabilidad y evidencia obligatoria
+- [x] `ATD-2.5-02` Actualizar `CHANGELOG.md` con entradas de fase, archivos impactados y pruebas ejecutadas
+- [x] `ATD-2.5-03` Actualizar `README.md` con la arquitectura dual de gobernanza documental
+
+#### Bloque B. Persistencia legal y archivística
+- [x] `ATD-2.5-04` Crear tablas `sla_policies`, `document_sla_events`, `documentary_series`, `documentary_subseries`, `documentary_types`, `retention_schedules`, `business_calendars`, `business_calendar_days`
+- [x] `ATD-2.5-05` Extender `documents` con campos legales (`pqrs_type`, `legal_basis`, `sla_*`) y archivísticos (`trd_*`, `access_level`, `archive_phase`, retención, disposición)
+- [x] `ATD-2.5-06` Crear modelos, factories y relaciones Eloquent para la nueva gobernanza documental
+
+#### Bloque C. Motor funcional
+- [x] `ATD-2.5-07` Implementar `BusinessCalendarService` para cálculo de días hábiles por empresa
+- [x] `ATD-2.5-08` Implementar `SlaCalculatorService` con matriz Colombia por defecto y congelamiento histórico al archivar
+- [x] `ATD-2.5-09` Implementar `ArchiveClassificationService` para código TRD/TVD y retención inicial
+- [x] `ATD-2.5-10` Integrar observer del documento para recalcular SLA/TRD-TVD y registrar trazabilidad
+
+#### Bloque D. Configuración editable y UI
+- [x] `ATD-2.5-11` Exponer configuración base por empresa en `CompanyResource`
+- [x] `ATD-2.5-12` Separar en `DocumentResource` los bloques visuales `Datos legales / PQRS` y `Clasificación archivística`
+- [x] `ATD-2.5-13` Crear bandejas operativas dedicadas (`por vencer`, `vencidos`, `listos para archivar`, `archivo histórico`)
+
+#### Bloque E. Defaults Colombia y pruebas
+- [x] `ATD-2.5-14` Crear semilla `ColombiaDocumentGovernanceSeeder` con políticas y catálogos base
+- [x] `ATD-2.5-15` Inyectar defaults Colombia en `ClientDefaultSeeder`
+- [x] `ATD-2.5-16` Cubrir por pruebas: seed de defaults, cálculo de SLA, congelamiento al archivar, TRD/TVD y edición admin
+
+#### Bloque F. Administración dedicada
+- [x] `ATD-2.5-17` Crear recursos Filament dedicados para políticas SLA, calendarios hábiles, series, subseries, tipos documentales y tablas de retención
+
+#### Bloque G. Alertas y reportes
+- [x] `ATD-2.5-18` Implementar alertas configurables por empresa para vencimiento, escalamiento, archivo listo e incompleto
+- [x] `ATD-2.5-19` Implementar reportes dedicados de SLA legal PQRS y gobernanza archivística con cobertura automatizada
+
+#### Bloque H. Smoke tests y hardening portal
+- [x] `ATD-2.5-20` Corregir visibilidad portal por recibido (`Receipt`) y coherencia de `preview/download` para usuarios finales
+- [x] `ATD-2.5-21` Endurecer el dataset QA con infraestructura física repetible para smoke tests de archivo
+- [x] `ATD-2.5-22` Corregir el smoke Dusk del archivista para validar asignación física de punta a punta
+- [x] `ATD-2.5-23` Cerrar smoke operativo multi-rol real (`recepción -> aprobación -> archivo -> usuario final`) con login portal, navegación real y validación funcional/HTML en navegador
+- [x] `ATD-2.5-24` Extender el smoke browser para que recepción cree y distribuya un documento desde el wizard real antes de que oficina marque el recibido
+- [x] `ATD-2.5-25` Validar que un mismo documento creado por UI complete el flujo `recepción -> oficina -> archivo -> usuario final` sin depender del dataset QA para el documento principal
+ - [x] `ATD-2.5-28` Endurecer el despliegue OCR para producción instalando binarios OCR en Nixpacks y habilitando la cola `document-processing` en el worker runtime
+
+### Criterio de salida
+- [ ] Toda empresa nueva arranca con matriz Colombia precargada y editable.
+- [ ] Un documento PQRS calcula su vencimiento legal en días hábiles.
+- [ ] Al archivarse, el SLA queda congelado como histórico y la trazabilidad se conserva.
+- [ ] Los campos archivísticos TRD/TVD quedan visibles y persistidos desde la UI.
+- [x] Las alertas de gobernanza documental se pueden encender/apagar por empresa y se procesan por comandos programables.
+- [x] Existen reportes separados para seguimiento legal PQRS y para clasificación/retención archivística.
 
 ---
 
@@ -384,6 +446,23 @@ Usar esta sección para trazabilidad diaria/semanal.
 | 2026-03-04 | Fase 2.3 | Realtime de notificaciones | Se integra Laravel Reverb + Echo, canales privados por usuario y broadcast en notificaciones del dominio | `config/reverb.php`, `config/broadcasting.php`, `resources/js/echo.js`, `tests/Feature/RealtimeNotificationChannelsTest.php` | Completado |
 | 2026-03-05 | Fase 2.4 | ATD-2.4-01..06, 12..16, 19 | Se crea módulo `desktop/tauri` con perfiles multi-instancia, validación de allowlist, modo TI, inyección de cabecera de cliente y guía oficial de iconografía + integración parcial de iconos en layout principal | `npm run desktop:test`, `npm run desktop:profile -- --profile prod`, `.docs/ICONOGRAFIA_ARCHIVEMASTER.md` | En progreso |
 | 2026-03-05 | Fase 2.4 | ATD-2.4-17..18 | Se agrega workflow CI de desktop con tests + render de perfiles + build manual NSIS por perfil, y checklist operativo de release | `.github/workflows/desktop-tauri.yml`, `desktop/tauri/RELEASE_CHECKLIST.md` | Completado |
+| 2026-03-07 | Fase 2.4 | ATD-2.4-07..08 (runtime shell) | Se integra el shell Tauri con enforcement real de allowlist, apertura de URLs externas en navegador del sistema, inyección de cabecera `X-ArchiveMaster-Client` en `fetch`/`XMLHttpRequest` y bridge `window.__ARCHIVE_MASTER_DESKTOP__` para exponer metadata del instalador a la app web | `cargo test`, `cargo check`, `npm --prefix desktop/tauri test` | En progreso |
+| 2026-03-07 | Fase 2.4 | ATD-2.4-20 | Se alinea Reverb local con Herd TLS usando el certificado de `archive-master-app.test`, eliminando la dependencia de `wss://localhost` y dejando el endpoint seguro disponible en `archive-master-app.test:8080` para validación realtime local | `php artisan test tests/Feature/ReverbLocalTlsConfigTest.php` + `openssl s_client -connect archive-master-app.test:8080 -servername archive-master-app.test` | Completado |
+| 2026-03-07 | Fase 2.5 | ATD-2.5-01..16 (base) | Se implementa la base de gobernanza documental: defaults Colombia por empresa, calendarios hábiles, políticas SLA, catálogos TRD/TVD, campos legales y archivísticos en `documents`, cálculo de vencimiento y congelamiento histórico al archivar | `php artisan test tests/Feature/DocumentGovernanceTest.php tests/Feature/Filament/CompanyDocumentGovernanceSettingsTest.php` | En progreso |
+| 2026-03-07 | Fase 2.5 | ATD-2.5-13 | Se agregan bandejas operativas SLA/archivo en Filament y Portal: filtros `por vencer`, `vencidos`, `listos para archivar`, `archivo incompleto`, más panel de atención SLA en dashboard portal | `php artisan test tests/Feature/Filament/DocumentResourceTest.php tests/Feature/PortalDashboardGovernanceTest.php` | Completado |
+| 2026-03-07 | Fase 2.5 | ATD-2.5-17 | Se crean recursos Filament para administrar gobernanza documental sin depender de JSON en empresa: políticas SLA, calendarios hábiles con excepciones, series, subseries, tipos documentales y tablas de retención | `php artisan test tests/Feature/Filament/DocumentGovernanceResourcesTest.php` | Completado |
+| 2026-03-07 | Fase 2.5 | ATD-2.5-18 | Se implementan alertas configurables por empresa para `por vencer`, `vencidos`, `listo para archivar` y `archivo incompleto`, integradas a `documents:check-due`, `documents:check-overdue` y `documents:notify-overdue` | `php artisan test tests/Feature/GovernanceAlertsTest.php tests/Feature/GovernanceAlertCommandsTest.php` | Completado |
+| 2026-03-07 | Fase 2.5 | ATD-2.5-19 | Se agregan reportes dedicados `legal-sla-governance` y `archive-governance`, junto con exports y vistas PDF alineadas a la nueva capa dual documental | `php artisan test tests/Feature/DocumentGovernanceReportsTest.php` | Completado |
+| 2026-03-07 | Fase 2.5 | ATD-2.5-17..19 (hardening visual y regresión) | Se corrigen títulos/labels en español de recursos de gobernanza, se elimina la doble carga de Alpine en portal, se reparan migraciones MySQL y se corrigen regresiones detectadas en suite completa y validación visual admin/portal | `php artisan test tests/Feature/Filament/GovernanceResourceLabelsTest.php tests/Feature/Filament/DocumentGovernanceResourcesTest.php` + `php artisan test` + validación Playwright en `/admin` y `/admin/business-calendars` | Completado |
+| 2026-03-07 | Fase 2.5 | ATD-2.5-20 | El smoke test web real del flujo de recepción detecta que el receptor no veía documentos emitidos por `Receipt` y que la previsualización devolvía `403`; se corrige la visibilidad del portal, reportes, dashboard y rutas `preview/download` para acceso coherente por recibido | `php artisan test tests/Feature/PortalReceiptVisibilityTest.php tests/Feature/PortalDashboardGovernanceTest.php` + validación Playwright en `/documents/create`, `/documents` y `/documents/{id}` | Completado |
+| 2026-03-07 | Fase 2.5 | ATD-2.5-21 | El dataset QA ahora reutiliza la empresa de regresión por `tax_id`, siembra ubicaciones físicas base y evita colisiones globales en códigos de `PhysicalLocation`; esto deja el flujo de archivo listo para smoke tests repetibles | `php artisan test tests/Feature/SetupQaRegressionDataCommandTest.php tests/Feature/ClientDefaultSeederTest.php` + `php artisan app:setup-qa-regression-data --password='Laboral2026!'` | Completado |
+| 2026-03-07 | Fase 2.5 | ATD-2.5-22 | Se corrige el smoke Dusk del archivista para enviar el formulario correcto de archivo físico y se valida de punta a punta la asignación de ubicación en `QA-OFF-0001` con login real del portal | `php artisan dusk tests/Browser/RealWorldRegressionTest.php --filter=test_archive_manager_can_assign_a_physical_location_from_seeded_dataset` | Completado |
+| 2026-03-07 | Fase 2.5 | ATD-2.5-23 | Se cierra un smoke operativo completo en navegador real para recepción, encargado de oficina, archivo y usuario final usando el dataset QA; la prueba valida recibido, aprobación, archivado físico y acceso final del usuario con login real del portal | `php artisan dusk tests/Browser/RealWorldRegressionTest.php --filter=test_full_operational_portal_smoke_flow_closes_across_roles` | Completado |
+| 2026-03-07 | Fase 2.5 | ATD-2.5-24 | Se extiende la regresión Dusk para que `qa.reception` cree un documento real en `/documents/create`, cargue archivo válido, complete el wizard, distribuya a `qa.office` y el encargado marque `received` desde la UI real | `php artisan dusk tests/Browser/RealWorldRegressionTest.php --filter=test_receptionist_can_create_and_distribute_document_from_real_ui_flow` + `php artisan dusk tests/Browser/RealWorldRegressionTest.php` | Completado |
+| 2026-03-07 | Fase 2.5 | ATD-2.5-25 | Se agrega un smoke end-to-end donde el mismo documento creado por UI viaja por `recepción -> oficina -> archivo -> usuario final`, validando recibido, archivado físico, existencia de archivo adjunto y acceso final por recibo/preview sobre la misma pieza documental | `php artisan dusk tests/Browser/RealWorldRegressionTest.php --filter=test_created_document_can_flow_from_reception_to_archive_and_final_user` + `php artisan dusk tests/Browser/RealWorldRegressionTest.php` | Completado |
+| 2026-03-08 | Fase 2.5 | ATD-2.5-26 | Se corrige la raíz del OCR documental: el comando ahora usa `documents.file_path` real, se vuelve testeable vía inyección de `OCRService` y marca error explícito cuando el documento no tiene archivo asociado; se agregan pruebas para contenidos distintos por documento | `php artisan test tests/Feature/OCRServiceTest.php tests/Feature/ProcessDocumentOCRCommandTest.php` + `vendor/bin/pint --dirty` | Completado |
+| 2026-03-08 | Fase 2.5 | ATD-2.5-27 | Se implementa OCR automático al guardar documentos con archivo mediante `ProcessDocumentOcr`, se expone el contenido OCR también en portal y se corrige el render admin para metadatos OCR anidados | `php artisan test tests/Feature/AutomaticDocumentOcrTest.php tests/Feature/Filament/DocumentOcrVisibilityTest.php tests/Feature/ProcessDocumentOCRCommandTest.php` + `vendor/bin/pint --dirty` | Completado |
+| 2026-03-08 | Fase 2.5 | ATD-2.5-28 | Se actualiza el runtime de despliegue para OCR real: Nixpacks instala `poppler-utils` y `tesseract-ocr` con idiomas `eng/spa`, y el worker escucha `document-processing,notifications,default,ai-processing` para procesar OCR automático tras cada subida | `php artisan test tests/Feature/DeploymentOcrRuntimeConfigTest.php tests/Feature/AutomaticDocumentOcrTest.php tests/Feature/ProcessDocumentOCRCommandTest.php` + `vendor/bin/pint --dirty` | Completado |
 
 ---
 

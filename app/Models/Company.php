@@ -100,6 +100,41 @@ class Company extends Model
         return $this->hasMany(DocumentAiRun::class);
     }
 
+    public function slaPolicies(): HasMany
+    {
+        return $this->hasMany(SlaPolicy::class);
+    }
+
+    public function businessCalendars(): HasMany
+    {
+        return $this->hasMany(BusinessCalendar::class);
+    }
+
+    public function documentarySeries(): HasMany
+    {
+        return $this->hasMany(DocumentarySeries::class);
+    }
+
+    public function documentarySubseries(): HasMany
+    {
+        return $this->hasMany(DocumentarySubseries::class);
+    }
+
+    public function documentaryTypes(): HasMany
+    {
+        return $this->hasMany(DocumentaryType::class);
+    }
+
+    public function retentionSchedules(): HasMany
+    {
+        return $this->hasMany(RetentionSchedule::class);
+    }
+
+    public function governanceSettings(): array
+    {
+        return (array) data_get($this->settings, 'document_governance', []);
+    }
+
     public function scopeActive($query)
     {
         return $query->where('active', true);

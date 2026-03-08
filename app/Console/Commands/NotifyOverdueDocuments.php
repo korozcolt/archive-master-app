@@ -2,101 +2,50 @@
 
 namespace App\Console\Commands;
 
-use App\Jobs\ProcessOverdueNotifications;
 use App\Models\Company;
+use App\Services\GovernanceAlertService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Log;
 
 class NotifyOverdueDocuments extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'documents:notify-overdue {--dry-run : Show what would be done without sending notifications}';
+    protected $signature = 'documents:notify-overdue
+                            {--company= : ID de la empresa específica}
+                            {--dry-run : Mostrar lo que se enviaría sin despachar notificaciones}';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Send notifications for overdue documents';
+    protected $description = 'Procesa alertas de documentos vencidos para la gobernanza documental';
 
-    /**
-     * Execute the console command.
-     */
-    public function handle()
+    public function __construct(protected GovernanceAlertService $governanceAlertService)
     {
-        $isDryRun = $this->option('dry-run');
-        
-        if ($isDryRun) {
-            $this->info('DRY RUN: Simulating overdue notifications dispatch...');
-            $this->simulateDryRun();
-            return 0;
-        }
-        
-        $this->info('Dispatching overdue notification jobs...');
-        
-        // Obtener todas las empresas activas
-        $companies = Company::where('is_active', true)->get();
-        
-        if ($companies->isEmpty()) {
-            $this->warn('No active companies found.');
-            return 0;
-        }
-        
-        $jobsDispatched = 0;
-        
-        foreach ($companies as $company) {
-            try {
-                // Despachar job para cada empresa
-                ProcessOverdueNotifications::dispatch($company->id);
-                $this->line("Dispatched overdue notifications job for company: {$company->name}");
-                $jobsDispatched++;
-            } catch (\Exception $e) {
-                $this->error("Failed to dispatch job for company {$company->name}: {$e->getMessage()}");
-                Log::error('Failed to dispatch overdue notifications job', [
-                    'company_id' => $company->id,
-                    'error' => $e->getMessage()
-                ]);
-            }
-        }
-        
-        // También despachar un job general para documentos sin empresa específica
-        try {
-            ProcessOverdueNotifications::dispatch();
-            $this->line('Dispatched general overdue notifications job');
-            $jobsDispatched++;
-        } catch (\Exception $e) {
-            $this->error("Failed to dispatch general job: {$e->getMessage()}");
-        }
-        
-        $this->info("Successfully dispatched {$jobsDispatched} notification jobs.");
-        $this->info('Jobs will be processed asynchronously by the queue workers.');
-        
-        Log::info('Overdue notifications command completed', [
-            'jobs_dispatched' => $jobsDispatched,
-            'companies_processed' => $companies->count()
-        ]);
-        
-        return 0;
+        parent::__construct();
     }
-    
-    /**
-     * Simulate what would happen in a dry run
-     */
-    private function simulateDryRun(): void
+
+    public function handle(): int
     {
-        $companies = Company::where('is_active', true)->get();
-        
-        $this->info("Would dispatch jobs for {$companies->count()} companies:");
-        
-        foreach ($companies as $company) {
-            $this->line("  - {$company->name} (ID: {$company->id})");
+        $companyId = $this->option('company');
+        $isDryRun = (bool) $this->option('dry-run');
+
+        $companies = Company::query()
+            ->when($companyId, fn ($query) => $query->whereKey($companyId))
+            ->where('active', true)
+            ->get();
+
+        if ($companies->isEmpty()) {
+            $this->warn('No se encontraron empresas activas para procesar.');
+
+            return self::SUCCESS;
         }
-        
-        $this->line('  - General job (no specific company)');
-        $this->info('Total jobs that would be dispatched: ' . ($companies->count() + 1));
+
+        $totalNotifications = 0;
+
+        foreach ($companies as $company) {
+            $summary = $this->governanceAlertService->processCompany($company, ['overdue'], $isDryRun);
+            $totalNotifications += $summary['overdue'];
+
+            $this->line(sprintf('%s -> vencidos notificados: %d', $company->name, $summary['overdue']));
+        }
+
+        $this->info(sprintf('Proceso de alertas por vencimiento completado. Total: %d', $totalNotifications));
+
+        return self::SUCCESS;
     }
 }

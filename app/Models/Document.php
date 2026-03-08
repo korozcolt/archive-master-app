@@ -2,8 +2,13 @@
 
 namespace App\Models;
 
+use App\Enums\ArchivePhase;
+use App\Enums\DocumentAccessLevel;
 use App\Enums\DocumentStatus;
+use App\Enums\FinalDisposition;
 use App\Enums\Priority;
+use App\Enums\Role;
+use App\Enums\SlaStatus;
 use App\Services\WorkflowEngine;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -39,6 +44,7 @@ class Document extends Model
         'status_id',
         'created_by',
         'assigned_to',
+        'sla_policy_id',
         'document_number',
         'barcode',
         'qrcode',
@@ -56,12 +62,34 @@ class Document extends Model
         'is_confidential',
         'is_archived',
         'priority',
+        'pqrs_type',
+        'legal_basis',
+        'legal_term_days',
         'received_at',
         'due_date',
         'due_at',
         'sla_due_date',
+        'sla_started_at',
+        'sla_status',
+        'sla_paused_at',
+        'sla_pause_reason',
+        'sla_resumed_at',
+        'first_response_at',
+        'closed_at',
+        'sla_frozen_at',
+        'escalated_at',
         'completed_at',
         'archived_at',
+        'trd_series_id',
+        'trd_subseries_id',
+        'documentary_type_id',
+        'access_level',
+        'retention_management_years',
+        'retention_central_years',
+        'retention_historical_action',
+        'final_disposition',
+        'archive_phase',
+        'archive_classification_code',
         'settings',
         'metadata',
     ];
@@ -71,12 +99,26 @@ class Document extends Model
         'is_archived' => 'boolean',
         'tracking_enabled' => 'boolean',
         'priority' => Priority::class,
+        'legal_term_days' => 'integer',
         'received_at' => 'datetime',
         'due_date' => 'datetime',
         'due_at' => 'datetime',
         'sla_due_date' => 'datetime',
+        'sla_started_at' => 'datetime',
+        'sla_status' => SlaStatus::class,
+        'sla_paused_at' => 'datetime',
+        'sla_resumed_at' => 'datetime',
+        'first_response_at' => 'datetime',
+        'closed_at' => 'datetime',
+        'sla_frozen_at' => 'datetime',
+        'escalated_at' => 'datetime',
         'completed_at' => 'datetime',
         'archived_at' => 'datetime',
+        'access_level' => DocumentAccessLevel::class,
+        'retention_management_years' => 'integer',
+        'retention_central_years' => 'integer',
+        'final_disposition' => FinalDisposition::class,
+        'archive_phase' => ArchivePhase::class,
         'tracking_expires_at' => 'datetime',
         'settings' => 'json',
         'metadata' => 'json',
@@ -162,6 +204,36 @@ class Document extends Model
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    public function assignedTo(): BelongsTo
+    {
+        return $this->assignee();
+    }
+
+    public function slaPolicy(): BelongsTo
+    {
+        return $this->belongsTo(SlaPolicy::class);
+    }
+
+    public function documentarySeries(): BelongsTo
+    {
+        return $this->belongsTo(DocumentarySeries::class, 'trd_series_id');
+    }
+
+    public function documentarySubseries(): BelongsTo
+    {
+        return $this->belongsTo(DocumentarySubseries::class, 'trd_subseries_id');
+    }
+
+    public function documentaryType(): BelongsTo
+    {
+        return $this->belongsTo(DocumentaryType::class);
+    }
+
+    public function slaEvents(): HasMany
+    {
+        return $this->hasMany(DocumentSlaEvent::class);
     }
 
     public function versions(): HasMany
@@ -252,6 +324,31 @@ class Document extends Model
         return $query->where('created_by', $userId);
     }
 
+    public function scopeVisibleToPortalUser(Builder $query, User $user): Builder
+    {
+        return $query
+            ->where('company_id', $user->company_id)
+            ->where(function (Builder $builder) use ($user): void {
+                $builder->where('assigned_to', $user->id)
+                    ->orWhere('created_by', $user->id);
+
+                if ($user->hasRole(Role::RegularUser->value)) {
+                    $builder->orWhereHas('receipts', function (Builder $receiptQuery) use ($user): void {
+                        $receiptQuery->where('recipient_user_id', $user->id);
+                    });
+                }
+
+                if (
+                    $user->department_id &&
+                    $user->hasAnyRole([Role::OfficeManager->value, Role::ArchiveManager->value])
+                ) {
+                    $builder->orWhereHas('distributions.targets', function (Builder $targetQuery) use ($user): void {
+                        $targetQuery->where('department_id', $user->department_id);
+                    });
+                }
+            });
+    }
+
     public function scopeConfidential($query)
     {
         return $query->where('is_confidential', true);
@@ -275,6 +372,23 @@ class Document extends Model
     public function scopeWithPriority($query, $priority)
     {
         return $query->where('priority', $priority);
+    }
+
+    public function scopeByPqrsType($query, string $pqrsType)
+    {
+        return $query->where('pqrs_type', $pqrsType);
+    }
+
+    public function scopeWithActiveSla($query)
+    {
+        return $query
+            ->whereNotNull('sla_due_date')
+            ->whereNotIn('sla_status', [SlaStatus::Closed->value, SlaStatus::Frozen->value]);
+    }
+
+    public function scopeByArchivePhase($query, ArchivePhase|string $phase)
+    {
+        return $query->where('archive_phase', $phase instanceof ArchivePhase ? $phase->value : $phase);
     }
 
     public function scopeOverdue($query)
@@ -386,6 +500,11 @@ class Document extends Model
     public function getCategoryNameAttribute(): string
     {
         return $this->category?->name ?? 'Sin categoría';
+    }
+
+    public function getIsSlaFrozenAttribute(): bool
+    {
+        return $this->sla_status === SlaStatus::Frozen || $this->sla_frozen_at !== null;
     }
 
     // Métodos

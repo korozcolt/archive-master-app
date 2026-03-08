@@ -118,6 +118,60 @@ class CompanyResource extends Resource
                             ->columnSpanFull(),
                     ]),
 
+                Forms\Components\Section::make('Gobernanza documental')
+                    ->description('Parámetros editables por empresa para SLA legal, alertas y archivo formal.')
+                    ->schema([
+                        Forms\Components\TextInput::make('settings.document_governance.jurisdiction')
+                            ->label('Jurisdicción')
+                            ->default('CO')
+                            ->maxLength(10),
+                        Forms\Components\TextInput::make('settings.document_governance.timezone')
+                            ->label('Zona horaria')
+                            ->default('America/Bogota')
+                            ->maxLength(100),
+                        Forms\Components\TagsInput::make('settings.document_governance.warning_days')
+                            ->label('Alertas previas (días hábiles)')
+                            ->default([])
+                            ->afterStateHydrated(function (Forms\Components\TagsInput $component, mixed $state): void {
+                                $component->state(is_array($state) ? $state : []);
+                            })
+                            ->helperText('Ejemplo: 3,1'),
+                        Forms\Components\TextInput::make('settings.document_governance.escalation_days')
+                            ->label('Escalamiento tras vencimiento (días)')
+                            ->numeric()
+                            ->default(1)
+                            ->minValue(0),
+                        Forms\Components\Toggle::make('settings.document_governance.allow_extension')
+                            ->label('Permitir prórroga motivada')
+                            ->default(true),
+                        Forms\Components\Toggle::make('settings.document_governance.requires_subsanation')
+                            ->label('Permitir suspensión por subsanación')
+                            ->default(true),
+                        Forms\Components\Toggle::make('settings.document_governance.archive_requires_trd')
+                            ->label('Exigir TRD/TVD al archivar')
+                            ->default(true),
+                        Forms\Components\Toggle::make('settings.document_governance.archive_requires_access_level')
+                            ->label('Exigir nivel de acceso al archivar')
+                            ->default(true),
+                        Forms\Components\Toggle::make('settings.document_governance.send_due_soon_alerts')
+                            ->label('Enviar alertas por vencer')
+                            ->default(true),
+                        Forms\Components\Toggle::make('settings.document_governance.send_overdue_alerts')
+                            ->label('Enviar alertas por vencimiento')
+                            ->default(true),
+                        Forms\Components\Toggle::make('settings.document_governance.notify_supervisors_on_overdue')
+                            ->label('Escalar vencidos a supervisores')
+                            ->default(true),
+                        Forms\Components\Toggle::make('settings.document_governance.send_archive_ready_alerts')
+                            ->label('Alertar documentos listos para archivo')
+                            ->default(true),
+                        Forms\Components\Toggle::make('settings.document_governance.send_archive_incomplete_alerts')
+                            ->label('Alertar archivo incompleto')
+                            ->default(true),
+                    ])
+                    ->columns(2)
+                    ->collapsible(),
+
                 Forms\Components\Section::make('Configuración IA')
                     ->description('Configuración de proveedor IA por compañía (BYOK).')
                     ->schema([

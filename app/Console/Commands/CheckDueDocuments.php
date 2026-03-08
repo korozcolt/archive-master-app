@@ -2,116 +2,71 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Document;
-use App\Notifications\DocumentDueSoon;
-use Carbon\Carbon;
+use App\Models\Company;
+use App\Services\GovernanceAlertService;
 use Illuminate\Console\Command;
 
 class CheckDueDocuments extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'documents:check-due';
+    protected $signature = 'documents:check-due
+                            {--company= : ID de la empresa específica}
+                            {--dry-run : Ejecutar sin enviar notificaciones}';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Verifica documentos próximos a vencer y envía notificaciones';
+    protected $description = 'Procesa alertas por vencer y de archivo para la gobernanza documental';
 
-    /**
-     * Execute the console command.
-     */
-    public function handle()
+    public function __construct(protected GovernanceAlertService $governanceAlertService)
     {
-        $this->info('Verificando documentos próximos a vencer...');
-
-        // Obtener fechas de referencia
-        $today = Carbon::today();
-        $tomorrow = Carbon::tomorrow();
-        $threeDays = Carbon::today()->addDays(3);
-        $sevenDays = Carbon::today()->addDays(7);
-
-        // Documentos que vencen hoy
-        $dueTodayCount = $this->notifyDocuments(
-            Document::whereNotNull('due_at')
-                ->whereDate('due_at', $today)
-                ->whereNotNull('assigned_to')
-                ->with('assignedTo')
-                ->get(),
-            0
-        );
-
-        // Documentos que vencen mañana
-        $dueTomorrowCount = $this->notifyDocuments(
-            Document::whereNotNull('due_at')
-                ->whereDate('due_at', $tomorrow)
-                ->whereNotNull('assigned_to')
-                ->with('assignedTo')
-                ->get(),
-            1
-        );
-
-        // Documentos que vencen en 3 días
-        $dueThreeDaysCount = $this->notifyDocuments(
-            Document::whereNotNull('due_at')
-                ->whereDate('due_at', $threeDays)
-                ->whereNotNull('assigned_to')
-                ->with('assignedTo')
-                ->get(),
-            3
-        );
-
-        // Documentos que vencen en 7 días
-        $dueSevenDaysCount = $this->notifyDocuments(
-            Document::whereNotNull('due_at')
-                ->whereDate('due_at', $sevenDays)
-                ->whereNotNull('assigned_to')
-                ->with('assignedTo')
-                ->get(),
-            7
-        );
-
-        $totalNotifications = $dueTodayCount + $dueTomorrowCount + $dueThreeDaysCount + $dueSevenDaysCount;
-
-        $this->info("✅ Proceso completado:");
-        $this->line("   - Vencen hoy: {$dueTodayCount} notificaciones");
-        $this->line("   - Vencen mañana: {$dueTomorrowCount} notificaciones");
-        $this->line("   - Vencen en 3 días: {$dueThreeDaysCount} notificaciones");
-        $this->line("   - Vencen en 7 días: {$dueSevenDaysCount} notificaciones");
-        $this->line("   - Total: {$totalNotifications} notificaciones enviadas");
-
-        return Command::SUCCESS;
+        parent::__construct();
     }
 
-    /**
-     * Envía notificaciones para una colección de documentos
-     */
-    private function notifyDocuments($documents, int $daysRemaining): int
+    public function handle(): int
     {
-        $count = 0;
+        $companyId = $this->option('company');
+        $isDryRun = (bool) $this->option('dry-run');
 
-        foreach ($documents as $document) {
-            if ($document->assignedTo) {
-                // Verificar si ya se envió notificación hoy para este documento
-                $alreadyNotified = $document->assignedTo
-                    ->notifications()
-                    ->whereDate('created_at', Carbon::today())
-                    ->where('type', DocumentDueSoon::class)
-                    ->where('data->document_id', $document->id)
-                    ->exists();
+        $companies = Company::query()
+            ->when($companyId, fn ($query) => $query->whereKey($companyId))
+            ->where('active', true)
+            ->get();
 
-                if (!$alreadyNotified) {
-                    $document->assignedTo->notify(new DocumentDueSoon($document, $daysRemaining));
-                    $count++;
-                }
-            }
+        if ($companies->isEmpty()) {
+            $this->warn('No se encontraron empresas activas para procesar.');
+
+            return self::SUCCESS;
         }
 
-        return $count;
+        $totals = [
+            'due_soon' => 0,
+            'ready_for_archive' => 0,
+            'archive_incomplete' => 0,
+        ];
+
+        foreach ($companies as $company) {
+            $summary = $this->governanceAlertService->processCompany($company, ['due', 'archive'], $isDryRun);
+
+            $totals['due_soon'] += $summary['due_soon'];
+            $totals['ready_for_archive'] += $summary['ready_for_archive'];
+            $totals['archive_incomplete'] += $summary['archive_incomplete'];
+
+            $this->line(sprintf(
+                '%s -> por vencer: %d, listos para archivo: %d, archivo incompleto: %d',
+                $company->name,
+                $summary['due_soon'],
+                $summary['ready_for_archive'],
+                $summary['archive_incomplete'],
+            ));
+        }
+
+        $this->info('Proceso de alertas por vencer y archivo completado.');
+        $this->table(
+            ['Tipo', 'Total'],
+            [
+                ['Por vencer', $totals['due_soon']],
+                ['Listos para archivo', $totals['ready_for_archive']],
+                ['Archivo incompleto', $totals['archive_incomplete']],
+            ]
+        );
+
+        return self::SUCCESS;
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\Role;
 use App\Models\Document;
 use App\Models\User;
 
@@ -46,6 +47,10 @@ class DocumentPolicy
             return true;
         }
 
-        return $document->created_by === $user->id || $document->assigned_to === $user->id;
+        return $document->created_by === $user->id
+            || $document->assigned_to === $user->id
+            || ($user->hasRole(Role::RegularUser->value) && $document->receipts()
+                ->where('recipient_user_id', $user->id)
+                ->exists());
     }
 }

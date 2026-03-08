@@ -15,6 +15,7 @@ use App\Models\Receipt;
 use App\Models\Status;
 use App\Models\User;
 use App\Models\WorkflowDefinition;
+use Database\Seeders\PhysicalLocationBootstrapSeeder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -41,6 +42,7 @@ class SetupQaRegressionData extends Command
         $statuses = $this->upsertStatuses($company);
         $category = $this->upsertCategory($company);
         $users = $this->upsertUsers($company, $branches, $departments, $password);
+        $this->seedPhysicalLocations();
         $documents = $this->upsertDocuments($company, $category, $statuses, $users);
         $this->upsertApprovals($company, $statuses, $documents, $users);
         $this->upsertReceipt($company, $documents, $users);
@@ -107,20 +109,25 @@ class SetupQaRegressionData extends Command
 
     private function upsertCompany(): Company
     {
-        return Company::query()->updateOrCreate(
-            ['name' => 'ArchiveMaster QA'],
-            [
-                'legal_name' => 'ArchiveMaster QA S.A.S.',
-                'tax_id' => '900999888-1',
-                'address' => 'Avenida QA 123',
-                'phone' => '+57 601 5550000',
-                'email' => 'qa@archivemaster.test',
-                'website' => 'https://archive-master-app.test',
-                'primary_color' => '#1f4d8f',
-                'secondary_color' => '#16a085',
-                'active' => true,
-            ]
-        );
+        $company = Company::query()->firstOrNew([
+            'tax_id' => '900999888-1',
+        ]);
+
+        $company->fill([
+            'name' => 'ArchiveMaster QA',
+            'legal_name' => 'ArchiveMaster QA S.A.S.',
+            'address' => 'Avenida QA 123',
+            'phone' => '+57 601 5550000',
+            'email' => 'qa@archivemaster.test',
+            'website' => 'https://archive-master-app.test',
+            'primary_color' => '#1f4d8f',
+            'secondary_color' => '#16a085',
+            'active' => true,
+        ]);
+
+        $company->save();
+
+        return $company;
     }
 
     private function upsertBranches(Company $company): array
@@ -362,6 +369,9 @@ class SetupQaRegressionData extends Command
                     'public_tracking_code' => Str::upper(Str::random(10)),
                     'received_at' => now()->subDays(2),
                     'due_at' => now()->addDays(5),
+                    'physical_location_id' => null,
+                    'is_archived' => $key === 'approved',
+                    'archived_at' => $key === 'approved' ? now()->subDay() : null,
                     'metadata' => ['source' => 'qa_regression'],
                 ]
             );
@@ -450,5 +460,13 @@ class SetupQaRegressionData extends Command
                 'api_key_encrypted' => null,
             ]
         );
+    }
+
+    private function seedPhysicalLocations(): void
+    {
+        $this->callSilent('db:seed', [
+            '--class' => PhysicalLocationBootstrapSeeder::class,
+            '--no-interaction' => true,
+        ]);
     }
 }

@@ -132,6 +132,11 @@ class PhysicalLocation extends Model
 
         $levels = $this->template->getOrderedLevels();
         $parts = [];
+        $companyPrefix = $this->company_id ? 'C'.$this->company_id : null;
+
+        if ($companyPrefix) {
+            $parts[] = $companyPrefix;
+        }
 
         foreach ($levels as $level) {
             $levelName = strtolower($level['name']);

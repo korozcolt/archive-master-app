@@ -21,7 +21,21 @@ class CreateCompany extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        unset($data['aiSetting']);
+        $warningDays = data_get($data, 'settings.document_governance.warning_days');
+
+        if (is_string($warningDays)) {
+            data_set(
+                $data,
+                'settings.document_governance.warning_days',
+                collect(explode(',', $warningDays))
+                    ->map(static fn (string $day): string => trim($day))
+                    ->filter()
+                    ->values()
+                    ->all()
+            );
+        }
+
+        unset($data['ai_setting']);
 
         return $data;
     }

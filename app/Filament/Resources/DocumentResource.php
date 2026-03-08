@@ -2,7 +2,11 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\ArchivePhase;
+use App\Enums\DocumentAccessLevel;
+use App\Enums\FinalDisposition;
 use App\Enums\Priority;
+use App\Enums\SlaStatus;
 use App\Filament\ResourceAccess;
 use App\Filament\Resources\DocumentResource\Pages;
 use App\Filament\Resources\DocumentResource\RelationManagers;
@@ -10,6 +14,7 @@ use App\Models\Category;
 use App\Models\Document;
 use App\Models\DocumentTemplate;
 use App\Models\PhysicalLocation;
+use App\Models\SlaPolicy;
 use App\Models\Status;
 use App\Models\Tag;
 use App\Models\User;
@@ -302,6 +307,42 @@ class DocumentResource extends Resource
                                         Forms\Components\DateTimePicker::make('due_at')
                                             ->label('Fecha de vencimiento'),
                                     ]),
+                                Forms\Components\Section::make('Datos legales / PQRS')
+                                    ->description('Clasificación legal y control de tiempos de respuesta.')
+                                    ->schema([
+                                        Forms\Components\Select::make('pqrs_type')
+                                            ->label('Tipo PQRS')
+                                            ->options(function (Get $get): array {
+                                                $companyId = $get('company_id') ?? Auth::user()?->company_id;
+
+                                                return SlaPolicy::query()
+                                                    ->where('company_id', $companyId)
+                                                    ->where('is_active', true)
+                                                    ->orderBy('name')
+                                                    ->pluck('name', 'code')
+                                                    ->all();
+                                            })
+                                            ->searchable()
+                                            ->preload()
+                                            ->live(),
+                                        Forms\Components\Placeholder::make('sla_status_preview')
+                                            ->label('Estado SLA')
+                                            ->content(fn (?Document $record, Get $get): string => $record?->sla_status?->getLabel()
+                                                ?? ($get('sla_status') ? (string) $get('sla_status') : 'Se calculará al guardar')
+                                            ),
+                                        Forms\Components\Textarea::make('legal_basis')
+                                            ->label('Base legal')
+                                            ->rows(2)
+                                            ->columnSpanFull(),
+                                        Forms\Components\TextInput::make('legal_term_days')
+                                            ->label('Término legal (días hábiles)')
+                                            ->numeric()
+                                            ->minValue(0),
+                                        Forms\Components\DateTimePicker::make('sla_due_date')
+                                            ->label('Fecha límite legal')
+                                            ->seconds(false),
+                                    ])
+                                    ->columns(2),
                                 Forms\Components\Grid::make()
                                     ->schema([
                                         Forms\Components\TextInput::make('physical_location')
@@ -363,6 +404,66 @@ class DocumentResource extends Resource
                                             ]),
                                     ])
                                     ->columns(1),
+                                Forms\Components\Section::make('Clasificación archivística')
+                                    ->description('TRD/TVD, acceso y retención del expediente archivado.')
+                                    ->schema([
+                                        Forms\Components\Select::make('trd_series_id')
+                                            ->label('Serie documental')
+                                            ->relationship('documentarySeries', 'name', fn (Builder $query, Get $get) => $query
+                                                ->where('company_id', $get('company_id'))
+                                                ->where('is_active', true))
+                                            ->searchable()
+                                            ->preload()
+                                            ->live()
+                                            ->afterStateUpdated(fn (Set $set) => $set('trd_subseries_id', null)),
+                                        Forms\Components\Select::make('trd_subseries_id')
+                                            ->label('Subserie documental')
+                                            ->relationship('documentarySubseries', 'name', fn (Builder $query, Get $get) => $query
+                                                ->where('company_id', $get('company_id'))
+                                                ->when($get('trd_series_id'), fn (Builder $builder, $seriesId) => $builder->where('documentary_series_id', $seriesId))
+                                                ->where('is_active', true))
+                                            ->searchable()
+                                            ->preload()
+                                            ->live()
+                                            ->afterStateUpdated(fn (Set $set) => $set('documentary_type_id', null)),
+                                        Forms\Components\Select::make('documentary_type_id')
+                                            ->label('Tipo documental')
+                                            ->relationship('documentaryType', 'name', fn (Builder $query, Get $get) => $query
+                                                ->where('company_id', $get('company_id'))
+                                                ->when($get('trd_subseries_id'), fn (Builder $builder, $subseriesId) => $builder->where('documentary_subseries_id', $subseriesId))
+                                                ->where('is_active', true))
+                                            ->searchable()
+                                            ->preload(),
+                                        Forms\Components\Select::make('access_level')
+                                            ->label('Nivel de acceso')
+                                            ->options(collect(DocumentAccessLevel::cases())->mapWithKeys(fn (DocumentAccessLevel $case): array => [$case->value => $case->getLabel()])->all())
+                                            ->native(false),
+                                        Forms\Components\Select::make('archive_phase')
+                                            ->label('Fase de archivo')
+                                            ->options(collect(ArchivePhase::cases())->mapWithKeys(fn (ArchivePhase $case): array => [$case->value => $case->getLabel()])->all())
+                                            ->native(false),
+                                        Forms\Components\Select::make('final_disposition')
+                                            ->label('Disposición final')
+                                            ->options(collect(FinalDisposition::cases())->mapWithKeys(fn (FinalDisposition $case): array => [$case->value => $case->getLabel()])->all())
+                                            ->native(false),
+                                        Forms\Components\TextInput::make('retention_management_years')
+                                            ->label('Retención gestión (años)')
+                                            ->numeric()
+                                            ->minValue(0),
+                                        Forms\Components\TextInput::make('retention_central_years')
+                                            ->label('Retención central (años)')
+                                            ->numeric()
+                                            ->minValue(0),
+                                        Forms\Components\Textarea::make('retention_historical_action')
+                                            ->label('Acción histórica')
+                                            ->rows(2)
+                                            ->columnSpanFull(),
+                                        Forms\Components\TextInput::make('archive_classification_code')
+                                            ->label('Código archivístico')
+                                            ->disabled()
+                                            ->dehydrated(false),
+                                    ])
+                                    ->columns(3),
                             ]),
 
                         Forms\Components\Tabs\Tab::make('Tracking Público')
@@ -513,6 +614,16 @@ class DocumentResource extends Resource
                             default => 'gray',
                         };
                     }),
+                Tables\Columns\TextColumn::make('pqrs_type')
+                    ->label('Tipo PQRS')
+                    ->badge()
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('sla_status')
+                    ->label('SLA')
+                    ->badge()
+                    ->formatStateUsing(fn ($state): string => $state instanceof \App\Enums\SlaStatus ? $state->getLabel() : (string) $state)
+                    ->color(fn ($state): string => $state instanceof \App\Enums\SlaStatus ? (string) $state->getColor() : 'gray')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('priority')
                     ->label('Prioridad')
                     ->badge(),
@@ -534,6 +645,16 @@ class DocumentResource extends Resource
                     ->label('Archivado')
                     ->boolean()
                     ->toggleable(),
+                Tables\Columns\TextColumn::make('archive_phase')
+                    ->label('Fase archivo')
+                    ->badge()
+                    ->formatStateUsing(fn ($state): string => $state instanceof ArchivePhase ? $state->getLabel() : (string) $state)
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('access_level')
+                    ->label('Acceso')
+                    ->badge()
+                    ->formatStateUsing(fn ($state): string => $state instanceof DocumentAccessLevel ? $state->getLabel() : (string) $state)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('creator.name')
                     ->label('Creado por')
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -606,6 +727,33 @@ class DocumentResource extends Resource
                     ->label('Prioridad')
                     ->options(collect(Priority::cases())->pluck('value', 'value')
                         ->mapWithKeys(fn ($value, $key) => [$value => Priority::from($value)->getLabel()])),
+                Tables\Filters\SelectFilter::make('pqrs_type')
+                    ->label('Tipo PQRS')
+                    ->options(function (): array {
+                        $user = Auth::user();
+
+                        if (! $user) {
+                            return [];
+                        }
+
+                        return SlaPolicy::query()
+                            ->where('company_id', $user->company_id)
+                            ->where('is_active', true)
+                            ->orderBy('name')
+                            ->pluck('name', 'code')
+                            ->all();
+                    })
+                    ->searchable()
+                    ->preload(),
+                Tables\Filters\SelectFilter::make('sla_status')
+                    ->label('Estado SLA')
+                    ->options(collect(SlaStatus::cases())->mapWithKeys(fn (SlaStatus $case): array => [$case->value => $case->getLabel()])->all()),
+                Tables\Filters\SelectFilter::make('archive_phase')
+                    ->label('Fase de archivo')
+                    ->options(collect(ArchivePhase::cases())->mapWithKeys(fn (ArchivePhase $case): array => [$case->value => $case->getLabel()])->all()),
+                Tables\Filters\SelectFilter::make('access_level')
+                    ->label('Nivel de acceso')
+                    ->options(collect(DocumentAccessLevel::cases())->mapWithKeys(fn (DocumentAccessLevel $case): array => [$case->value => $case->getLabel()])->all()),
                 Tables\Filters\SelectFilter::make('assigned_to')
                     ->label('Asignado a')
                     ->relationship('assignee', 'name')
@@ -621,11 +769,39 @@ class DocumentResource extends Resource
                     ->toggle(),
                 Tables\Filters\Filter::make('overdue')
                     ->label('Vencidos')
-                    ->query(fn (Builder $query): Builder => $query->whereNotNull('due_at')->where('due_at', '<', now())->whereNull('completed_at'))
+                    ->query(fn (Builder $query): Builder => $query->where('sla_status', SlaStatus::Overdue->value))
                     ->toggle(),
                 Tables\Filters\Filter::make('due_today')
                     ->label('Vencen hoy')
-                    ->query(fn (Builder $query): Builder => $query->whereDate('due_at', now()->toDateString())->whereNull('completed_at'))
+                    ->query(fn (Builder $query): Builder => $query->whereDate('sla_due_date', now()->toDateString())->whereNull('sla_frozen_at'))
+                    ->toggle(),
+                Tables\Filters\Filter::make('warning')
+                    ->label('Por vencer')
+                    ->query(fn (Builder $query): Builder => $query->where('sla_status', SlaStatus::Warning->value))
+                    ->toggle(),
+                Tables\Filters\Filter::make('missing_pqrs_classification')
+                    ->label('Sin clasificar PQRS')
+                    ->query(fn (Builder $query): Builder => $query->whereNull('pqrs_type')->whereNull('sla_policy_id'))
+                    ->toggle(),
+                Tables\Filters\Filter::make('ready_for_archive')
+                    ->label('Listos para archivar')
+                    ->query(fn (Builder $query): Builder => $query
+                        ->where('is_archived', false)
+                        ->where(function (Builder $builder): void {
+                            $builder->whereNotNull('completed_at')
+                                ->orWhereNotNull('closed_at');
+                        }))
+                    ->toggle(),
+                Tables\Filters\Filter::make('archive_pending_classification')
+                    ->label('Archivados sin clasificación')
+                    ->query(fn (Builder $query): Builder => $query
+                        ->where('is_archived', true)
+                        ->where(function (Builder $builder): void {
+                            $builder->whereNull('trd_series_id')
+                                ->orWhereNull('trd_subseries_id')
+                                ->orWhereNull('documentary_type_id')
+                                ->orWhereNull('access_level');
+                        }))
                     ->toggle(),
             ])
             ->actions([

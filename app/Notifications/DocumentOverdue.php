@@ -49,6 +49,7 @@ class DocumentOverdue extends Notification implements ShouldQueue
     {
         $urgencyLevel = $this->getUrgencyLevel();
         $subject = "⚠️ Documento Vencido - {$this->document->document_number}";
+        $dueDate = $this->document->sla_due_date ?? $this->document->due_date;
 
         if ($urgencyLevel === 'critical') {
             $subject = '🚨 URGENTE: '.$subject;
@@ -66,11 +67,11 @@ class DocumentOverdue extends Notification implements ShouldQueue
             ->line("**Título:** {$this->document->title}")
             ->line("**Estado actual:** {$this->getStatusName()}")
             ->line("**Categoría:** {$this->getCategoryName()}")
-            ->line("**Fecha límite:** {$this->document->due_at->format('d/m/Y H:i')}")
-            ->when($this->document->priority === 'high', function ($message) {
+            ->line('**Fecha límite:** '.($dueDate?->format('d/m/Y H:i') ?? 'Sin fecha'))
+            ->when(($this->document->priority?->value ?? $this->document->priority) === 'high', function ($message) {
                 return $message->line('⚠️ **Este documento tiene prioridad ALTA**');
             })
-            ->action('Ver Documento', url("/admin/documents/{$this->document->id}"))
+            ->action('Ver Documento', route('documents.show', $this->document->id))
             ->line('Por favor, toma las acciones necesarias lo antes posible.')
             ->salutation('Saludos,\nSistema ArchiveMaster');
     }
@@ -84,6 +85,7 @@ class DocumentOverdue extends Notification implements ShouldQueue
         $timeOverdueText = $this->hoursOverdue < 24
             ? "{$this->hoursOverdue} horas"
             : "{$daysOverdue} días";
+        $dueDate = $this->document->sla_due_date ?? $this->document->due_date;
 
         return [
             'type' => 'document_overdue',
@@ -92,12 +94,12 @@ class DocumentOverdue extends Notification implements ShouldQueue
             'document_title' => $this->document->title,
             'hours_overdue' => $this->hoursOverdue,
             'days_overdue' => $daysOverdue,
-            'due_date' => $this->document->due_at->toISOString(),
+            'due_date' => $dueDate?->toISOString(),
             'status' => $this->getStatusName(),
             'category' => $this->getCategoryName(),
-            'priority' => $this->document->priority,
+            'priority' => $this->document->priority?->value ?? $this->document->priority,
             'urgency_level' => $this->getUrgencyLevel(),
-            'action_url' => "/admin/documents/{$this->document->id}",
+            'action_url' => route('documents.show', $this->document->id),
             'message' => "El documento {$this->document->document_number} está vencido hace {$timeOverdueText}",
         ];
     }

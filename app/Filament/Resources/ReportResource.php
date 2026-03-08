@@ -59,12 +59,7 @@ class ReportResource extends Resource
                             ->schema([
                                 Select::make('report_type')
                                     ->label('Tipo de Reporte')
-                                    ->options([
-                                        'documents-by-status' => 'Documentos por Estado',
-                                        'sla-compliance' => 'Cumplimiento SLA',
-                                        'user-activity' => 'Actividad por Usuario',
-                                        'documents-by-department' => 'Documentos por Departamento',
-                                    ])
+                                    ->options(static::reportTypeOptions())
                                     ->required()
                                     ->native(false)
                                     ->searchable(),
@@ -141,12 +136,7 @@ class ReportResource extends Resource
                                     ->schema([
                                         Select::make('report_type')
                                             ->label('Tipo de Reporte')
-                                            ->options([
-                                                'documents-by-status' => 'Documentos por Estado',
-                                                'sla-compliance' => 'Cumplimiento SLA',
-                                                'user-activity' => 'Actividad por Usuario',
-                                                'documents-by-department' => 'Documentos por Departamento',
-                                            ])
+                                            ->options(static::reportTypeOptions())
                                             ->required()
                                             ->native(false)
                                             ->searchable(),
@@ -203,6 +193,8 @@ class ReportResource extends Resource
                             $reportData = match ($data['report_type']) {
                                 'documents-by-status' => $reportService->documentsByStatus($filters),
                                 'sla-compliance' => $reportService->slaComplianceReport($filters),
+                                'legal-sla-governance' => $reportService->legalSlaGovernanceReport($filters),
+                                'archive-governance' => $reportService->archiveGovernanceReport($filters),
                                 'user-activity' => $reportService->userActivityReport($filters),
                                 'documents-by-department' => $reportService->documentsByDepartment($filters),
                                 default => collect()
@@ -254,5 +246,17 @@ class ReportResource extends Resource
     public static function canCreate(): bool
     {
         return false;
+    }
+
+    public static function reportTypeOptions(): array
+    {
+        return [
+            'documents-by-status' => 'Documentos por Estado',
+            'sla-compliance' => 'Cumplimiento SLA',
+            'legal-sla-governance' => 'SLA legal PQRS',
+            'archive-governance' => 'Gobernanza archivística',
+            'user-activity' => 'Actividad por Usuario',
+            'documents-by-department' => 'Documentos por Departamento',
+        ];
     }
 }

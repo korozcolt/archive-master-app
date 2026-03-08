@@ -3,10 +3,10 @@
 @section('content')
     @php
         $totalDocuments = $data->count();
-        $onTimeDocuments = $data->where('sla_status', 'On Time')->count();
-        $overdueDocuments = $data->where('sla_status', 'Overdue')->count();
-        $completedDocuments = $data->where('sla_status', 'Completed')->count();
-        $noSlaDocuments = $data->where('sla_status', 'No SLA')->count();
+        $onTimeDocuments = $data->filter(fn ($document) => in_array($document->sla_status_label ?? null, ['En tiempo', 'Por vencer'], true))->count();
+        $overdueDocuments = $data->filter(fn ($document) => ($document->sla_status_label ?? null) === 'Vencido')->count();
+        $completedDocuments = $data->filter(fn ($document) => in_array($document->sla_status_label ?? null, ['Cerrado', 'Histórico congelado'], true))->count();
+        $noSlaDocuments = $data->filter(fn ($document) => ($document->sla_status_label ?? null) === 'Sin SLA')->count();
         
         $complianceRate = $totalDocuments > 0 ? (($onTimeDocuments + $completedDocuments) / $totalDocuments) * 100 : 0;
     @endphp
@@ -104,7 +104,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($data->where('sla_status', 'Overdue')->sortBy('due_date') as $document)
+                @foreach($data->filter(fn ($document) => ($document->sla_status_label ?? null) === 'Vencido')->sortBy('due_date') as $document)
                     <tr>
                         <td class="text-center">{{ $document->id }}</td>
                         <td>{{ Str::limit($document->title, 25) }}</td>
@@ -113,7 +113,7 @@
                                 {{ $document->status->name ?? 'Sin estado' }}
                             </span>
                         </td>
-                        <td>{{ $document->user->name ?? 'Sin asignar' }}</td>
+                        <td>{{ $document->assignee?->name ?? $document->creator?->name ?? 'Sin asignar' }}</td>
                         <td>{{ $document->department->name ?? 'Sin departamento' }}</td>
                         <td class="text-center">
                             {{ $document->due_date ? $document->due_date->format('d/m/Y') : 'Sin fecha' }}
@@ -155,8 +155,8 @@
                         <td class="text-center">{{ $document->id }}</td>
                         <td>{{ Str::limit($document->title, 20) }}</td>
                         <td>
-                            <span class="status-badge status-{{ strtolower(str_replace(' ', '-', $document->sla_status)) }}">
-                                {{ $document->sla_status }}
+                            <span class="status-badge status-{{ strtolower(str_replace(' ', '-', $document->sla_status_label ?? 'sin-sla')) }}">
+                                {{ $document->sla_status_label ?? 'Sin SLA' }}
                             </span>
                         </td>
                         <td>
@@ -165,7 +165,7 @@
                             </span>
                         </td>
                         <td class="text-xs">{{ $document->category->name ?? 'Sin categoría' }}</td>
-                        <td class="text-xs">{{ $document->user->name ?? 'Sin asignar' }}</td>
+                        <td class="text-xs">{{ $document->assignee?->name ?? $document->creator?->name ?? 'Sin asignar' }}</td>
                         <td class="text-xs">{{ $document->department->name ?? 'Sin depto' }}</td>
                         <td class="text-center text-xs">{{ $document->created_at->format('d/m/Y') }}</td>
                         <td class="text-center text-xs">

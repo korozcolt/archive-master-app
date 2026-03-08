@@ -52,6 +52,58 @@
         </div>
     </div>
 
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-4">
+        <div class="rounded-2xl border border-amber-300/30 bg-gradient-to-br from-amber-50 to-white p-4 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-300 dark:border-amber-500/20 dark:from-amber-950/20 dark:to-slate-900 am-motion-safe">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-600 dark:text-amber-300">Por vencer</p>
+            <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ $summary['warning'] }}</p>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Documentos con SLA en advertencia.</p>
+        </div>
+        <div class="rounded-2xl border border-rose-300/30 bg-gradient-to-br from-rose-50 to-white p-4 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-350 dark:border-rose-500/20 dark:from-rose-950/20 dark:to-slate-900 am-motion-safe">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-rose-600 dark:text-rose-300">Vencidos</p>
+            <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ $summary['overdue'] }}</p>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Requieren respuesta o escalamiento inmediato.</p>
+        </div>
+        <div class="rounded-2xl border border-sky-300/30 bg-gradient-to-br from-sky-50 to-white p-4 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-400 dark:border-sky-500/20 dark:from-sky-950/20 dark:to-slate-900 am-motion-safe">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-sky-600 dark:text-sky-300">Listos para archivar</p>
+            <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ $summary['ready_for_archive'] }}</p>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Trámites cerrados pendientes de archivo formal.</p>
+        </div>
+        <div class="rounded-2xl border border-fuchsia-300/30 bg-gradient-to-br from-fuchsia-50 to-white p-4 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-450 dark:border-fuchsia-500/20 dark:from-fuchsia-950/20 dark:to-slate-900 am-motion-safe">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-fuchsia-600 dark:text-fuchsia-300">Archivo incompleto</p>
+            <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ $summary['archive_pending_classification'] }}</p>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Archivados sin TRD/TVD o sin nivel de acceso.</p>
+        </div>
+    </div>
+
+    <div class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-500 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
+        <div class="flex items-center justify-between border-b border-slate-200/80 px-5 py-4 dark:border-slate-800">
+            <div>
+                <h2 class="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">Atención SLA</h2>
+                <p class="text-sm text-slate-500 dark:text-slate-400">Documentos que requieren intervención operativa inmediata.</p>
+            </div>
+            <a href="{{ route('documents.index', ['sla_attention' => 1]) }}" class="inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-medium text-sky-700 transition hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-slate-800">Abrir bandeja</a>
+        </div>
+        <div class="divide-y divide-slate-200 dark:divide-slate-800">
+            @forelse ($slaAttentionDocuments as $document)
+                <a href="{{ route('documents.show', $document) }}" class="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                    <div class="min-w-0">
+                        <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ $document->title }}</p>
+                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ $document->document_number }} · {{ $document->sla_due_date?->format('d/m/Y H:i') ?? 'Sin fecha legal' }}</p>
+                    </div>
+                    <div class="shrink-0">
+                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold {{ $document->sla_status?->value === 'overdue' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' }}">
+                            {{ $document->sla_status?->getLabel() ?? 'Sin SLA' }}
+                        </span>
+                    </div>
+                </a>
+            @empty
+                <div class="px-5 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
+                    No tienes documentos en advertencia o vencidos.
+                </div>
+            @endforelse
+        </div>
+    </div>
+
     <div class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-300 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
         <div class="flex items-center justify-between border-b border-slate-200/80 px-5 py-4 dark:border-slate-800">
             <h2 class="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">Documentos recientes</h2>

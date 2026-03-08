@@ -12,17 +12,9 @@ class DocumentDueSoon extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    protected $document;
-
-    protected $daysRemaining;
-
-    /**
-     * Create a new notification instance.
-     */
-    public function __construct(Document $document, int $daysRemaining)
+    public function __construct(protected Document $document, protected int $daysRemaining)
     {
-        $this->document = $document;
-        $this->daysRemaining = $daysRemaining;
+        $this->onQueue('notifications');
     }
 
     /**
@@ -50,7 +42,7 @@ class DocumentDueSoon extends Notification implements ShouldQueue
             'document_title' => $this->document->title,
             'document_number' => $this->document->document_number,
             'days_remaining' => $this->daysRemaining,
-            'due_date' => $this->document->due_at?->format('d/m/Y'),
+            'due_date' => $this->document->sla_due_date?->format('d/m/Y'),
             'urgency_level' => $urgencyLevel,
             'action_url' => route('documents.show', $this->document->id),
             'icon' => 'clock',

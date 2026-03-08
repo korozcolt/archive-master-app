@@ -65,6 +65,13 @@ class Reports extends Component
 
     private function receivedQuery(User $user): Builder
     {
+        if ($user->hasRole(Role::RegularUser->value)) {
+            return $this->baseQuery($user)
+                ->whereHas('receipts', function (Builder $receiptQuery) use ($user): void {
+                    $receiptQuery->where('recipient_user_id', $user->id);
+                });
+        }
+
         return $this->baseQuery($user)
             ->where(function (Builder $query) use ($user): void {
                 $query->where('assigned_to', $user->id);

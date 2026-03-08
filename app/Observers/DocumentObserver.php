@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Events\DocumentUpdated;
+use App\Jobs\ProcessDocumentOcr;
 use App\Models\Document;
 use App\Models\DocumentLocationHistory;
 use App\Models\PhysicalLocation;
@@ -10,6 +11,8 @@ use App\Models\Status;
 use App\Models\User;
 use App\Notifications\DocumentAssigned;
 use App\Notifications\DocumentStatusChanged;
+use App\Services\ArchiveClassificationService;
+use App\Services\SlaCalculatorService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -51,6 +54,9 @@ class DocumentObserver
         if ($document->tracking_enabled && ! $document->public_tracking_code) {
             $document->public_tracking_code = $document->generatePublicTrackingCode();
         }
+
+        app(SlaCalculatorService::class)->applyToDocument($document);
+        app(ArchiveClassificationService::class)->applyToDocument($document);
     }
 
     /**
@@ -83,6 +89,8 @@ class DocumentObserver
         if ($document->department_id) {
             $this->notifyDepartmentSupervisor($document, 'created');
         }
+
+        $this->dispatchOcrIfNeeded($document);
     }
 
     /**
@@ -90,6 +98,20 @@ class DocumentObserver
      */
     public function updating(Document $document): void
     {
+        $previousSlaStatus = $document->getOriginal('sla_status');
+
+        if ($document->isDirty('pqrs_type') || $document->isDirty('sla_policy_id') || $document->isDirty('received_at')) {
+            app(SlaCalculatorService::class)->applyToDocument($document);
+        }
+
+        if ($document->isDirty('trd_series_id') || $document->isDirty('trd_subseries_id') || $document->isDirty('documentary_type_id') || $document->isDirty('is_archived')) {
+            app(ArchiveClassificationService::class)->applyToDocument($document);
+        }
+
+        if ($document->isDirty('is_archived') && $document->is_archived) {
+            app(SlaCalculatorService::class)->freeze($document, 'archived');
+        }
+
         // Verificar cambios importantes
         $importantChanges = [];
 
@@ -125,6 +147,13 @@ class DocumentObserver
             $importantChanges['physical_location'] = [
                 'old' => $document->getOriginal('physical_location_id'),
                 'new' => $document->physical_location_id,
+            ];
+        }
+
+        if ($document->isDirty('sla_status')) {
+            $importantChanges['sla_status'] = [
+                'old' => $previousSlaStatus,
+                'new' => $document->sla_status?->value ?? $document->sla_status,
             ];
         }
 
@@ -186,6 +215,19 @@ class DocumentObserver
             $this->handlePhysicalLocationChange($document, $importantChanges['physical_location']);
         }
 
+        if (isset($importantChanges['sla_status'])) {
+            app(SlaCalculatorService::class)->recordStatusChange(
+                $document,
+                $importantChanges['sla_status']['old'],
+                $importantChanges['sla_status']['new'],
+                'sla_status_updated'
+            );
+        }
+
+        if ($document->wasChanged('file_path')) {
+            $this->dispatchOcrIfNeeded($document, true);
+        }
+
         Log::info('Documento actualizado', [
             'document_id' => $document->id,
             'document_number' => $document->document_number,
@@ -195,6 +237,17 @@ class DocumentObserver
 
         // Limpiar cambios temporales
         unset(static::$pendingChanges[$document->id]);
+    }
+
+    protected function dispatchOcrIfNeeded(Document $document, bool $force = false): void
+    {
+        if (! is_string($document->file_path) || trim($document->file_path) === '') {
+            return;
+        }
+
+        ProcessDocumentOcr::dispatch($document->id, $force)
+            ->afterCommit()
+            ->onQueue('document-processing');
     }
 
     private function hasDispatchedDuplicateUpdateEvent(Document $document, array $importantChanges): bool

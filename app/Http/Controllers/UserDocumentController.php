@@ -53,24 +53,7 @@ class UserDocumentController extends Controller
     {
         $user = Auth::user();
 
-        // Query base de documentos del usuario
-        $query = Document::where('company_id', $user->company_id)
-            ->where(function ($q) use ($user) {
-                $q->where('assigned_to', $user->id)
-                    ->orWhere('created_by', $user->id);
-
-                if ($user->hasRole(Role::OfficeManager->value) && $user->department_id) {
-                    $q->orWhereHas('distributions.targets', function ($targetQuery) use ($user) {
-                        $targetQuery->where('department_id', $user->department_id);
-                    });
-                }
-
-                if ($user->hasRole(Role::ArchiveManager->value)) {
-                    $q->orWhereHas('distributions.targets', function ($targetQuery) use ($user) {
-                        $targetQuery->where('department_id', $user->department_id);
-                    });
-                }
-            });
+        $query = Document::query()->visibleToPortalUser($user);
 
         // Búsqueda por texto (título, descripción, número de documento)
         if ($request->filled('search')) {
@@ -1493,6 +1476,9 @@ class UserDocumentController extends Controller
         // Es el creador, asignado, o tiene permisos especiales
         return $document->created_by === $user->id
             || $document->assigned_to === $user->id
+            || ($user->hasRole(Role::RegularUser->value) && $document->receipts()
+                ->where('recipient_user_id', $user->id)
+                ->exists())
             || ($user->hasRole(Role::OfficeManager->value) && $user->department_id && $document->distributions()
                 ->whereHas('targets', fn ($q) => $q->where('department_id', $user->department_id))
                 ->exists())
@@ -1595,21 +1581,7 @@ class UserDocumentController extends Controller
     {
         $user = Auth::user();
 
-        // Aplicar los mismos filtros que en index()
-        $query = Document::where('company_id', $user->company_id)
-            ->where(function ($q) use ($user) {
-                $q->where('assigned_to', $user->id)
-                    ->orWhere('created_by', $user->id);
-
-                if (
-                    $user->department_id &&
-                    $user->hasAnyRole([Role::OfficeManager->value, Role::ArchiveManager->value])
-                ) {
-                    $q->orWhereHas('distributions.targets', function ($targetQuery) use ($user) {
-                        $targetQuery->where('department_id', $user->department_id);
-                    });
-                }
-            });
+        $query = Document::query()->visibleToPortalUser($user);
 
         // Aplicar filtros de búsqueda
         if ($request->filled('search')) {

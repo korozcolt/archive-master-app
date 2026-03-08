@@ -7,6 +7,177 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2026-03-08
+
+- OCR automático al guardar documentos con archivo:
+  - nuevo job `app/Jobs/ProcessDocumentOcr.php`
+  - pruebas `tests/Feature/AutomaticDocumentOcrTest.php`
+- Visibilidad del contenido OCR en web:
+  - nueva cobertura `tests/Feature/Filament/DocumentOcrVisibilityTest.php`
+  - el portal ahora muestra un bloque `Contenido extraído por OCR` en `resources/views/documents/show.blade.php`
+- Hardening de despliegue OCR:
+  - nueva cobertura `tests/Feature/DeploymentOcrRuntimeConfigTest.php`
+  - `nixpacks.toml` ahora instala `poppler-utils`, `tesseract-ocr`, `tesseract-ocr-eng` y `tesseract-ocr-spa`
+
+### Added - 2026-03-07
+
+- Fase 2.5 (ATD) iniciada para SLA legal PQRS + archivo formal:
+  - `ATD-2.5-01..03`: trazabilidad de la fase registrada en `PLAN_DESARROLLO_FASES.md` y `README.md`
+  - `ATD-2.5-04..06`: nuevas tablas, modelos y factories para:
+    - `sla_policies`
+    - `document_sla_events`
+    - `documentary_series`
+    - `documentary_subseries`
+    - `documentary_types`
+    - `retention_schedules`
+    - `business_calendars`
+    - `business_calendar_days`
+  - `ATD-2.5-07..10`: servicios `BusinessCalendarService`, `SlaCalculatorService` y `ArchiveClassificationService` integrados al ciclo de vida del documento
+  - `ATD-2.5-14..15`: seeder `ColombiaDocumentGovernanceSeeder` agregado al bootstrap base del sistema
+- Nuevas pruebas de gobernanza documental:
+  - `tests/Feature/DocumentGovernanceTest.php`
+  - `tests/Feature/Filament/CompanyDocumentGovernanceSettingsTest.php`
+- Nuevas pruebas de bandejas operativas SLA/archivo:
+  - `tests/Feature/PortalDashboardGovernanceTest.php`
+- Nuevos recursos Filament de gobernanza documental:
+  - `app/Filament/Resources/SlaPolicyResource.php`
+  - `app/Filament/Resources/BusinessCalendarResource.php`
+  - `app/Filament/Resources/DocumentarySeriesResource.php`
+  - `app/Filament/Resources/DocumentarySubseriesResource.php`
+  - `app/Filament/Resources/DocumentaryTypeResource.php`
+  - `app/Filament/Resources/RetentionScheduleResource.php`
+- Nueva prueba de administración dedicada:
+  - `tests/Feature/Filament/DocumentGovernanceResourcesTest.php`
+- Nuevas alertas y pruebas de gobernanza documental:
+  - `app/Services/GovernanceAlertService.php`
+  - `app/Notifications/DocumentReadyForArchive.php`
+  - `app/Notifications/DocumentArchiveClassificationMissing.php`
+  - `tests/Feature/GovernanceAlertsTest.php`
+  - `tests/Feature/GovernanceAlertCommandsTest.php`
+- Nuevos reportes de gobernanza:
+  - `resources/views/reports/legal-sla-governance.blade.php`
+  - `resources/views/reports/archive-governance.blade.php`
+  - `tests/Feature/DocumentGovernanceReportsTest.php`
+- Base runtime real para desktop Tauri:
+  - `desktop/tauri/src-tauri/src/main.rs` ahora integra plugin de shell desktop con allowlist efectiva
+  - bridge global `window.__ARCHIVE_MASTER_DESKTOP__` para exponer metadata del instalador a la app web
+  - pruebas unitarias Rust para runtime config, inyección de headers y bridge desktop
+- Nuevas pruebas para dataset QA y Reverb local:
+  - `tests/Feature/SetupQaRegressionDataCommandTest.php`
+  - `tests/Feature/ReverbLocalTlsConfigTest.php`
+  - `tests/Browser/RealWorldRegressionTest.php`
+
+### Changed - 2026-03-07
+
+- `app/Models/Document.php` ahora soporta metadatos legales y archivísticos:
+  - `pqrs_type`, `legal_basis`, `legal_term_days`, `sla_*`
+  - `trd_series_id`, `trd_subseries_id`, `documentary_type_id`
+  - `access_level`, `archive_phase`, retención y disposición final
+- `app/Models/Company.php` expone relaciones y helper para gobernanza documental por empresa.
+- `app/Filament/Resources/DocumentResource.php` separa visualmente:
+  - `Datos legales / PQRS`
+  - `Clasificación archivística`
+- `app/Filament/Resources/DocumentResource.php` agrega filtros operativos para:
+  - `Por vencer`
+  - `Vencidos`
+  - `Listos para archivar`
+  - `Archivados sin clasificación`
+- `app/Filament/Resources/DocumentResource/Pages/ListDocuments.php` incorpora accesos rápidos a bandejas SLA/archivo desde la cabecera.
+- `app/Filament/Resources/CompanyResource.php` incorpora configuración editable de gobernanza documental.
+- `app/Filament/Resources/CompanyResource.php` ahora permite activar/desactivar alertas por empresa para:
+  - documentos por vencer
+  - documentos vencidos
+  - escalamiento a supervisores
+  - documentos listos para archivo
+  - archivo incompleto
+- El panel admin ahora permite editar la gobernanza documental en recursos dedicados, en lugar de depender solo del bloque de configuración de empresa.
+- `config/documents.php` incluye fallback técnico con matriz Colombia, niveles de acceso y fases archivísticas.
+- Comandos de seguimiento (`documents:check-due`, `documents:check-overdue`, `documents:notify-overdue`) quedaron alineados con `GovernanceAlertService` y las reglas configurables por empresa.
+- `app/Livewire/Portal/Dashboard.php` y `resources/views/livewire/portal/dashboard.blade.php` muestran contadores operativos y panel `Atención SLA` con documentos urgentes.
+- `app/Services/ReportService.php`, `app/Exports/DocumentsExport.php`, `app/Filament/Resources/ReportResource.php` y `app/Filament/Resources/ReportResource/Pages/ListReports.php` incorporan reportes separados para seguimiento legal PQRS y gobernanza archivística.
+- `resources/views/reports/sla-compliance.blade.php` y `app/Filament/Widgets/ReportsAnalyticsWidget.php` quedaron alineados al nuevo modelo `SlaStatus`.
+- El shell desktop ahora abre únicamente hosts permitidos embebidos; cualquier URL externa se deriva al navegador del sistema y se bloquea en el webview.
+- El cliente desktop inyecta `X-ArchiveMaster-Client` en peticiones `fetch` y `XMLHttpRequest` para observabilidad por instancia/perfil.
+- `app/Console/Commands/SetupQaRegressionData.php` ahora:
+  - reutiliza la empresa QA por `tax_id`
+  - siembra infraestructura de ubicaciones físicas junto al dataset
+  - deja el documento `QA-OFF-0001` en estado repetible para pruebas de archivado
+- `app/Models/PhysicalLocation.php` genera códigos con prefijo de empresa para evitar colisiones globales al resembrar ubicaciones.
+- `config/reverb.php` y `.env` local quedaron alineados con Herd TLS para usar `wss://archive-master-app.test:8080` en vez de `wss://localhost`.
+
+### Changed - 2026-03-08
+
+- `app/Observers/DocumentObserver.php` ahora despacha OCR automático solo cuando el documento nace con `file_path` o cuando `file_path` cambia.
+- `app/Console/Commands/ProcessDocumentOCR.php` ahora reemplaza `documents.content` durante el reprocesamiento para corregir textos OCR desactualizados.
+- `app/Console/Commands/ProcessDocumentOCR.php` ahora soporta `--force` para reprocesar documentos que ya tenían OCR persistido.
+- `app/Services/OCRService.php` ahora tolera rutas faltantes al construir `file_info`, evitando errores secundarios cuando falla la extracción.
+- `app/Filament/Resources/DocumentResource/Pages/ViewDocument.php` ahora normaliza metadatos OCR anidados antes de renderizarlos en `KeyValueEntry`.
+- `resources/views/documents/show.blade.php` ahora expone un bloque de resumen OCR visible en portal.
+- `scripts/run-runtime-services.sh` ahora arranca el worker con `document-processing,notifications,default,ai-processing`, permitiendo que el OCR automático se procese al subir documentos sin depender de una cola `default` exclusiva.
+
+### Fixed - 2026-03-07
+
+- El SLA deja de depender únicamente de `Priority::getSlaHours()` para documentos clasificados como PQRS.
+- Al archivar un documento, el SLA queda congelado como histórico y no sigue entrando en alertas activas.
+- Las notificaciones `DocumentDueSoon` y `DocumentOverdue` ya consumen `sla_due_date`/rutas vigentes del proyecto, evitando inconsistencias con campos legacy.
+- El portal ahora muestra a `RegularUser` los documentos emitidos mediante `Receipt` en `dashboard`, `Mis Documentos`, `Reportes` y `detalle`, en lugar de limitarse a `assigned_to`/`created_by`.
+- Las rutas `documents/{id}/preview` y `documents/{id}/download` aceptan correctamente acceso por `Receipt`, eliminando el `403` que aparecía en la previsualización del receptor final.
+- Se corrigieron fallos de compatibilidad descubiertos en regresión completa:
+  - conflicto entre `HasTranslations` y mutators manuales en `Category`, `Status` y `Tag`
+  - render faltante del bloque `Entidades detectadas y confianza` en el portal del documento
+  - hidratación insegura de `TagsInput` para `warning_days` en recursos de empresa y políticas SLA
+  - orden de migraciones de calendarios hábiles y nombres de índices largos en MySQL para catálogos TRD/TVD
+- El layout portal dejó de cargar Alpine.js dos veces y los recursos de gobernanza documental exponen títulos/labels en español de forma consistente en Filament.
+- El dataset QA dejó de crear compañías duplicadas de `ArchiveMaster QA` en cada ejecución del comando de regresión.
+- El seed de ubicaciones físicas dejó de colisionar por códigos globales al regenerar datos sobre múltiples compañías.
+- El smoke browser del archivista dejó de fallar por un submit ambiguo en Dusk; la prueba ahora envía explícitamente el formulario correcto de asignación de ubicación física.
+
+### Fixed - 2026-03-08
+
+- El OCR dejó de depender únicamente del comando programado: ahora se encola automáticamente al guardar documentos con archivo.
+- El despliegue dejó de omitir los binarios OCR y la cola del worker correcta; el contenedor ahora instala `pdftotext`/Tesseract y procesa `document-processing` en runtime.
+- Los documentos antiguos dejaron de depender de un query de "solo no procesados"; ahora `documents:process-ocr --force` permite reextraer OCR masivamente después del deploy.
+- El portal dejó de ocultar el contenido textual extraído; ahora los usuarios ven un resumen OCR en la vista del documento.
+- El admin dejó de romper al renderizar metadatos OCR anidados en la pestaña `Metadatos`.
+- Se cierra el smoke operativo multi-rol en navegador real con aislamiento de sesión por login, validando recepción, aprobación por oficina, archivo físico y acceso final del usuario portal sobre el dataset QA.
+- La regresión Dusk ahora cubre creación real desde el wizard `/documents/create`, carga de archivo permitido, distribución a oficina y marcado de recibido por `office_manager`, sin depender solo de documentos sembrados.
+- La regresión Dusk ahora cubre también que el mismo documento creado por UI complete el recorrido `recepción -> oficina -> archivo -> usuario final`, incluyendo archivo físico y verificación de preview/archivo adjunto para el usuario final.
+- El comando OCR ya no usa una ruta inventada por documento; ahora procesa el `file_path` real almacenado en la tabla `documents`, permitiendo que cada archivo extraiga y persista su propio contenido.
+- Los documentos sin archivo asociado ahora quedan marcados con error de OCR explícito, en vez de intentar procesarse contra una ruta inexistente.
+
+### Security - 2026-03-07
+
+- Se formaliza el nivel de acceso documental (`público`, `interno`, `reservado`, `clasificado/confidencial`) como dato explícito del expediente archivado.
+- El shell desktop ya no permite navegación embebida a hosts fuera de `ARCHIVE_ALLOWED_HOSTS`.
+
+### Tests - 2026-03-07
+
+- Verificaciones ejecutadas para la fase 2.5:
+  - `php artisan test tests/Feature/DocumentGovernanceTest.php`
+  - `php artisan test tests/Feature/Filament/CompanyDocumentGovernanceSettingsTest.php`
+  - `php artisan test tests/Feature/Filament/DocumentResourceTest.php tests/Feature/PortalDashboardGovernanceTest.php`
+  - `php artisan test tests/Feature/Filament/DocumentGovernanceResourcesTest.php`
+  - `php artisan test tests/Feature/Filament/GovernanceResourceLabelsTest.php`
+  - `php artisan test tests/Feature/GovernanceAlertsTest.php tests/Feature/GovernanceAlertCommandsTest.php tests/Feature/DocumentGovernanceReportsTest.php tests/Feature/Filament/CompanyDocumentGovernanceSettingsTest.php`
+  - `php artisan test tests/Feature/PortalReceiptVisibilityTest.php tests/Feature/PortalDashboardGovernanceTest.php`
+  - `php artisan test tests/Feature/SetupQaRegressionDataCommandTest.php tests/Feature/ClientDefaultSeederTest.php`
+  - `php artisan test tests/Feature/ReverbLocalTlsConfigTest.php tests/Feature/PortalReceiptVisibilityTest.php tests/Feature/PortalDashboardGovernanceTest.php`
+  - `php artisan dusk tests/Browser/RealWorldRegressionTest.php --filter=test_archive_manager_can_assign_a_physical_location_from_seeded_dataset`
+  - `php artisan dusk tests/Browser/RealWorldRegressionTest.php --filter=test_full_operational_portal_smoke_flow_closes_across_roles`
+  - `php artisan dusk tests/Browser/RealWorldRegressionTest.php --filter=test_receptionist_can_create_and_distribute_document_from_real_ui_flow`
+  - `php artisan dusk tests/Browser/RealWorldRegressionTest.php --filter=test_created_document_can_flow_from_reception_to_archive_and_final_user`
+  - `php artisan dusk tests/Browser/RealWorldRegressionTest.php`
+  - `php artisan test tests/Feature/OCRServiceTest.php tests/Feature/ProcessDocumentOCRCommandTest.php`
+  - `php artisan test tests/Feature/DeploymentOcrRuntimeConfigTest.php tests/Feature/AutomaticDocumentOcrTest.php tests/Feature/ProcessDocumentOCRCommandTest.php`
+  - `php artisan test`
+  - `vendor/bin/pint --dirty`
+  - `cargo test` en `desktop/tauri/src-tauri`
+  - `cargo check` en `desktop/tauri/src-tauri`
+  - `npm --prefix desktop/tauri test`
+  - smoke test Playwright real en flujo web: carga múltiple en `/documents/create`, validación del receptor en `/documents` y detalle en `/documents/{id}`
+  - smoke test Dusk del archivista contra `QA-OFF-0001`: asignación real de ubicación física validada de punta a punta con login operativo y formulario de archivo
+  - smoke test Dusk multi-rol: `qa.reception`, `qa.office`, `qa.archive`, `qa.user` sobre recibido, aprobación, archivado y acceso final
+
 ### Added - 2026-03-05
 
 - Fase 2.4 (ATD) iniciada para Desktop Tauri multi‑instancia:

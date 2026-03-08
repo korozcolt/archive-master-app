@@ -16,6 +16,7 @@ class ProcessDocumentOCR extends Command
                             {--document-id= : ID específico del documento a procesar}
                             {--company-id= : Procesar documentos de una empresa específica}
                             {--limit=10 : Límite de documentos a procesar}
+                            {--force : Reprocesar documentos aunque ya tengan OCR}
                             {--language=spa : Idioma para OCR (spa, eng, etc.)}';
 
     /**
@@ -26,14 +27,12 @@ class ProcessDocumentOCR extends Command
     /**
      * Execute the console command.
      */
-    public function handle(): int
+    public function handle(OCRService $ocrService): int
     {
         $this->info('🔍 Iniciando procesamiento OCR de documentos...');
 
-        $ocrService = new OCRService();
-
         // Verificar disponibilidad de OCR
-        if (!$ocrService->isTesseractAvailable()) {
+        if (! $ocrService->isTesseractAvailable()) {
             $this->warn('⚠️  Tesseract OCR no está disponible. Usando simulación.');
         }
 
@@ -42,6 +41,7 @@ class ProcessDocumentOCR extends Command
 
         if ($documents->isEmpty()) {
             $this->info('ℹ️  No hay documentos para procesar.');
+
             return self::SUCCESS;
         }
 
@@ -56,7 +56,7 @@ class ProcessDocumentOCR extends Command
 
         foreach ($documents as $document) {
             try {
-                $this->processDocument($document, $ocrService, $language);
+                $this->processDocument($document, $language, $ocrService);
                 $processed++;
             } catch (\Exception $e) {
                 $failed++;
@@ -73,7 +73,7 @@ class ProcessDocumentOCR extends Command
         $this->newLine(2);
 
         // Mostrar resumen
-        $this->info("✅ Procesamiento completado:");
+        $this->info('✅ Procesamiento completado:');
         $this->table(
             ['Métrica', 'Valor'],
             [
@@ -104,9 +104,12 @@ class ProcessDocumentOCR extends Command
             $query->where('company_id', $companyId);
         }
 
-        // Solo documentos que no han sido procesados con OCR
-        $query->whereNull('metadata->ocr_processed')
-              ->orWhere('metadata->ocr_processed', false);
+        if (! $this->option('force')) {
+            $query->where(function ($builder): void {
+                $builder->whereNull('metadata->ocr_processed')
+                    ->orWhere('metadata->ocr_processed', false);
+            });
+        }
 
         // Aplicar límite
         $limit = (int) $this->option('limit');
@@ -118,13 +121,26 @@ class ProcessDocumentOCR extends Command
     /**
      * Procesar un documento individual
      */
-    private function processDocument(Document $document, OCRService $ocrService, string $language): void
+    private function processDocument(Document $document, string $language, OCRService $ocrService): void
     {
         $this->newLine();
         $this->info("📄 Procesando: {$document->title} (ID: {$document->id})");
 
-        // Simular ruta de archivo (en producción sería la ruta real del archivo)
-        $filePath = "documents/{$document->company_id}/{$document->id}/document.pdf";
+        $filePath = $document->file_path;
+
+        if (! is_string($filePath) || trim($filePath) === '') {
+            $metadata = $document->metadata ?? [];
+            $metadata['ocr_processed'] = true;
+            $metadata['ocr_error'] = 'El documento no tiene un archivo asociado para OCR.';
+            $metadata['processed_at'] = now()->toISOString();
+
+            $document->metadata = $metadata;
+            $document->save();
+
+            $this->warn('⚠️  Documento sin archivo asociado. Se marca con error de OCR.');
+
+            return;
+        }
 
         // Procesar con OCR
         $result = $ocrService->processFile($filePath, $language);
@@ -143,11 +159,10 @@ class ProcessDocumentOCR extends Command
                 'keywords' => $result['metadata']['keywords'],
                 'processed_at' => now()->toISOString(),
             ];
+            $metadata['ocr_error'] = null;
+            $metadata['ocr_source_path'] = $filePath;
 
-            // Actualizar contenido del documento si está vacío
-            if (empty($document->content)) {
-                $document->content = $result['extracted_text'];
-            }
+            $document->content = $result['extracted_text'];
 
             $document->metadata = $metadata;
             $document->save();

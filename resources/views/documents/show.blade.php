@@ -40,6 +40,11 @@
     $documentFileExtension = \App\Support\FileExtensionIcon::extensionFromPath($document->file_path);
     $previewableExtensions = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'];
     $canInlinePreview = $hasPreview && in_array($documentFileExtension, $previewableExtensions, true);
+    $ocrContent = trim((string) ($document->content ?? ''));
+    $hasOcrContent = $ocrContent !== '';
+    $ocrPreview = $hasOcrContent ? Str::limit($ocrContent, 1600) : null;
+    $ocrWordCount = data_get($document->metadata, 'ocr_result.word_count');
+    $ocrProcessedAt = data_get($document->metadata, 'ocr_result.processed_at') ?: data_get($document->metadata, 'processed_at');
 @endphp
 
 <div class="space-y-6">
@@ -75,6 +80,38 @@
                     Volver
                 </a>
             </div>
+        </div>
+    </section>
+
+    <section class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-75 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+            <div>
+                <h2 class="text-sm font-semibold uppercase tracking-[0.14em] text-slate-700 dark:text-slate-200">Contenido extraído por OCR</h2>
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Resumen rápido del contenido textual disponible para consulta en portal y administración.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+                @if($ocrWordCount)
+                    <span class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 dark:border-slate-700 dark:bg-slate-800">{{ number_format((int) $ocrWordCount) }} palabras</span>
+                @endif
+                @if($ocrProcessedAt)
+                    <span class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 dark:border-slate-700 dark:bg-slate-800">Procesado {{ \Illuminate\Support\Carbon::parse($ocrProcessedAt)->format('d/m/Y H:i') }}</span>
+                @endif
+            </div>
+        </div>
+
+        <div class="p-4 sm:p-5">
+            @if($hasOcrContent)
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/40">
+                    <p class="whitespace-pre-line text-sm leading-7 text-slate-700 dark:text-slate-300">{{ $ocrPreview }}</p>
+                    @if(Str::length($ocrContent) > Str::length($ocrPreview ?? ''))
+                        <p class="mt-3 text-xs font-medium text-slate-500 dark:text-slate-400">El contenido fue recortado para esta vista rápida. En administración se conserva el texto completo.</p>
+                    @endif
+                </div>
+            @else
+                <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
+                    Aún no hay contenido textual extraído para este documento. El OCR se procesa automáticamente cuando el archivo se guarda en el sistema.
+                </div>
+            @endif
         </div>
     </section>
 
@@ -390,6 +427,62 @@
                         </div>
                     @endif
                 </div>
+
+                @if($latestAiOutput && Auth::user()->can('viewEntities', $latestAiOutput))
+                    <div class="space-y-3">
+                        <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Entidades detectadas y confianza</h3>
+                        <div class="grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
+                            <div class="rounded-xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-700 dark:bg-slate-800">
+                                @php
+                                    $entities = collect($latestAiOutput->entities ?? [])
+                                        ->filter(fn (mixed $values): bool => is_array($values) && count($values) > 0);
+                                @endphp
+
+                                @if($entities->isNotEmpty())
+                                    <div class="space-y-3">
+                                        @foreach($entities as $entityType => $values)
+                                            <div class="space-y-1">
+                                                <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
+                                                    {{ str($entityType)->replace('_', ' ')->headline() }}
+                                                </p>
+                                                <div class="flex flex-wrap gap-2">
+                                                    @foreach($values as $value)
+                                                        <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                                                            {{ $value }}
+                                                        </span>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <p class="text-slate-600 dark:text-slate-400">No se detectaron entidades relevantes en la última ejecución.</p>
+                                @endif
+                            </div>
+
+                            <div class="rounded-xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-700 dark:bg-slate-800">
+                                <p class="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">Confianza reportada</p>
+                                @php
+                                    $confidenceMetrics = collect($latestAiOutput->confidence ?? [])
+                                        ->reject(fn (mixed $metric, mixed $key): bool => $key === 'feedback' || is_array($metric) || is_object($metric));
+                                @endphp
+
+                                @if($confidenceMetrics->isNotEmpty())
+                                    <div class="space-y-2">
+                                        @foreach($confidenceMetrics as $metric => $score)
+                                            <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
+                                                <span class="text-slate-700 dark:text-slate-200">{{ str($metric)->replace('_', ' ')->headline() }}</span>
+                                                <span class="font-semibold text-slate-900 dark:text-white">{{ is_numeric($score) ? number_format((float) $score * 100, 0).'%' : (string) $score }}</span>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <p class="text-slate-600 dark:text-slate-400">La ejecución actual no reportó métricas de confianza.</p>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                @endif
             </div>
     </section>
 

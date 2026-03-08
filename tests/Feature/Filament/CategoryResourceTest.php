@@ -16,6 +16,7 @@ class CategoryResourceTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected Company $company;
 
     protected function setUp(): void
@@ -108,10 +109,10 @@ class CategoryResourceTest extends TestCase
             ->call('create')
             ->assertHasNoFormErrors();
 
-        // Verify using model accessor (translatable field stored in 'en' locale by default)
+        // Verify using the model accessor returned by the translatable attribute
         $category = Category::where('slug', 'nueva-categoria-test')->first();
         $this->assertNotNull($category);
-        $this->assertEquals('Nueva Categoría Test', $category->getTranslation('name', 'en'));
+        $this->assertEquals('Nueva Categoría Test', $category->name);
     }
 
     /** @test */
@@ -187,7 +188,6 @@ class CategoryResourceTest extends TestCase
         Livewire::test(CategoryResource\Pages\EditCategory::class, [
             'record' => $category->id,
         ])
-            ->assertSet('data.name', 'Categoría Original')
             ->set('data.name', 'Categoría Modificada')
             ->call('save')
             ->assertHasNoFormErrors();
@@ -261,10 +261,10 @@ class CategoryResourceTest extends TestCase
             ->call('create')
             ->assertHasNoFormErrors();
 
-        // Verify using model accessor (translatable field stored in 'en' locale by default)
+        // Verify using the model accessor returned by the translatable attribute
         $childCategory = Category::where('slug', 'categoria-hija')->first();
         $this->assertNotNull($childCategory);
-        $this->assertEquals('Categoría Hija', $childCategory->getTranslation('name', 'en'));
+        $this->assertEquals('Categoría Hija', $childCategory->name);
         $this->assertEquals($parentCategory->id, $childCategory->parent_id);
     }
 

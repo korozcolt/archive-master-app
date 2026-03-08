@@ -10,6 +10,7 @@ use App\Models\Department;
 use App\Models\Document;
 use App\Models\Status;
 use App\Models\User;
+use Database\Seeders\ColombiaDocumentGovernanceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
@@ -521,6 +522,68 @@ class DocumentResourceTest extends TestCase
             ->filterTable('is_confidential', true)
             ->assertCanSeeTableRecords([$confidentialDoc])
             ->assertCanNotSeeTableRecords([$publicDoc]);
+    }
+
+    /** @test */
+    public function can_filter_documents_by_sla_status_and_archive_queues()
+    {
+        $this->actingAs($this->admin);
+        $this->seed(ColombiaDocumentGovernanceSeeder::class);
+
+        $warningDocument = Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $this->status->id,
+            'created_by' => $this->admin->id,
+            'title' => 'SLA Warning',
+            'pqrs_type' => 'peticion_general',
+        ]);
+
+        $warningDocument->forceFill([
+            'sla_status' => 'warning',
+        ])->saveQuietly();
+
+        $readyForArchiveDocument = Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $this->status->id,
+            'created_by' => $this->admin->id,
+            'title' => 'Ready Archive',
+            'closed_at' => now(),
+            'is_archived' => false,
+        ]);
+
+        $archivedWithoutClassification = Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $this->status->id,
+            'created_by' => $this->admin->id,
+            'title' => 'Archive Pending',
+            'is_archived' => true,
+            'archived_at' => now(),
+        ]);
+
+        $archivedWithoutClassification->forceFill([
+            'trd_series_id' => null,
+            'trd_subseries_id' => null,
+            'documentary_type_id' => null,
+            'access_level' => null,
+        ])->saveQuietly();
+
+        Livewire::test(DocumentResource\Pages\ListDocuments::class)
+            ->filterTable('sla_status', 'warning')
+            ->assertSee($warningDocument->title)
+            ->assertDontSee($readyForArchiveDocument->title)
+            ->assertDontSee($archivedWithoutClassification->title);
+
+        Livewire::test(DocumentResource\Pages\ListDocuments::class)
+            ->filterTable('ready_for_archive', true)
+            ->assertSee($readyForArchiveDocument->title)
+            ->assertDontSee($warningDocument->title)
+            ->assertDontSee($archivedWithoutClassification->title);
+
+        Livewire::test(DocumentResource\Pages\ListDocuments::class)
+            ->filterTable('archive_pending_classification', true)
+            ->assertSee($archivedWithoutClassification->title)
+            ->assertDontSee($warningDocument->title)
+            ->assertDontSee($readyForArchiveDocument->title);
     }
 
     /** @test */

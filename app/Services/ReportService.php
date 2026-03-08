@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
+use App\Enums\SlaStatus;
 use App\Exports\DocumentsExport;
 use App\Models\Department;
 use App\Models\Document;
-use App\Models\Status;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -20,23 +20,9 @@ class ReportService
      */
     public function documentsByStatus(array $filters = []): Collection
     {
-        $query = Document::with(['status', 'category', 'creator', 'department'])
+        $query = $this->baseDocumentQuery($filters)
             ->select('documents.*')
             ->selectRaw('1 as total');
-
-        // Apply date filters
-        if (isset($filters['date_from'])) {
-            $query->where('created_at', '>=', $filters['date_from']);
-        }
-
-        if (isset($filters['date_to'])) {
-            $query->where('created_at', '<=', $filters['date_to']);
-        }
-
-        // Apply department filter
-        if (isset($filters['department_id'])) {
-            $query->where('department_id', $filters['department_id']);
-        }
 
         return $query->get();
     }
@@ -46,31 +32,29 @@ class ReportService
      */
     public function slaComplianceReport(array $filters = []): Collection
     {
-        $query = Document::with(['status', 'category', 'creator', 'department'])
-            ->select(
-                'documents.*',
-                DB::raw('CASE 
-                    WHEN due_date IS NULL THEN "No SLA"
-                    WHEN due_date > NOW() THEN "On Time"
-                    WHEN due_date <= NOW() AND status_id != (SELECT id FROM statuses WHERE name = "Completed" LIMIT 1) THEN "Overdue"
-                    ELSE "Completed"
-                END as sla_status')
-            );
+        return $this->baseDocumentQuery($filters)
+            ->get()
+            ->map(fn (Document $document): Document => $this->decorateGovernanceDocument($document));
+    }
 
-        // Apply filters
-        if (isset($filters['date_from'])) {
-            $query->where('created_at', '>=', $filters['date_from']);
-        }
+    public function legalSlaGovernanceReport(array $filters = []): Collection
+    {
+        return $this->baseDocumentQuery($filters)
+            ->whereNotNull('pqrs_type')
+            ->get()
+            ->map(fn (Document $document): Document => $this->decorateGovernanceDocument($document));
+    }
 
-        if (isset($filters['date_to'])) {
-            $query->where('created_at', '<=', $filters['date_to']);
-        }
-
-        if (isset($filters['department_id'])) {
-            $query->where('department_id', $filters['department_id']);
-        }
-
-        return $query->get();
+    public function archiveGovernanceReport(array $filters = []): Collection
+    {
+        return $this->baseDocumentQuery($filters)
+            ->where(function ($query) {
+                $query->where('is_archived', true)
+                    ->orWhereNotNull('archive_phase')
+                    ->orWhereNotNull('archive_classification_code');
+            })
+            ->get()
+            ->map(fn (Document $document): Document => $this->decorateGovernanceDocument($document));
     }
 
     /**
@@ -174,8 +158,10 @@ class ReportService
             'total_documents' => Document::whereBetween('created_at', [$dateFrom, $dateTo])->count(),
             'completed_documents' => Document::whereBetween('created_at', [$dateFrom, $dateTo])
                 ->whereHas('status', fn ($q) => $q->where('name', 'Completed'))->count(),
-            'overdue_documents' => Document::where('due_date', '<', now())
-                ->whereHas('status', fn ($q) => $q->where('name', '!=', 'Completed'))->count(),
+            'overdue_documents' => Document::query()
+                ->where('sla_due_date', '<', now())
+                ->where('sla_status', SlaStatus::Overdue)
+                ->count(),
             'avg_processing_time' => $this->getAverageProcessingTime($dateFrom, $dateTo),
             'documents_by_status' => $this->getDocumentsByStatusChart($dateFrom, $dateTo),
             'monthly_trends' => $this->getMonthlyTrends($dateFrom, $dateTo),
@@ -290,10 +276,10 @@ class ReportService
     private function buildBaseQuery(string $reportType)
     {
         return match ($reportType) {
-            'documents' => Document::with(['status', 'category', 'user', 'department']),
+            'documents' => Document::with(['status', 'category', 'assignee', 'department']),
             'users' => User::with(['documents', 'department']),
             'departments' => Department::with(['documents', 'users']),
-            default => Document::with(['status', 'category', 'user', 'department'])
+            default => Document::with(['status', 'category', 'assignee', 'department'])
         };
     }
 
@@ -469,10 +455,96 @@ class ReportService
         return match ($reportType) {
             'documents-by-status' => 'Reporte de Documentos por Estado',
             'sla-compliance' => 'Reporte de Cumplimiento SLA',
+            'legal-sla-governance' => 'Reporte Legal SLA PQRS',
+            'archive-governance' => 'Reporte de Gobernanza Archivística',
             'user-activity' => 'Reporte de Actividad por Usuario',
             'documents-by-department' => 'Reporte de Documentos por Departamento',
             'custom' => 'Reporte Personalizado',
             default => 'Reporte del Sistema'
         };
+    }
+
+    protected function baseDocumentQuery(array $filters = [])
+    {
+        $query = Document::query()->with([
+            'status',
+            'category',
+            'creator',
+            'assignee',
+            'department',
+            'company',
+            'documentarySeries',
+            'documentarySubseries',
+            'documentaryType',
+            'physicalLocation',
+        ]);
+
+        $this->applyDocumentFilters($query, $filters);
+
+        return $query;
+    }
+
+    protected function applyDocumentFilters($query, array $filters = []): void
+    {
+        if (isset($filters['date_from'])) {
+            $query->where('created_at', '>=', $filters['date_from']);
+        }
+
+        if (isset($filters['date_to'])) {
+            $query->where('created_at', '<=', $filters['date_to']);
+        }
+
+        if (isset($filters['department_id'])) {
+            $query->where('department_id', $filters['department_id']);
+        }
+
+        if (isset($filters['company_id'])) {
+            $query->where('company_id', $filters['company_id']);
+        } elseif (($companyId = $this->currentUserCompanyId()) !== null) {
+            $query->where('company_id', $companyId);
+        }
+    }
+
+    protected function currentUserCompanyId(): ?int
+    {
+        $user = auth()->user();
+
+        if (! $user || $user->hasRole('super_admin')) {
+            return null;
+        }
+
+        return $user->company_id;
+    }
+
+    protected function decorateGovernanceDocument(Document $document): Document
+    {
+        $dueDate = $document->sla_due_date ?? $document->due_date;
+        $slaStatus = $document->sla_status instanceof SlaStatus
+            ? $document->sla_status
+            : ($document->sla_status ? SlaStatus::tryFrom((string) $document->sla_status) : null);
+
+        $statusLabel = match ($slaStatus) {
+            SlaStatus::Running => 'En tiempo',
+            SlaStatus::Warning => 'Por vencer',
+            SlaStatus::Overdue => 'Vencido',
+            SlaStatus::Paused => 'Suspendido',
+            SlaStatus::Closed => 'Cerrado',
+            SlaStatus::Frozen => 'Histórico congelado',
+            default => $dueDate ? 'En tiempo' : 'Sin SLA',
+        };
+
+        $document->setAttribute('sla_status_label', $statusLabel);
+        $document->setAttribute('due_date', $dueDate);
+        $document->setAttribute('assignee_name', $document->assignee?->name);
+        $document->setAttribute('creator_name', $document->creator?->name);
+        $document->setAttribute('company_name', is_array($document->company?->name)
+            ? $document->company?->getTranslation('name', app()->getLocale())
+            : $document->company?->name);
+        $document->setAttribute('archive_classification_complete', ! is_null($document->trd_series_id)
+            && ! is_null($document->trd_subseries_id)
+            && ! is_null($document->documentary_type_id)
+            && ! is_null($document->access_level));
+
+        return $document;
     }
 }

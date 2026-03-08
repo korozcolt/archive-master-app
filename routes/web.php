@@ -194,7 +194,11 @@ if (! function_exists('canDownloadDocument')) {
             return true;
         }
 
-        return $document->created_by === $user->id || $document->assigned_to === $user->id;
+        return $document->created_by === $user->id
+            || $document->assigned_to === $user->id
+            || ($user->hasRole('regular_user') && $document->receipts()
+                ->where('recipient_user_id', $user->id)
+                ->exists());
     }
 }
 

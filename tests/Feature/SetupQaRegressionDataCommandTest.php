@@ -1,9 +1,11 @@
 <?php
 
 use App\Enums\Role as AppRole;
+use App\Models\Company;
 use App\Models\Document;
 use App\Models\DocumentApproval;
 use App\Models\DocumentVersion;
+use App\Models\PhysicalLocation;
 use App\Models\Receipt;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -11,6 +13,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 it('builds a stable qa dataset with credentials and business flows', function () {
+    $this->artisan('app:setup-qa-regression-data --password=Laboral2026!')
+        ->assertSuccessful()
+        ->expectsOutputToContain('Dataset QA listo.');
+
     $this->artisan('app:setup-qa-regression-data --password=Laboral2026!')
         ->assertSuccessful()
         ->expectsOutputToContain('Dataset QA listo.');
@@ -47,4 +53,7 @@ it('builds a stable qa dataset with credentials and business flows', function ()
         ->where('document_id', $receiptDocument->id)
         ->where('recipient_user_id', $regularUser->id)
         ->exists())->toBeTrue();
+    expect(PhysicalLocation::query()->count())->toBeGreaterThan(0);
+    expect(PhysicalLocation::query()->pluck('code')->duplicates())->toHaveCount(0);
+    expect(Company::query()->where('tax_id', '900999888-1')->count())->toBe(1);
 });
