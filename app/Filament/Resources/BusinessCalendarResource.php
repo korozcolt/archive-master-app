@@ -130,25 +130,21 @@ class BusinessCalendarResource extends Resource
                 Tables\Columns\TextColumn::make('weekend_days')
                     ->label('No hábiles recurrentes')
                     ->formatStateUsing(function (mixed $state): string {
-                        if (is_string($state) && $state !== '') {
-                            $decoded = json_decode($state, true);
+                        $labels = [
+                            '0' => 'Dom', '1' => 'Lun', '2' => 'Mar',
+                            '3' => 'Mié', '4' => 'Jue', '5' => 'Vie', '6' => 'Sáb',
+                        ];
 
-                            if (is_array($decoded)) {
-                                $state = $decoded;
-                            }
+                        if (is_string($state) && $state !== '') {
+                            $state = json_decode($state, true) ?? [];
                         }
 
-                        return collect(is_array($state) ? $state : [])
-                            ->map(fn (string $value): string => match ($value) {
-                                '0' => 'Dom',
-                                '1' => 'Lun',
-                                '2' => 'Mar',
-                                '3' => 'Mié',
-                                '4' => 'Jue',
-                                '5' => 'Vie',
-                                '6' => 'Sáb',
-                                default => $value,
-                            })
+                        if (! is_array($state)) {
+                            return '';
+                        }
+
+                        return collect($state)
+                            ->map(fn ($v): string => $labels[(string) $v] ?? (string) $v)
                             ->implode(', ');
                     }),
                 Tables\Columns\TextColumn::make('days_count')
