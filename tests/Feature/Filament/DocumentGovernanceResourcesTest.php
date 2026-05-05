@@ -11,6 +11,7 @@ use App\Filament\Resources\RetentionScheduleResource;
 use App\Filament\Resources\SlaPolicyResource;
 use App\Models\BusinessCalendar;
 use App\Models\Company;
+use App\Models\Department;
 use App\Models\DocumentarySeries;
 use App\Models\DocumentarySubseries;
 use App\Models\DocumentaryType;
@@ -97,9 +98,14 @@ it('creates a business calendar with exception days', function () {
 });
 
 it('creates documentary catalog resources and retention schedule', function () {
+    $department = Department::factory()->create([
+        'company_id' => $this->company->id,
+    ]);
+
     Livewire::test(DocumentarySeriesResource\Pages\CreateDocumentarySeries::class)
         ->fillForm([
             'company_id' => $this->company->id,
+            'department_id' => $department->id,
             'code' => 'HC',
             'name' => 'Historias clínicas',
             'description' => 'Serie para gestión clínica',
@@ -113,6 +119,7 @@ it('creates documentary catalog resources and retention schedule', function () {
     Livewire::test(DocumentarySubseriesResource\Pages\CreateDocumentarySubseries::class)
         ->fillForm([
             'company_id' => $this->company->id,
+            'department_id' => $department->id,
             'documentary_series_id' => $series->id,
             'code' => 'HC-VAL',
             'name' => 'Valoraciones iniciales',
@@ -127,6 +134,7 @@ it('creates documentary catalog resources and retention schedule', function () {
     Livewire::test(DocumentaryTypeResource\Pages\CreateDocumentaryType::class)
         ->fillForm([
             'company_id' => $this->company->id,
+            'department_id' => $department->id,
             'documentary_subseries_id' => $subseries->id,
             'code' => 'FMT-INI',
             'name' => 'Formato inicial',
@@ -142,6 +150,7 @@ it('creates documentary catalog resources and retention schedule', function () {
     Livewire::test(RetentionScheduleResource\Pages\CreateRetentionSchedule::class)
         ->fillForm([
             'company_id' => $this->company->id,
+            'department_id' => $department->id,
             'documentary_subseries_id' => $subseries->id,
             'documentary_type_id' => $type->id,
             'archive_phase' => ArchivePhase::Gestion->value,
@@ -155,5 +164,5 @@ it('creates documentary catalog resources and retention schedule', function () {
         ->call('create')
         ->assertHasNoFormErrors();
 
-    expect(RetentionSchedule::query()->where('documentary_type_id', $type->id)->exists())->toBeTrue();
+    expect(RetentionSchedule::query()->where('documentary_type_id', $type->id)->where('department_id', $department->id)->exists())->toBeTrue();
 });

@@ -79,6 +79,26 @@ class Department extends Model
         return $this->hasMany(User::class);
     }
 
+    public function documentarySeries(): HasMany
+    {
+        return $this->hasMany(DocumentarySeries::class);
+    }
+
+    public function documentarySubseries(): HasMany
+    {
+        return $this->hasMany(DocumentarySubseries::class);
+    }
+
+    public function documentaryTypes(): HasMany
+    {
+        return $this->hasMany(DocumentaryType::class);
+    }
+
+    public function retentionSchedules(): HasMany
+    {
+        return $this->hasMany(RetentionSchedule::class);
+    }
+
     public function scopeActive($query)
     {
         return $query->where('active', true);

@@ -266,6 +266,7 @@ Route::middleware(['auth'])->prefix('stickers')->name('stickers.')->group(functi
     Route::prefix('documents')->name('documents.')->group(function () {
         Route::get('/{document}/preview', [App\Http\Controllers\StickerController::class, 'previewDocument'])->name('preview');
         Route::get('/{document}/download', [App\Http\Controllers\StickerController::class, 'downloadDocument'])->name('download');
+        Route::get('/{document}/print', [App\Http\Controllers\StickerController::class, 'printDocument'])->name('print');
         Route::get('/{document}/configure', [App\Http\Controllers\StickerController::class, 'configure'])->name('configure');
         Route::post('/batch/download', [App\Http\Controllers\StickerController::class, 'downloadBatchDocuments'])->name('batch.download');
     });
@@ -274,6 +275,7 @@ Route::middleware(['auth'])->prefix('stickers')->name('stickers.')->group(functi
     Route::prefix('locations')->name('locations.')->group(function () {
         Route::get('/{location}/preview', [App\Http\Controllers\StickerController::class, 'previewLocation'])->name('preview');
         Route::get('/{location}/download', [App\Http\Controllers\StickerController::class, 'downloadLocation'])->name('download');
+        Route::get('/{location}/print', [App\Http\Controllers\StickerController::class, 'printLocation'])->name('print');
         Route::get('/{location}/configure', [App\Http\Controllers\StickerController::class, 'configureLocation'])->name('configure');
         Route::post('/batch/download', [App\Http\Controllers\StickerController::class, 'downloadBatchLocations'])->name('batch.download');
     });

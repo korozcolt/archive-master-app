@@ -27,6 +27,10 @@ class CategoryResource extends Resource
 
     protected static ?string $navigationLabel = 'Categorías';
 
+    protected static ?string $modelLabel = 'Categoría';
+
+    protected static ?string $pluralModelLabel = 'Categorías';
+
     protected static ?string $navigationGroup = 'Gestión Documental';
 
     protected static ?int $navigationSort = 1;

@@ -205,6 +205,12 @@
                 </div>
 
                 @if(Auth::user()?->hasRole(\App\Enums\Role::ArchiveManager->value))
+                    @php
+                        $isEditingArchiveLocation = ! $document->physicalLocation
+                            || request()->boolean('edit_location')
+                            || $errors->has('physical_location_id')
+                            || $errors->has('archive_note');
+                    @endphp
                     <div class="space-y-3">
                         <div class="flex items-center justify-between gap-2">
                             <h3 class="text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Archivo físico</h3>
@@ -236,40 +242,58 @@
                             </div>
                         </div>
 
-                        <form method="POST" action="{{ route('documents.archive-location.update', $document) }}" class="space-y-3 rounded-xl border border-slate-200 bg-white p-3 motion-safe:animate-fade-in-up motion-safe:animate-delay-200 dark:border-slate-700 dark:bg-slate-900 am-motion-safe">
-                            @csrf
-                            <div>
-                                <label for="physical_location_id" class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Asignar ubicación</label>
-                                <select id="physical_location_id"
-                                        name="physical_location_id"
-                                        class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
-                                    <option value="">Seleccionar ubicación</option>
-                                    @foreach(($archiveLocationOptions ?? collect()) as $locationOption)
-                                        <option value="{{ $locationOption->id }}"
-                                            @selected((int) old('physical_location_id', $document->physical_location_id) === (int) $locationOption->id)>
-                                            {{ $locationOption->full_path }} ({{ $locationOption->code }})
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('physical_location_id')
-                                    <p class="mt-1 text-xs text-rose-600 dark:text-rose-300">{{ $message }}</p>
-                                @enderror
+                        @if($document->physicalLocation)
+                            <div class="flex flex-wrap items-center gap-2">
+                                @if(! $isEditingArchiveLocation)
+                                    <a href="{{ route('documents.show', ['document' => $document, 'edit_location' => 1]) }}"
+                                       class="inline-flex h-9 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
+                                        Editar ubicación
+                                    </a>
+                                @else
+                                    <a href="{{ route('documents.show', $document) }}"
+                                       class="inline-flex h-9 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
+                                        Cancelar edición
+                                    </a>
+                                @endif
                             </div>
+                        @endif
 
-                            <div>
-                                <label for="archive_note" class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Nota de movimiento (opcional)</label>
-                                <textarea id="archive_note"
-                                          name="archive_note"
-                                          rows="2"
-                                          class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                                          placeholder="Ej. Ingreso a estante B / caja 04">{{ old('archive_note') }}</textarea>
-                            </div>
+                        @if($isEditingArchiveLocation)
+                            <form method="POST" action="{{ route('documents.archive-location.update', $document) }}" class="space-y-3 rounded-xl border border-slate-200 bg-white p-3 motion-safe:animate-fade-in-up motion-safe:animate-delay-200 dark:border-slate-700 dark:bg-slate-900 am-motion-safe">
+                                @csrf
+                                <div>
+                                    <label for="physical_location_id" class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Asignar ubicación</label>
+                                    <select id="physical_location_id"
+                                            name="physical_location_id"
+                                            class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                                        <option value="">Seleccionar ubicación</option>
+                                        @foreach(($archiveLocationOptions ?? collect()) as $locationOption)
+                                            <option value="{{ $locationOption->id }}"
+                                                @selected((int) old('physical_location_id', $document->physical_location_id) === (int) $locationOption->id)>
+                                                {{ $locationOption->full_path }} ({{ $locationOption->code }})
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('physical_location_id')
+                                        <p class="mt-1 text-xs text-rose-600 dark:text-rose-300">{{ $message }}</p>
+                                    @enderror
+                                </div>
 
-                            <button type="submit"
-                                    class="inline-flex h-10 w-full items-center justify-center rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:from-sky-400 hover:to-indigo-500">
-                                {{ $document->physicalLocation ? 'Mover / actualizar ubicación' : 'Asignar ubicación en archivo' }}
-                            </button>
-                        </form>
+                                <div>
+                                    <label for="archive_note" class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Nota de movimiento (opcional)</label>
+                                    <textarea id="archive_note"
+                                              name="archive_note"
+                                              rows="2"
+                                              class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                              placeholder="Ej. Ingreso a estante B / caja 04">{{ old('archive_note') }}</textarea>
+                                </div>
+
+                                <button type="submit"
+                                        class="inline-flex h-10 w-full items-center justify-center rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:from-sky-400 hover:to-indigo-500">
+                                    {{ $document->physicalLocation ? 'Mover / actualizar ubicación' : 'Asignar ubicación en archivo' }}
+                                </button>
+                            </form>
+                        @endif
 
                         @if(($documentLocationHistory ?? collect())->isNotEmpty())
                             <div class="space-y-2">

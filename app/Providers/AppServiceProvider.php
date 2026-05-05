@@ -2,10 +2,13 @@
 
 namespace App\Providers;
 
+use App\Contracts\PdfRenderer;
 use App\Events\DocumentUpdated;
 use App\Events\DocumentVersionCreated;
 use App\Listeners\QueueDocumentVersionAiPipeline;
 use App\Listeners\SendDocumentUpdateNotification;
+use App\Services\Pdf\DompdfPdfRenderer;
+use App\Services\Pdf\PdfStudioPdfRenderer;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
@@ -21,6 +24,17 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(config_path('ai.php'), 'ai');
+
+        $this->app->bind(PdfRenderer::class, function ($app): PdfRenderer {
+            $wantsPdfStudio = config('reports.pdf.renderer') === 'pdf-studio';
+            $pdfStudioEnabled = (bool) config('reports.pdf.pdf_studio.enabled', false);
+
+            if ($wantsPdfStudio && $pdfStudioEnabled) {
+                return $app->make(PdfStudioPdfRenderer::class);
+            }
+
+            return $app->make(DompdfPdfRenderer::class);
+        });
     }
 
     /**

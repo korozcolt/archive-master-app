@@ -30,6 +30,7 @@
         "opcodesio/log-viewer": "^3.15",
         "picqer/php-barcode-generator": "^3.2",
         "predis/predis": "^3.1",
+        "sarder/pdfstudio": "^2.0",
         "spatie/laravel-activitylog": "^4.10",
         "spatie/laravel-permission": "^6.17",
         "spatie/laravel-translatable": "^6.11"

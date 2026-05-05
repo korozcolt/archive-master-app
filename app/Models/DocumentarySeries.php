@@ -13,6 +13,7 @@ class DocumentarySeries extends Model
 
     protected $fillable = [
         'company_id',
+        'department_id',
         'code',
         'name',
         'description',
@@ -29,6 +30,11 @@ class DocumentarySeries extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
     }
 
     public function subseries(): HasMany

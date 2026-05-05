@@ -6,6 +6,7 @@ use App\Enums\ArchivePhase;
 use App\Enums\FinalDisposition;
 use App\Filament\ResourceAccess;
 use App\Filament\Resources\RetentionScheduleResource\Pages;
+use App\Models\Department;
 use App\Models\DocumentarySubseries;
 use App\Models\DocumentaryType;
 use App\Models\RetentionSchedule;
@@ -57,10 +58,27 @@ class RetentionScheduleResource extends Resource
                             ->preload()
                             ->required()
                             ->live(),
+                        Forms\Components\Select::make('department_id')
+                            ->label('Dependencia / oficina productora')
+                            ->options(fn (Forms\Get $get): array => Department::query()
+                                ->where('company_id', $get('company_id') ?: Auth::user()?->company_id)
+                                ->orderBy('name')
+                                ->pluck('name', 'id')
+                                ->all())
+                            ->searchable()
+                            ->preload()
+                            ->placeholder('General para toda la empresa')
+                            ->live()
+                            ->afterStateUpdated(function (Forms\Set $set): void {
+                                $set('documentary_subseries_id', null);
+                                $set('documentary_type_id', null);
+                            }),
                         Forms\Components\Select::make('documentary_subseries_id')
                             ->label('Subserie')
                             ->options(fn (Forms\Get $get): array => DocumentarySubseries::query()
                                 ->where('company_id', $get('company_id') ?: Auth::user()?->company_id)
+                                ->when($get('department_id'), fn (Builder $query, $departmentId) => $query->where('department_id', $departmentId))
+                                ->when(blank($get('department_id')), fn (Builder $query) => $query->whereNull('department_id'))
                                 ->orderBy('code')
                                 ->pluck('name', 'id')
                                 ->all())
@@ -72,6 +90,8 @@ class RetentionScheduleResource extends Resource
                             ->label('Tipo documental')
                             ->options(fn (Forms\Get $get): array => DocumentaryType::query()
                                 ->where('company_id', $get('company_id') ?: Auth::user()?->company_id)
+                                ->when($get('department_id'), fn (Builder $query, $departmentId) => $query->where('department_id', $departmentId))
+                                ->when(blank($get('department_id')), fn (Builder $query) => $query->whereNull('department_id'))
                                 ->when($get('documentary_subseries_id'), fn (Builder $query, $subseriesId) => $query->where('documentary_subseries_id', $subseriesId))
                                 ->orderBy('code')
                                 ->pluck('name', 'id')
@@ -119,6 +139,11 @@ class RetentionScheduleResource extends Resource
                     ->label('Empresa')
                     ->searchable()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('department.name')
+                    ->label('Dependencia')
+                    ->searchable()
+                    ->sortable()
+                    ->placeholder('General'),
                 Tables\Columns\TextColumn::make('documentarySubseries.series.code')
                     ->label('Serie')
                     ->sortable(),
@@ -152,6 +177,11 @@ class RetentionScheduleResource extends Resource
                     ->relationship('company', 'name')
                     ->searchable()
                     ->preload(),
+                Tables\Filters\SelectFilter::make('department')
+                    ->label('Dependencia')
+                    ->relationship('department', 'name')
+                    ->searchable()
+                    ->preload(),
                 Tables\Filters\SelectFilter::make('archive_phase')
                     ->label('Fase')
                     ->options(collect(ArchivePhase::cases())->mapWithKeys(fn (ArchivePhase $case): array => [$case->value => $case->getLabel()])->all()),
@@ -177,7 +207,7 @@ class RetentionScheduleResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery()->with(['company', 'documentarySubseries.series', 'documentaryType']);
+        $query = parent::getEloquentQuery()->with(['company', 'department', 'documentarySubseries.series', 'documentaryType']);
         $user = Auth::user();
 
         if ($user && ! $user->hasRole('super_admin') && $user->company_id) {

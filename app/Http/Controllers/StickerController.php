@@ -6,7 +6,6 @@ use App\Models\Document;
 use App\Models\PhysicalLocation;
 use App\Services\StickerService;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
@@ -89,7 +88,7 @@ class StickerController extends Controller
         try {
             $pdf = $this->stickerService->generatePDFForDocument($document, $template, $options);
 
-            $filename = "sticker-{$document->document_number}-" . date('Ymd-His') . ".pdf";
+            $filename = "sticker-{$document->document_number}-".date('Ymd-His').'.pdf';
 
             Log::info('Sticker de documento generado', [
                 'document_id' => $document->id,
@@ -127,7 +126,7 @@ class StickerController extends Controller
         try {
             $pdf = $this->stickerService->generatePDFForLocation($location, $template, $options);
 
-            $filename = "sticker-location-{$location->code}-" . date('Ymd-His') . ".pdf";
+            $filename = "sticker-location-{$location->code}-".date('Ymd-His').'.pdf';
 
             Log::info('Sticker de ubicación generado', [
                 'location_id' => $location->id,
@@ -185,7 +184,7 @@ class StickerController extends Controller
                 $options
             );
 
-            $filename = "stickers-batch-" . count($documents) . "-docs-" . date('Ymd-His') . ".pdf";
+            $filename = 'stickers-batch-'.count($documents).'-docs-'.date('Ymd-His').'.pdf';
 
             Log::info('Batch de stickers de documentos generado', [
                 'document_count' => count($documents),
@@ -241,7 +240,7 @@ class StickerController extends Controller
                 $options
             );
 
-            $filename = "stickers-batch-" . count($locations) . "-locations-" . date('Ymd-His') . ".pdf";
+            $filename = 'stickers-batch-'.count($locations).'-locations-'.date('Ymd-His').'.pdf';
 
             Log::info('Batch de stickers de ubicaciones generado', [
                 'location_count' => count($locations),
@@ -273,6 +272,68 @@ class StickerController extends Controller
             'templates' => $this->stickerService->getAvailableTemplates(),
             'default_options' => $this->stickerService->getDefaultOptions(),
         ]);
+    }
+
+    /**
+     * Impresión directa de sticker de documento (abre diálogo de impresora del navegador)
+     */
+    public function printDocument(Request $request, Document $document)
+    {
+        $this->authorize('view', $document);
+
+        $template = $request->input('template', 'standard');
+        $options = $request->input('options', []);
+
+        try {
+            $html = $this->stickerService->generatePrintableHTML($document, $template, $options);
+
+            Log::info('Impresión directa de sticker solicitada', [
+                'document_id' => $document->id,
+                'document_number' => $document->document_number,
+                'template' => $template,
+                'user_id' => Auth::id(),
+            ]);
+
+            return response($html)->header('Content-Type', 'text/html');
+        } catch (\Exception $e) {
+            Log::error('Error generating printable sticker', [
+                'document_id' => $document->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Error al generar la etiqueta para impresión: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Impresión directa de sticker de ubicación
+     */
+    public function printLocation(Request $request, PhysicalLocation $location)
+    {
+        $this->authorize('view', $location);
+
+        $template = $request->input('template', 'standard');
+        $options = $request->input('options', []);
+
+        try {
+            $html = $this->stickerService->generatePrintableLocationHTML($location, $template, $options);
+
+            Log::info('Impresión directa de sticker de ubicación solicitada', [
+                'location_id' => $location->id,
+                'location_code' => $location->code,
+                'template' => $template,
+                'user_id' => Auth::id(),
+            ]);
+
+            return response($html)->header('Content-Type', 'text/html');
+        } catch (\Exception $e) {
+            Log::error('Error generating printable location sticker', [
+                'location_id' => $location->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Error al generar la etiqueta para impresión: '.$e->getMessage());
+        }
     }
 
     /**

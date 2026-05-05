@@ -27,6 +27,10 @@ class StatusResource extends Resource
 
     protected static ?string $navigationLabel = 'Estados';
 
+    protected static ?string $modelLabel = 'Estado';
+
+    protected static ?string $pluralModelLabel = 'Estados';
+
     protected static ?string $navigationGroup = 'Gestión Documental';
 
     protected static ?int $navigationSort = 2;

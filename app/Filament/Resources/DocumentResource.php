@@ -212,7 +212,13 @@ class DocumentResource extends Resource
                                                 )
                                             )
                                             ->searchable()
-                                            ->preload(),
+                                            ->preload()
+                                            ->live()
+                                            ->afterStateUpdated(function (Set $set): void {
+                                                $set('trd_series_id', null);
+                                                $set('trd_subseries_id', null);
+                                                $set('documentary_type_id', null);
+                                            }),
                                         Forms\Components\Select::make('category_id')
                                             ->label('Categoría')
                                             ->relationship('category', 'name', fn (Builder $query, Get $get) => $query->where('company_id', $get('company_id'))
@@ -411,6 +417,14 @@ class DocumentResource extends Resource
                                             ->label('Serie documental')
                                             ->relationship('documentarySeries', 'name', fn (Builder $query, Get $get) => $query
                                                 ->where('company_id', $get('company_id'))
+                                                ->where(function (Builder $builder) use ($get): void {
+                                                    if ($get('department_id')) {
+                                                        $builder->where('department_id', $get('department_id'))
+                                                            ->orWhereNull('department_id');
+                                                    } else {
+                                                        $builder->whereNull('department_id');
+                                                    }
+                                                })
                                                 ->where('is_active', true))
                                             ->searchable()
                                             ->preload()
@@ -420,6 +434,14 @@ class DocumentResource extends Resource
                                             ->label('Subserie documental')
                                             ->relationship('documentarySubseries', 'name', fn (Builder $query, Get $get) => $query
                                                 ->where('company_id', $get('company_id'))
+                                                ->where(function (Builder $builder) use ($get): void {
+                                                    if ($get('department_id')) {
+                                                        $builder->where('department_id', $get('department_id'))
+                                                            ->orWhereNull('department_id');
+                                                    } else {
+                                                        $builder->whereNull('department_id');
+                                                    }
+                                                })
                                                 ->when($get('trd_series_id'), fn (Builder $builder, $seriesId) => $builder->where('documentary_series_id', $seriesId))
                                                 ->where('is_active', true))
                                             ->searchable()
@@ -430,6 +452,14 @@ class DocumentResource extends Resource
                                             ->label('Tipo documental')
                                             ->relationship('documentaryType', 'name', fn (Builder $query, Get $get) => $query
                                                 ->where('company_id', $get('company_id'))
+                                                ->where(function (Builder $builder) use ($get): void {
+                                                    if ($get('department_id')) {
+                                                        $builder->where('department_id', $get('department_id'))
+                                                            ->orWhereNull('department_id');
+                                                    } else {
+                                                        $builder->whereNull('department_id');
+                                                    }
+                                                })
                                                 ->when($get('trd_subseries_id'), fn (Builder $builder, $subseriesId) => $builder->where('documentary_subseries_id', $subseriesId))
                                                 ->where('is_active', true))
                                             ->searchable()
@@ -897,10 +927,12 @@ class DocumentResource extends Resource
                             ->send();
                     })
                     ->hidden(fn (Document $record): bool => ! $record->is_archived),
-                Tables\Actions\Action::make('generateSticker')
-                    ->label('Generar Etiqueta')
-                    ->icon('heroicon-o-qr-code')
-                    ->modalHeading('Generar Etiqueta con Códigos')
+                Tables\Actions\Action::make('printSticker')
+                    ->label('Imprimir Etiqueta')
+                    ->icon('heroicon-o-printer')
+                    ->color('info')
+                    ->modalHeading('Imprimir Etiqueta')
+                    ->modalSubmitActionLabel('Imprimir')
                     ->form([
                         Forms\Components\Select::make('template')
                             ->label('Plantilla de etiqueta')
@@ -920,22 +952,23 @@ class DocumentResource extends Resource
                             ->default(true),
                     ])
                     ->action(function (Document $record, array $data): void {
-                        $url = route('stickers.documents.download', [
+                        $url = route('stickers.documents.print', [
                             'document' => $record->id,
                             'template' => $data['template'] ?? 'standard',
                             'options' => [
                                 'include_company' => $data['include_company'] ?? true,
                                 'include_date' => $data['include_date'] ?? true,
                             ],
+                            'auto_print' => '1',
                         ]);
 
                         Notification::make()
-                            ->title('Etiqueta generada')
-                            ->body('La etiqueta se está descargando...')
+                            ->title('Imprimiendo etiqueta')
+                            ->body('Se abrirá el diálogo de impresión en una nueva pestaña...')
                             ->success()
                             ->send();
 
-                        redirect($url);
+                        $this->js("window.open('{$url}', '_blank')");
                     }),
                 Tables\Actions\DeleteAction::make(),
             ])

@@ -719,6 +719,79 @@ class DocumentTest extends TestCase
         $this->assertSame('archived', $document->fresh()->status?->slug);
     }
 
+    public function test_archive_manager_sees_edit_location_button_when_document_already_has_location()
+    {
+        $archiveRole = SpatieRole::firstOrCreate(['name' => 'archive_manager', 'guard_name' => 'web']);
+        $archiveManager = User::factory()->create([
+            'company_id' => $this->company->id,
+        ]);
+        $archiveManager->assignRole($archiveRole);
+
+        $creator = User::factory()->create([
+            'company_id' => $this->company->id,
+        ]);
+
+        $location = PhysicalLocation::factory()->create([
+            'company_id' => $this->company->id,
+            'is_active' => true,
+        ]);
+
+        $document = Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $this->status->id,
+            'category_id' => $this->category->id,
+            'created_by' => $creator->id,
+            'assigned_to' => $creator->id,
+            'physical_location_id' => $location->id,
+            'is_archived' => true,
+        ]);
+
+        $this->actingAs($archiveManager)
+            ->get(route('documents.show', $document))
+            ->assertOk()
+            ->assertSee('Archivo físico')
+            ->assertSee('Editar ubicación')
+            ->assertSee($location->full_path)
+            ->assertDontSee('name="physical_location_id"', false)
+            ->assertDontSee('name="archive_note"', false);
+    }
+
+    public function test_archive_manager_can_open_edit_location_mode_for_document_with_existing_location()
+    {
+        $archiveRole = SpatieRole::firstOrCreate(['name' => 'archive_manager', 'guard_name' => 'web']);
+        $archiveManager = User::factory()->create([
+            'company_id' => $this->company->id,
+        ]);
+        $archiveManager->assignRole($archiveRole);
+
+        $creator = User::factory()->create([
+            'company_id' => $this->company->id,
+        ]);
+
+        $location = PhysicalLocation::factory()->create([
+            'company_id' => $this->company->id,
+            'is_active' => true,
+        ]);
+
+        $document = Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $this->status->id,
+            'category_id' => $this->category->id,
+            'created_by' => $creator->id,
+            'assigned_to' => $creator->id,
+            'physical_location_id' => $location->id,
+            'is_archived' => true,
+        ]);
+
+        $this->actingAs($archiveManager)
+            ->get(route('documents.show', ['document' => $document, 'edit_location' => 1]))
+            ->assertOk()
+            ->assertSee('Cancelar edición')
+            ->assertSee('Mover / actualizar ubicación')
+            ->assertSee('name="physical_location_id"', false)
+            ->assertSee('name="archive_note"', false);
+    }
+
     public function test_archive_manager_can_download_sticker_without_physical_location()
     {
         $archiveRole = SpatieRole::firstOrCreate(['name' => 'archive_manager', 'guard_name' => 'web']);

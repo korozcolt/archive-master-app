@@ -301,12 +301,14 @@ class PhysicalLocationResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make()->label('Ver'),
                 Tables\Actions\EditAction::make()->label('Editar'),
-                Tables\Actions\Action::make('generateSticker')
-                    ->label('Generar Etiqueta')
-                    ->icon('heroicon-o-qr-code')
+                Tables\Actions\Action::make('printSticker')
+                    ->label('Imprimir Etiqueta')
+                    ->icon('heroicon-o-printer')
                     ->color('info')
-                    ->url(fn (PhysicalLocation $record): string => route('stickers.locations.download', ['location' => $record->id])
-                    )
+                    ->url(fn (PhysicalLocation $record): string => route('stickers.locations.print', [
+                        'location' => $record->id,
+                        'auto_print' => '1',
+                    ]))
                     ->openUrlInNewTab(),
                 Tables\Actions\DeleteAction::make()->label('Eliminar'),
                 Tables\Actions\RestoreAction::make()->label('Restaurar'),
