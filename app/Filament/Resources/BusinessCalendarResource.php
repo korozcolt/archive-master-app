@@ -127,23 +127,19 @@ class BusinessCalendarResource extends Resource
                 Tables\Columns\TextColumn::make('timezone')
                     ->label('Zona horaria')
                     ->toggleable(),
-                Tables\Columns\TextColumn::make('weekend_days')
+                Tables\Columns\TextColumn::make('weekend_days_label')
                     ->label('No hábiles recurrentes')
-                    ->formatStateUsing(function (mixed $state): string {
+                    ->state(function ($record): string {
                         $labels = [
                             '0' => 'Dom', '1' => 'Lun', '2' => 'Mar',
                             '3' => 'Mié', '4' => 'Jue', '5' => 'Vie', '6' => 'Sáb',
                         ];
-
-                        if (is_string($state) && $state !== '') {
-                            $state = json_decode($state, true) ?? [];
+                        $days = $record->weekend_days ?? [];
+                        if (is_string($days)) {
+                            $days = json_decode($days, true) ?? [];
                         }
 
-                        if (! is_array($state)) {
-                            return '';
-                        }
-
-                        return collect($state)
+                        return collect((array) $days)
                             ->map(fn ($v): string => $labels[(string) $v] ?? (string) $v)
                             ->implode(', ');
                     }),
