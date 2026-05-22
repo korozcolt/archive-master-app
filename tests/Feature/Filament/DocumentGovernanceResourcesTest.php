@@ -45,6 +45,23 @@ it('renders governance resource list pages', function () {
     Livewire::test(DocumentarySubseriesResource\Pages\ListDocumentarySubseries::class)->assertSuccessful();
     Livewire::test(DocumentaryTypeResource\Pages\ListDocumentaryTypes::class)->assertSuccessful();
     Livewire::test(RetentionScheduleResource\Pages\ListRetentionSchedules::class)->assertSuccessful();
+
+    $subseries = DocumentarySubseries::query()->where('company_id', $this->company->id)->firstOrFail();
+
+    $schedule = RetentionSchedule::query()->create([
+        'company_id' => $this->company->id,
+        'department_id' => null,
+        'documentary_subseries_id' => $subseries->id,
+        'documentary_type_id' => null,
+        'archive_phase' => ArchivePhase::Gestion->value,
+        'management_years' => 2,
+        'central_years' => 10,
+        'historical_action' => 'Aplica a toda la subserie',
+        'final_disposition' => FinalDisposition::ConservacionTotal->value,
+        'is_active' => true,
+    ]);
+
+    expect($schedule->documentaryTypeDisplay())->toBe('Todos los tipos');
 });
 
 it('creates a custom sla policy from filament', function () {

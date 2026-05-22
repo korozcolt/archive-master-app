@@ -247,6 +247,24 @@
     transition: color 0.2s ease;
 }
 
+.distribution-editor-content:empty::before {
+    content: attr(data-placeholder);
+    color: rgb(100 116 139);
+}
+
+.dark .distribution-editor-content:empty::before {
+    color: rgb(148 163 184);
+}
+
+.distribution-editor-button {
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.distribution-editor-button:focus-visible {
+    outline: 2px solid rgb(56 189 248 / 0.45);
+    outline-offset: 2px;
+}
+
 /* Responsive design helpers */
 @media (max-width: 768px) {
     .card-enhanced:hover {

@@ -56,4 +56,9 @@ class RetentionSchedule extends Model
     {
         return $this->belongsTo(DocumentaryType::class);
     }
+
+    public function documentaryTypeDisplay(): string
+    {
+        return $this->documentaryType?->code ?? 'Todos los tipos';
+    }
 }

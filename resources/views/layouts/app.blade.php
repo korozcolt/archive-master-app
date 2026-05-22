@@ -78,6 +78,34 @@
                                              // Keep server-rendered notifications if request fails.
                                          });
                                  },
+                                 markNotificationAsRead(notification, event) {
+                                     if (event) {
+                                         event.preventDefault();
+                                     }
+
+                                     const destination = notification.action_url || notification.url || '{{ route('notifications.index') }}';
+                                     const csrfToken = document.querySelector('meta[name=csrf-token]')?.getAttribute('content');
+
+                                     fetch(`/notifications/${notification.id}/read`, {
+                                         method: 'POST',
+                                         headers: {
+                                             'X-CSRF-TOKEN': csrfToken || '',
+                                             'Accept': 'application/json',
+                                             'X-Requested-With': 'XMLHttpRequest',
+                                         },
+                                     })
+                                         .then(() => {
+                                             this.notifications = this.notifications.filter((item) => item.id !== notification.id);
+                                             this.count = Math.max(0, this.count - 1);
+                                             this.open = false;
+                                         })
+                                         .catch(() => {
+                                             // Continue navigation even if the async read update fails.
+                                         })
+                                         .finally(() => {
+                                             window.location.href = destination;
+                                         });
+                                 },
                                  bootstrapRealtime() {
                                      if (!window.ArchiveMasterRealtime) {
                                          return;
@@ -117,7 +145,9 @@
                                     </template>
 
                                     <template x-for="notification in notifications" :key="notification.id">
-                                        <a :href="notification.action_url" class="group block border-b border-slate-200/70 px-4 py-3 transition hover:bg-slate-100/70 dark:border-slate-700 dark:hover:bg-slate-800/60">
+                                        <a :href="notification.action_url || notification.url"
+                                           @click="markNotificationAsRead(notification, $event)"
+                                           class="group block border-b border-slate-200/70 px-4 py-3 transition hover:bg-slate-100/70 dark:border-slate-700 dark:hover:bg-slate-800/60">
                                             <div class="flex items-start">
                                                 <div class="flex-shrink-0">
                                                     <div class="flex h-10 w-10 items-center justify-center rounded-xl shadow-sm"

@@ -19,11 +19,12 @@
         <p class="subtitle">Emitido: {{ $receipt->issued_at->format('d/m/Y H:i') }}</p>
     </div>
 
+    <div class="row"><span class="label">Entidad receptora:</span> {{ $receipt->company->name }}</div>
     <div class="row"><span class="label">Documento:</span> {{ $receipt->document->title }}</div>
     <div class="row"><span class="label">Número de documento:</span> {{ $receipt->document->document_number }}</div>
-    <div class="row"><span class="label">Receptor:</span> {{ $receipt->recipient_name }}</div>
-    <div class="row"><span class="label">Correo:</span> {{ $receipt->recipient_email }}</div>
-    <div class="row"><span class="label">Teléfono:</span> {{ $receipt->recipient_phone ?: 'N/A' }}</div>
+    <div class="row"><span class="label">Radicado por:</span> {{ $receipt->recipient_name }}</div>
+    <div class="row"><span class="label">Correo del radicador:</span> {{ $receipt->recipient_email }}</div>
+    <div class="row"><span class="label">Teléfono del radicador:</span> {{ $receipt->recipient_phone ?: 'N/A' }}</div>
     <div class="row"><span class="label">Emitido por:</span> {{ $receipt->issuer->name }}</div>
 
     <div class="footer">
@@ -31,4 +32,3 @@
     </div>
 </body>
 </html>
-

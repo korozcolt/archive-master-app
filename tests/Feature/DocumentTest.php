@@ -663,6 +663,101 @@ class DocumentTest extends TestCase
         $this->assertSame($document->id, data_get($notification->data, 'document_id'));
     }
 
+    public function test_office_manager_can_preview_distributed_document()
+    {
+        Storage::fake('local');
+
+        $receptionRole = SpatieRole::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'web']);
+        $officeRole = SpatieRole::firstOrCreate(['name' => 'office_manager', 'guard_name' => 'web']);
+
+        $officeDepartment = Department::factory()->create(['company_id' => $this->company->id]);
+        $receptionDepartment = Department::factory()->create(['company_id' => $this->company->id]);
+
+        $receptionist = User::factory()->create([
+            'company_id' => $this->company->id,
+            'department_id' => $receptionDepartment->id,
+            'is_active' => true,
+        ]);
+        $receptionist->assignRole($receptionRole);
+
+        $officeManager = User::factory()->create([
+            'company_id' => $this->company->id,
+            'department_id' => $officeDepartment->id,
+            'is_active' => true,
+        ]);
+        $officeManager->assignRole($officeRole);
+
+        Storage::disk('local')->put('documents/distributed-preview.pdf', 'fake-pdf-content');
+
+        $document = Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $this->status->id,
+            'category_id' => $this->category->id,
+            'created_by' => $receptionist->id,
+            'assigned_to' => $receptionist->id,
+            'file_path' => 'documents/distributed-preview.pdf',
+        ]);
+
+        $this->actingAs($receptionist)
+            ->post(route('documents.distributions.store', $document), [
+                'department_ids' => [$officeDepartment->id],
+                'routing_note' => 'Revisión gerencial',
+            ])
+            ->assertRedirect(route('documents.show', $document));
+
+        $response = $this->actingAs($officeManager)
+            ->get(route('documents.preview', $document->id));
+
+        $response->assertOk();
+        $this->assertStringContainsString('inline', (string) $response->headers->get('content-disposition'));
+    }
+
+    public function test_office_manager_sees_distribution_editor_with_dark_mode_contrast_classes()
+    {
+        $receptionRole = SpatieRole::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'web']);
+        $officeRole = SpatieRole::firstOrCreate(['name' => 'office_manager', 'guard_name' => 'web']);
+
+        $officeDepartment = Department::factory()->create(['company_id' => $this->company->id]);
+        $receptionDepartment = Department::factory()->create(['company_id' => $this->company->id]);
+
+        $receptionist = User::factory()->create([
+            'company_id' => $this->company->id,
+            'department_id' => $receptionDepartment->id,
+            'is_active' => true,
+        ]);
+        $receptionist->assignRole($receptionRole);
+
+        $officeManager = User::factory()->create([
+            'company_id' => $this->company->id,
+            'department_id' => $officeDepartment->id,
+            'is_active' => true,
+        ]);
+        $officeManager->assignRole($officeRole);
+
+        $document = Document::factory()->create([
+            'company_id' => $this->company->id,
+            'status_id' => $this->status->id,
+            'category_id' => $this->category->id,
+            'created_by' => $receptionist->id,
+            'assigned_to' => $receptionist->id,
+        ]);
+
+        $this->actingAs($receptionist)
+            ->post(route('documents.distributions.store', $document), [
+                'department_ids' => [$officeDepartment->id],
+                'routing_note' => 'Revisión gerencial',
+            ])
+            ->assertRedirect(route('documents.show', $document));
+
+        $response = $this->actingAs($officeManager)
+            ->get(route('documents.show', $document));
+
+        $response->assertOk()
+            ->assertSee('distribution-editor-toolbar', false)
+            ->assertSee('distribution-editor-button', false)
+            ->assertSee('distribution-editor-content', false);
+    }
+
     public function test_archive_manager_can_view_document_without_location_and_assign_physical_location()
     {
         $archiveRole = SpatieRole::firstOrCreate(['name' => 'archive_manager', 'guard_name' => 'web']);

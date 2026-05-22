@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\DocumentAccessLevel;
 use App\Enums\Role;
 use App\Models\Document;
 use App\Models\User;
@@ -31,6 +32,21 @@ class DocumentPolicy
             return false;
         }
 
+        if ($document->isHistoricalEntry()) {
+            if ($user->hasAnyRole(['super_admin', 'admin', 'branch_admin', Role::ArchiveManager->value])) {
+                return true;
+            }
+
+            if ($user->hasRole(Role::RegularUser->value)) {
+                return false;
+            }
+
+            return in_array($document->access_level?->value, [
+                DocumentAccessLevel::Publico->value,
+                DocumentAccessLevel::Interno->value,
+            ], true);
+        }
+
         if ($user->hasRole('admin')) {
             return true;
         }
@@ -44,6 +60,10 @@ class DocumentPolicy
         }
 
         if ($user->hasRole('archive_manager')) {
+            return true;
+        }
+
+        if ($user->hasRole(Role::Receptionist->value) && $document->receipts()->exists()) {
             return true;
         }
 

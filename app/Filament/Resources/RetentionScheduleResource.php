@@ -152,6 +152,8 @@ class RetentionScheduleResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('documentaryType.code')
                     ->label('Tipo')
+                    ->state(fn (RetentionSchedule $record): string => $record->documentaryTypeDisplay())
+                    ->tooltip(fn (RetentionSchedule $record): ?string => $record->documentaryType?->name ?? 'La retención aplica a toda la subserie.')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('archive_phase')
                     ->label('Fase')

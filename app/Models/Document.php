@@ -332,6 +332,10 @@ class Document extends Model
                 $builder->where('assigned_to', $user->id)
                     ->orWhere('created_by', $user->id);
 
+                if ($user->hasRole(Role::Receptionist->value)) {
+                    $builder->orWhereHas('receipts');
+                }
+
                 if ($user->hasRole(Role::RegularUser->value)) {
                     $builder->orWhereHas('receipts', function (Builder $receiptQuery) use ($user): void {
                         $receiptQuery->where('recipient_user_id', $user->id);
@@ -344,6 +348,24 @@ class Document extends Model
                 ) {
                     $builder->orWhereHas('distributions.targets', function (Builder $targetQuery) use ($user): void {
                         $targetQuery->where('department_id', $user->department_id);
+                    });
+                }
+
+                if (! $user->hasRole(Role::RegularUser->value)) {
+                    $builder->orWhere(function (Builder $historicalQuery) use ($user): void {
+                        $historicalQuery->where('metadata->entry_mode', 'historical');
+
+                        if (! $user->hasAnyRole([
+                            Role::ArchiveManager->value,
+                            Role::Admin->value,
+                            Role::BranchAdmin->value,
+                            Role::SuperAdmin->value,
+                        ])) {
+                            $historicalQuery->whereIn('access_level', [
+                                DocumentAccessLevel::Publico->value,
+                                DocumentAccessLevel::Interno->value,
+                            ]);
+                        }
                     });
                 }
             });
@@ -1017,5 +1039,10 @@ class Document extends Model
     public function hasPhysicalLocation(): bool
     {
         return $this->physical_location_id !== null;
+    }
+
+    public function isHistoricalEntry(): bool
+    {
+        return data_get($this->metadata, 'entry_mode') === 'historical';
     }
 }

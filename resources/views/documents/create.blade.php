@@ -494,12 +494,12 @@
                     <div class="rounded-xl border border-sky-200 bg-gradient-to-br from-sky-50 to-indigo-50 p-6 shadow-sm dark:border-sky-900/40 dark:from-slate-900 dark:to-slate-900">
                         <div class="mb-5">
                             <h2 class="text-lg font-bold text-slate-900 dark:text-white">Recibido / Acceso al Portal</h2>
-                            <p class="text-sm text-slate-600 dark:text-slate-400">Se aplicará a todos los documentos del lote. Luego podemos extender a receptor por fila.</p>
+                            <p class="text-sm text-slate-600 dark:text-slate-400">La entidad receptora será {{ config('app.name') }}. Aquí registramos los datos de la persona que radica el documento para generar el comprobante y enviar la notificación por correo.</p>
                         </div>
 
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
-                                <label for="recipient_name" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">Nombre receptor <span class="text-rose-500">*</span></label>
+                                <label for="recipient_name" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">Nombre del radicador <span class="text-rose-500">*</span></label>
                                 <input type="text" name="recipient_name" id="recipient_name" value="{{ old('recipient_name') }}"
                                        class="block h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
                                 @error('recipient_name')
@@ -507,7 +507,7 @@
                                 @enderror
                             </div>
                             <div>
-                                <label for="recipient_email" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">Correo receptor <span class="text-rose-500">*</span></label>
+                                <label for="recipient_email" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">Correo del radicador <span class="text-rose-500">*</span></label>
                                 <input type="email" name="recipient_email" id="recipient_email" value="{{ old('recipient_email') }}"
                                        class="block h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
                                 @error('recipient_email')
@@ -515,7 +515,7 @@
                                 @enderror
                             </div>
                             <div class="md:col-span-2">
-                                <label for="recipient_phone" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">Teléfono receptor</label>
+                                <label for="recipient_phone" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">Teléfono del radicador</label>
                                 <input type="text" name="recipient_phone" id="recipient_phone" value="{{ old('recipient_phone') }}"
                                        class="block h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
                                 @error('recipient_phone')

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ArchivePhase;
+use App\Enums\DocumentAccessLevel;
 use App\Enums\Priority;
 use App\Enums\Role;
 use App\Events\DocumentVersionCreated;
@@ -22,12 +24,14 @@ use App\Models\Tag;
 use App\Models\User;
 use App\Notifications\DocumentDistributedToOfficeNotification;
 use App\Notifications\DocumentDistributionTargetUpdatedNotification;
+use App\Notifications\ReceiptIssuedNotification;
 use App\Services\DocumentFileService;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -61,7 +65,13 @@ class UserDocumentController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
                     ->orWhere('description', 'like', "%{$search}%")
-                    ->orWhere('document_number', 'like', "%{$search}%");
+                    ->orWhere('document_number', 'like', "%{$search}%")
+                    ->orWhere('metadata->historical.original_department_name', 'like', "%{$search}%")
+                    ->orWhere('metadata->historical.reference_code', 'like', "%{$search}%")
+                    ->orWhere('metadata->historical.box', 'like', "%{$search}%")
+                    ->orWhere('metadata->historical.folder', 'like', "%{$search}%")
+                    ->orWhere('metadata->historical.volume', 'like', "%{$search}%")
+                    ->orWhere('metadata->historical.keywords_text', 'like', "%{$search}%");
             });
         }
 
@@ -73,6 +83,14 @@ class UserDocumentController extends Controller
         // Filtro por estado
         if ($request->filled('status_id')) {
             $query->where('status_id', $request->status_id);
+        }
+
+        if ($request->filled('archive_phase')) {
+            $query->where('archive_phase', $request->string('archive_phase')->toString());
+        }
+
+        if ($request->filled('historical_original_department_id')) {
+            $query->where('metadata->historical.original_department_id', (int) $request->historical_original_department_id);
         }
 
         // Filtro por prioridad
@@ -128,7 +146,13 @@ class UserDocumentController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('documents.index', compact('documents', 'categories', 'statuses'));
+        $departments = Department::query()
+            ->where('company_id', $user->company_id)
+            ->where('active', true)
+            ->orderBy('name')
+            ->get();
+
+        return view('documents.index', compact('documents', 'categories', 'statuses', 'departments'));
     }
 
     /**
@@ -156,6 +180,152 @@ class UserDocumentController extends Controller
         }
 
         return view('documents.create', compact('categories', 'statuses', 'uploadDraft', 'uploadDraftPayload'));
+    }
+
+    public function createHistorical()
+    {
+        $user = Auth::user();
+
+        $this->authorizeHistoricalWorkflow($user);
+        $centralArchiveDepartment = $this->resolveCentralArchiveDepartment($user);
+
+        $categories = Category::query()
+            ->where('company_id', $user->company_id)
+            ->where('active', true)
+            ->orderBy('name')
+            ->get();
+
+        $producerDepartments = Department::query()
+            ->where('company_id', $user->company_id)
+            ->where('active', true)
+            ->orderBy('name')
+            ->get();
+
+        $physicalLocations = PhysicalLocation::query()
+            ->where('company_id', $user->company_id)
+            ->where('is_active', true)
+            ->orderBy('full_path')
+            ->get();
+
+        $defaultStatus = Status::query()
+            ->where('company_id', $user->company_id)
+            ->where('slug', 'archivado')
+            ->first();
+
+        return view('documents.historical-create', compact(
+            'categories',
+            'producerDepartments',
+            'physicalLocations',
+            'defaultStatus',
+            'centralArchiveDepartment',
+        ));
+    }
+
+    public function storeHistorical(Request $request)
+    {
+        $user = Auth::user();
+
+        $this->authorizeHistoricalWorkflow($user);
+
+        $validated = $request->validate([
+            'files' => 'required|array|min:1',
+            'files.*' => 'required|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png',
+            'category_id' => 'required|exists:categories,id',
+            'original_department_id' => 'required|integer|exists:departments,id',
+            'physical_location_id' => 'required|integer|exists:physical_locations,id',
+            'description' => 'nullable|string',
+            'access_level' => 'required|in:publico,interno,reservado,clasificado_confidencial',
+            'date_start' => 'nullable|date',
+            'date_end' => 'nullable|date|after_or_equal:date_start',
+            'box' => 'nullable|string|max:100',
+            'folder' => 'nullable|string|max:100',
+            'volume' => 'nullable|string|max:100',
+            'reference_code' => 'nullable|string|max:100',
+            'keywords' => 'nullable|string|max:1000',
+        ]);
+
+        $category = Category::query()
+            ->where('company_id', $user->company_id)
+            ->findOrFail($validated['category_id']);
+
+        $producerDepartment = Department::query()
+            ->where('company_id', $user->company_id)
+            ->findOrFail($validated['original_department_id']);
+
+        $physicalLocation = PhysicalLocation::query()
+            ->where('company_id', $user->company_id)
+            ->where('is_active', true)
+            ->findOrFail($validated['physical_location_id']);
+        $centralArchiveDepartment = $this->resolveCentralArchiveDepartment($user);
+
+        $archivedStatus = Status::query()
+            ->where('company_id', $user->company_id)
+            ->where('slug', 'archivado')
+            ->first();
+
+        $createdDocuments = collect();
+
+        foreach ($request->file('files', []) as $uploadedFile) {
+            if (! $uploadedFile instanceof UploadedFile) {
+                continue;
+            }
+
+            $filePath = $this->documentFileService->storeUploadedFile($uploadedFile);
+
+            $metadata = [
+                'entry_mode' => 'historical',
+                'historical' => array_filter([
+                    'custody' => 'archivo_central',
+                    'visibility_scope' => 'company_wide_internal',
+                    'custody_department_id' => $centralArchiveDepartment->id,
+                    'custody_department_name' => $this->translatedDepartmentName($centralArchiveDepartment),
+                    'original_department_id' => $producerDepartment->id,
+                    'original_department_name' => $this->translatedDepartmentName($producerDepartment),
+                    'date_start' => $validated['date_start'] ?? null,
+                    'date_end' => $validated['date_end'] ?? null,
+                    'box' => $validated['box'] ?? null,
+                    'folder' => $validated['folder'] ?? null,
+                    'volume' => $validated['volume'] ?? null,
+                    'reference_code' => $validated['reference_code'] ?? null,
+                    'keywords_text' => $validated['keywords'] ?? null,
+                    'uploaded_to_central_archive_by' => $user->name,
+                    'uploaded_to_central_archive_at' => now()->toISOString(),
+                ], fn (mixed $value): bool => $value !== null && $value !== ''),
+                'file_name' => $uploadedFile->getClientOriginalName(),
+                'file_size' => $uploadedFile->getSize(),
+                'mime_type' => $uploadedFile->getMimeType(),
+            ];
+
+            $createdDocuments->push(Document::create([
+                'company_id' => $user->company_id,
+                'branch_id' => $user->branch_id,
+                'department_id' => $centralArchiveDepartment->id,
+                'created_by' => $user->id,
+                'assigned_to' => null,
+                'title' => $this->makeTitleFromFilename($uploadedFile),
+                'description' => $validated['description'] ?? null,
+                'category_id' => $category->id,
+                'status_id' => $archivedStatus?->id,
+                'is_confidential' => $validated['access_level'] !== DocumentAccessLevel::Publico->value,
+                'priority' => Priority::Medium->value,
+                'file_path' => $filePath,
+                'physical_location_id' => $physicalLocation->id,
+                'digital_document_type' => 'copia',
+                'physical_document_type' => 'original',
+                'is_archived' => true,
+                'archived_at' => now(),
+                'archive_phase' => ArchivePhase::Central->value,
+                'access_level' => $validated['access_level'],
+                'metadata' => $metadata,
+            ]));
+        }
+
+        $count = $createdDocuments->count();
+
+        return redirect()->route('documents.index', ['archive_phase' => ArchivePhase::Central->value])
+            ->with('success', $count === 1
+                ? 'Documento histórico cargado en archivo central.'
+                : "Se cargaron {$count} documentos históricos en archivo central.");
     }
 
     /**
@@ -1473,9 +1643,25 @@ class UserDocumentController extends Controller
             return false;
         }
 
+        if ($document->isHistoricalEntry()) {
+            if ($user->hasAnyRole(['super_admin', 'admin', 'branch_admin', Role::ArchiveManager->value])) {
+                return true;
+            }
+
+            if ($user->hasRole(Role::RegularUser->value)) {
+                return false;
+            }
+
+            return in_array($document->access_level?->value, [
+                DocumentAccessLevel::Publico->value,
+                DocumentAccessLevel::Interno->value,
+            ], true);
+        }
+
         // Es el creador, asignado, o tiene permisos especiales
         return $document->created_by === $user->id
             || $document->assigned_to === $user->id
+            || ($user->hasRole(Role::Receptionist->value) && $document->receipts()->exists())
             || ($user->hasRole(Role::RegularUser->value) && $document->receipts()
                 ->where('recipient_user_id', $user->id)
                 ->exists())
@@ -1495,8 +1681,13 @@ class UserDocumentController extends Controller
             return false;
         }
 
+        if ($document->isHistoricalEntry()) {
+            return $user->hasAnyRole(['super_admin', 'admin', 'branch_admin', Role::ArchiveManager->value]);
+        }
+
         return $document->created_by === $user->id
             || $document->assigned_to === $user->id
+            || ($user->hasRole(Role::Receptionist->value) && $document->receipts()->exists())
             || ($user->hasRole(Role::OfficeManager->value) && $user->department_id && $document->distributions()
                 ->whereHas('targets', fn ($q) => $q->where('department_id', $user->department_id))
                 ->exists());
@@ -1542,7 +1733,7 @@ class UserDocumentController extends Controller
             $recipientUser->assignRole(Role::RegularUser->value);
         }
 
-        return Receipt::create([
+        $receipt = Receipt::create([
             'document_id' => $document->id,
             'company_id' => $document->company_id,
             'issued_by' => $issuer->id,
@@ -1553,6 +1744,55 @@ class UserDocumentController extends Controller
             'recipient_phone' => $recipientPhone,
             'issued_at' => now(),
         ]);
+
+        $this->sendReceiptIssuedNotification($receipt);
+
+        return $receipt;
+    }
+
+    private function sendReceiptIssuedNotification(Receipt $receipt): void
+    {
+        if (! filled($receipt->recipient_email)) {
+            return;
+        }
+
+        try {
+            Notification::route('mail', $receipt->recipient_email)
+                ->notify(new ReceiptIssuedNotification($receipt->loadMissing(['document', 'company'])));
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+    }
+
+    private function authorizeHistoricalWorkflow(User $user): void
+    {
+        if (! $user->hasAnyRole([
+            'super_admin',
+            'admin',
+            'branch_admin',
+            Role::ArchiveManager->value,
+        ])) {
+            abort(403, 'No tienes permiso para gestionar carga histórica.');
+        }
+    }
+
+    private function translatedDepartmentName(Department $department): string
+    {
+        $name = data_get($department, 'name');
+
+        if (is_array($name)) {
+            return (string) ($name[app()->getLocale()] ?? $name['es'] ?? $name['en'] ?? reset($name) ?: $department->code);
+        }
+
+        if (is_string($name) && str_starts_with($name, '{')) {
+            $decoded = json_decode($name, true);
+
+            if (is_array($decoded)) {
+                return (string) ($decoded[app()->getLocale()] ?? $decoded['es'] ?? $decoded['en'] ?? reset($decoded) ?: $department->code);
+            }
+        }
+
+        return (string) ($name ?: $department->code);
     }
 
     private function generateReceiptNumber(): string
@@ -1850,5 +2090,35 @@ class UserDocumentController extends Controller
 
         return redirect()->route('documents.show', $document)
             ->with('success', 'Feedback IA registrado. Gracias por reportarlo.');
+    }
+
+    private function resolveCentralArchiveDepartment(User $user): Department
+    {
+        $department = Department::query()
+            ->where('company_id', $user->company_id)
+            ->get()
+            ->first(function (Department $department): bool {
+                return $department->code === 'AC170'
+                    || $this->translatedDepartmentName($department) === 'Archivo Central';
+            });
+
+        if ($department) {
+            return $department;
+        }
+
+        return Department::query()->create([
+            'company_id' => $user->company_id,
+            'branch_id' => $user->branch_id,
+            'name' => [
+                'es' => 'Archivo Central',
+                'en' => 'Central Archive',
+            ],
+            'code' => 'AC170',
+            'description' => [
+                'es' => 'Dependencia responsable de la custodia, consulta y organización del archivo central e histórico.',
+                'en' => 'Department responsible for custody, consultation and organization of central and historical archives.',
+            ],
+            'active' => true,
+        ]);
     }
 }
