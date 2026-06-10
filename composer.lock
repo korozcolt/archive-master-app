@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "31bf108ede62aece3b8c8e19751039e7",
+    "content-hash": "bba5ab74d2feeb782f66c3c84b526ab4",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -7761,6 +7761,83 @@
                 "source": "https://github.com/MyIntervals/PHP-CSS-Parser/tree/v9.1.0"
             },
             "time": "2025-09-14T07:37:21+00:00"
+        },
+        {
+            "name": "sarder/pdfstudio",
+            "version": "v2.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/sarderiftekhar/pdf-studio.git",
+                "reference": "29376261e0d4b73c22eb3d79d0555141df7a8783"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/sarderiftekhar/pdf-studio/zipball/29376261e0d4b73c22eb3d79d0555141df7a8783",
+                "reference": "29376261e0d4b73c22eb3d79d0555141df7a8783",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/contracts": "^11.0|^12.0",
+                "illuminate/database": "^11.0|^12.0",
+                "illuminate/support": "^11.0|^12.0",
+                "php": "^8.2"
+            },
+            "require-dev": {
+                "dompdf/dompdf": "^3.1",
+                "laravel/pint": "^1.0",
+                "orchestra/testbench": "^9.0|^10.0",
+                "pestphp/pest": "^2.0|^3.0",
+                "pestphp/pest-plugin-arch": "^2.0|^3.0",
+                "pestphp/pest-plugin-laravel": "^2.0|^3.0",
+                "phpstan/phpstan": "^1.10",
+                "spatie/browsershot": "^5.2"
+            },
+            "suggest": {
+                "dompdf/dompdf": "Required for the dompdf PDF driver (^2.0|^3.0)",
+                "mikehaertl/php-pdftk": "Required for AcroForm filling and password protection (^4.0)",
+                "setasign/fpdi": "Required for PDF merging and watermarking (^2.3)",
+                "spatie/browsershot": "Required for the Chromium PDF driver (^4.0)"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "Pdf": "PdfStudio\\Laravel\\Facades\\Pdf"
+                    },
+                    "providers": [
+                        "PdfStudio\\Laravel\\PdfStudioServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "PdfStudio\\Laravel\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Sarder Iftekhar",
+                    "email": "sarder2008@gmail.com"
+                }
+            ],
+            "description": "Design, preview, and generate PDFs using HTML and TailwindCSS in Laravel",
+            "keywords": [
+                "chromium",
+                "dompdf",
+                "html-to-pdf",
+                "laravel",
+                "pdf",
+                "tailwind"
+            ],
+            "support": {
+                "issues": "https://github.com/sarderiftekhar/pdf-studio/issues",
+                "source": "https://github.com/sarderiftekhar/pdf-studio/tree/v2.0.0"
+            },
+            "time": "2026-03-08T15:12:03+00:00"
         },
         {
             "name": "spatie/color",

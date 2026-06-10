@@ -44,6 +44,8 @@
         'search' => request('search'),
         'category_id' => request('category_id'),
         'status_id' => request('status_id'),
+        'archive_phase' => request('archive_phase'),
+        'historical_original_department_id' => request('historical_original_department_id'),
         'priority' => request('priority'),
         'is_confidential' => request('is_confidential'),
         'date_from' => request('date_from'),
@@ -66,6 +68,12 @@
                 </p>
             </div>
             <div class="flex flex-wrap items-center gap-3">
+                @if(Auth::user()?->hasAnyRole(['super_admin', 'admin', 'branch_admin', \App\Enums\Role::ArchiveManager->value]))
+                    <a href="{{ route('documents.historical.create') }}"
+                       class="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-amber-300/30 bg-amber-50 px-4 text-sm font-semibold text-amber-800 shadow-sm transition hover:bg-amber-100 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200 dark:hover:bg-amber-500/20">
+                        <span>Carga histórica</span>
+                    </a>
+                @endif
                 <a href="{{ route('documents.create') }}"
                    class="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-900/20 transition hover:from-sky-400 hover:to-indigo-500 motion-safe:hover:animate-jump motion-safe:hover:animate-duration-200 am-motion-safe">
                     <span>Subir / Crear</span>
@@ -146,6 +154,15 @@
                         </select>
                     </div>
                     <div>
+                        <label for="archive_phase" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">Fase archivística</label>
+                        <select name="archive_phase" id="archive_phase" class="block h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                            <option value="">Todas</option>
+                            @foreach(\App\Enums\ArchivePhase::cases() as $phase)
+                                <option value="{{ $phase->value }}" @selected(request('archive_phase') === $phase->value)>{{ $phase->getLabel() }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
                         <label for="priority" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">Prioridad</label>
                         <select name="priority" id="priority" class="block h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
                             <option value="">Todas</option>
@@ -161,6 +178,15 @@
                             <option value="">Todos</option>
                             <option value="1" @selected(request('is_confidential') === '1')>Solo confidenciales</option>
                             <option value="0" @selected(request('is_confidential') === '0')>Solo públicos</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="historical_original_department_id" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">Dependencia productora</label>
+                        <select name="historical_original_department_id" id="historical_original_department_id" class="block h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                            <option value="">Todas</option>
+                            @foreach($departments as $department)
+                                <option value="{{ $department->id }}" @selected((string) request('historical_original_department_id') === (string) $department->id)>{{ $translateName($department, 'Dependencia') }}</option>
+                            @endforeach
                         </select>
                     </div>
                     <div>
@@ -215,6 +241,7 @@
                                 $categoryLabel = $translateName($document->category, 'Sin categoría');
                                 $statusDotClass = str_contains(mb_strtolower($statusLabel), 'aprob') ? 'bg-emerald-500' : (str_contains(mb_strtolower($statusLabel), 'proceso') ? 'bg-amber-500' : 'bg-slate-400');
                                 $latestVersionForIcon = $document->versions->first();
+                                $historicalProducer = data_get($document->metadata, 'historical.original_department_name');
                                 $documentFileExtension = \App\Support\FileExtensionIcon::extensionFromPath($document->file_path)
                                     ?: \App\Support\FileExtensionIcon::extensionFromPath($latestVersionForIcon?->file_path)
                                     ?: \App\Support\FileExtensionIcon::normalizeExtension($latestVersionForIcon?->file_extension);
@@ -229,10 +256,18 @@
                                             </div>
                                             <div class="mt-0.5 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                                                 <span>{{ $document->document_number ?: 'Sin número' }}</span>
+                                                @if($document->isHistoricalEntry())
+                                                    <span class="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">Histórico</span>
+                                                @endif
                                                 @if($document->is_confidential)
                                                     <span class="inline-flex items-center rounded-md border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700">Confidencial</span>
                                                 @endif
                                             </div>
+                                            @if($historicalProducer)
+                                                <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                                    Productora: {{ $historicalProducer }}
+                                                </div>
+                                            @endif
                                         </div>
                                     </a>
                                 </td>

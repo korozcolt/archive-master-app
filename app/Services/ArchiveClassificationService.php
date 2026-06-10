@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Enums\ArchivePhase;
 use App\Models\Document;
+use App\Models\RetentionSchedule;
+use Illuminate\Database\Eloquent\Builder;
 
 class ArchiveClassificationService
 {
@@ -13,8 +15,7 @@ class ArchiveClassificationService
     public function calculateAttributes(Document $document): array
     {
         $classificationCode = $this->buildClassificationCode($document);
-        $retentionSchedule = $document->documentaryType?->retentionSchedules()->where('is_active', true)->first()
-            ?? $document->documentarySubseries?->retentionSchedules()->where('is_active', true)->first();
+        $retentionSchedule = $this->findRetentionSchedule($document);
 
         return [
             'archive_classification_code' => $classificationCode,
@@ -48,5 +49,43 @@ class ArchiveClassificationService
         }
 
         return implode('.', $segments);
+    }
+
+    private function findRetentionSchedule(Document $document): ?RetentionSchedule
+    {
+        if ($document->documentary_type_id) {
+            $schedule = $this->retentionScheduleQuery($document)
+                ->where('documentary_type_id', $document->documentary_type_id)
+                ->first();
+
+            if ($schedule) {
+                return $schedule;
+            }
+        }
+
+        if (! $document->trd_subseries_id) {
+            return null;
+        }
+
+        return $this->retentionScheduleQuery($document)
+            ->whereNull('documentary_type_id')
+            ->where('documentary_subseries_id', $document->trd_subseries_id)
+            ->first();
+    }
+
+    private function retentionScheduleQuery(Document $document): Builder
+    {
+        return RetentionSchedule::query()
+            ->where('company_id', $document->company_id)
+            ->where('is_active', true)
+            ->where(function (Builder $query) use ($document): void {
+                if ($document->department_id) {
+                    $query->where('department_id', $document->department_id)
+                        ->orWhereNull('department_id');
+                } else {
+                    $query->whereNull('department_id');
+                }
+            })
+            ->orderByRaw('department_id is null');
     }
 }

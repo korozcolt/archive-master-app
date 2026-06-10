@@ -10,10 +10,13 @@ class CreateUser extends CreateRecord
 {
     protected static string $resource = UserResource::class;
 
+    protected array $sanitizedRoles = [];
+
     protected function beforeCreate(): void
     {
         if (isset($this->data['roles']) && is_array($this->data['roles'])) {
-            $this->data['roles'] = UserResource::sanitizeAssignableRoles($this->data['roles']);
+            $this->sanitizedRoles = UserResource::sanitizeAssignableRoles($this->data['roles']);
+            $this->data['roles'] = $this->sanitizedRoles;
         }
     }
 
@@ -26,6 +29,11 @@ class CreateUser extends CreateRecord
         }
 
         return $data;
+    }
+
+    protected function afterCreate(): void
+    {
+        $this->record->syncRoles($this->sanitizedRoles);
     }
 
     protected function getRedirectUrl(): string

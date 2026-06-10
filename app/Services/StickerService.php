@@ -117,9 +117,8 @@ class StickerService
 
         $pdf = Pdf::loadView("stickers.document.{$template}", $data);
 
-        // Configurar tamaño de página según template
-        $pageSize = $this->getPageSizeForTemplate($template);
-        $pdf->setPaper($pageSize['width'].'mm', $pageSize['height'].'mm');
+        $paperSize = $this->getPaperSizeInPoints($template);
+        $pdf->setPaper($paperSize);
 
         return $pdf->output();
     }
@@ -136,9 +135,8 @@ class StickerService
 
         $pdf = Pdf::loadView("stickers.location.{$template}", $data);
 
-        // Configurar tamaño de página según template
-        $pageSize = $this->getPageSizeForTemplate($template);
-        $pdf->setPaper($pageSize['width'].'mm', $pageSize['height'].'mm');
+        $paperSize = $this->getPaperSizeInPoints($template);
+        $pdf->setPaper($paperSize);
 
         return $pdf->output();
     }
@@ -272,7 +270,7 @@ class StickerService
     }
 
     /**
-     * Obtener tamaño de página según template
+     * Obtener tamaño de página según template (en mm)
      */
     protected function getPageSizeForTemplate(string $template): array
     {
@@ -283,6 +281,50 @@ class StickerService
             'label' => ['width' => 100, 'height' => 50],
             default => ['width' => 50, 'height' => 80],
         };
+    }
+
+    /**
+     * Convertir tamaño de template a array de puntos para DomPDF
+     * 1mm = 2.8346 puntos PostScript
+     */
+    protected function getPaperSizeInPoints(string $template): array
+    {
+        $mm = $this->getPageSizeForTemplate($template);
+        $mmToPoints = 2.8346;
+
+        return [0, 0, $mm['width'] * $mmToPoints, $mm['height'] * $mmToPoints];
+    }
+
+    /**
+     * Generar HTML de impresión directa con window.print() automático
+     */
+    public function generatePrintableHTML(
+        Document $document,
+        string $template = 'standard',
+        array $options = []
+    ): string {
+        $data = $this->generateForDocument($document, $template, $options);
+
+        return View::make('stickers.print', array_merge($data, [
+            'template' => $template,
+            'pageSize' => $this->getPageSizeForTemplate($template),
+        ]))->render();
+    }
+
+    /**
+     * Generar HTML de impresión directa para ubicación
+     */
+    public function generatePrintableLocationHTML(
+        PhysicalLocation $location,
+        string $template = 'standard',
+        array $options = []
+    ): string {
+        $data = $this->generateForLocation($location, $template, $options);
+
+        return View::make('stickers.print-location', array_merge($data, [
+            'template' => $template,
+            'pageSize' => $this->getPageSizeForTemplate($template),
+        ]))->render();
     }
 
     /**

@@ -307,9 +307,12 @@ class ViewDocument extends ViewRecord
                 $this->redirect($this->getResource()::getUrl('view', ['record' => $document]));
             });
 
-        $actions[] = Actions\Action::make('generateSticker')
-            ->label('Generar Etiqueta')
-            ->icon('heroicon-o-qr-code')
+        $actions[] = Actions\Action::make('printSticker')
+            ->label('Imprimir Etiqueta')
+            ->icon('heroicon-o-printer')
+            ->color('info')
+            ->modalHeading('Imprimir Etiqueta')
+            ->modalSubmitActionLabel('Imprimir')
             ->form([
                 \Filament\Forms\Components\Select::make('template')
                     ->label('Plantilla de etiqueta')
@@ -329,22 +332,23 @@ class ViewDocument extends ViewRecord
                     ->default(true),
             ])
             ->action(function (array $data) use ($document): void {
-                $url = route('stickers.documents.download', [
+                $url = route('stickers.documents.print', [
                     'document' => $document->id,
                     'template' => $data['template'] ?? 'standard',
                     'options' => [
                         'include_company' => $data['include_company'] ?? true,
                         'include_date' => $data['include_date'] ?? true,
                     ],
+                    'auto_print' => '1',
                 ]);
 
                 \Filament\Notifications\Notification::make()
-                    ->title('Etiqueta generada')
-                    ->body('La etiqueta se está descargando...')
+                    ->title('Imprimiendo etiqueta')
+                    ->body('Se abrirá el diálogo de impresión en una nueva pestaña...')
                     ->success()
                     ->send();
 
-                $this->redirect($url, navigate: false);
+                $this->js("window.open('{$url}', '_blank')");
             });
 
         // Add download options

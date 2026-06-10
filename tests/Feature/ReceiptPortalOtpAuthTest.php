@@ -10,8 +10,10 @@ use App\Models\PortalLoginOtp;
 use App\Models\Receipt;
 use App\Models\Status;
 use App\Models\User;
+use App\Notifications\ReceiptIssuedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 use Spatie\Permission\Models\Role;
 
 uses(RefreshDatabase::class);
@@ -39,6 +41,8 @@ function createReceptionistUserForReceiptFlow(): User
 }
 
 it('creates receipt and regular user when receptionist creates a document', function () {
+    Notification::fake();
+
     $receptionist = createReceptionistUserForReceiptFlow();
     expect($receptionist->fresh()->roles()->where('name', AppRole::Receptionist->value)->exists())->toBeTrue();
     $category = Category::factory()->create(['company_id' => $receptionist->company_id]);
@@ -73,6 +77,14 @@ it('creates receipt and regular user when receptionist creates a document', func
         'recipient_email' => 'cliente@example.com',
         'issued_by' => $receptionist->id,
     ]);
+
+    Notification::assertSentOnDemand(
+        ReceiptIssuedNotification::class,
+        function (ReceiptIssuedNotification $notification, array $channels, object $notifiable): bool {
+            return $notifiable->routes['mail'] === 'cliente@example.com'
+                && $channels === ['mail'];
+        }
+    );
 });
 
 it('does not block receipt creation when recipient email exists in another company', function () {
@@ -219,10 +231,62 @@ it('allows receipt owner to view and download receipt pdf', function () {
     $this->actingAs($regularUser)
         ->get(route('receipts.show', $receipt))
         ->assertSuccessful()
-        ->assertSee($receipt->receipt_number);
+        ->assertSee($receipt->receipt_number)
+        ->assertSee($company->name)
+        ->assertSee('Radicado por');
 
     $this->actingAs($regularUser)
         ->get(route('receipts.download', $receipt))
         ->assertSuccessful()
         ->assertHeader('content-type', 'application/pdf');
+});
+
+it('allows reception to keep visibility over received documents after assignment', function () {
+    $receptionist = createReceptionistUserForReceiptFlow();
+
+    $secondReceptionist = User::factory()->create([
+        'company_id' => $receptionist->company_id,
+        'branch_id' => $receptionist->branch_id,
+        'department_id' => $receptionist->department_id,
+    ]);
+    $secondReceptionist->assignRole(AppRole::Receptionist->value);
+
+    Role::firstOrCreate(['name' => AppRole::OfficeManager->value]);
+    $officeManager = User::factory()->create([
+        'company_id' => $receptionist->company_id,
+        'branch_id' => $receptionist->branch_id,
+        'department_id' => $receptionist->department_id,
+    ]);
+    $officeManager->assignRole(AppRole::OfficeManager->value);
+
+    $document = Document::factory()->create([
+        'company_id' => $receptionist->company_id,
+        'branch_id' => $receptionist->branch_id,
+        'department_id' => $receptionist->department_id,
+        'created_by' => $receptionist->id,
+        'assigned_to' => $officeManager->id,
+    ]);
+
+    Receipt::create([
+        'document_id' => $document->id,
+        'company_id' => $receptionist->company_id,
+        'issued_by' => $receptionist->id,
+        'recipient_user_id' => null,
+        'receipt_number' => 'REC-TEST-RECEP-0001',
+        'recipient_name' => 'Radicador Demo',
+        'recipient_email' => 'radicador@example.com',
+        'recipient_phone' => '3000000000',
+        'issued_at' => now(),
+    ]);
+
+    $this->actingAs($secondReceptionist)
+        ->get(route('documents.show', $document))
+        ->assertSuccessful()
+        ->assertSee('REC-TEST-RECEP-0001')
+        ->assertSee('Radicado por');
+
+    expect(Document::query()
+        ->visibleToPortalUser($secondReceptionist)
+        ->whereKey($document->id)
+        ->exists())->toBeTrue();
 });

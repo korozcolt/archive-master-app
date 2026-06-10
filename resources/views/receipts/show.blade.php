@@ -26,15 +26,19 @@
                 <p class="font-medium text-gray-900 dark:text-gray-100">{{ $receipt->document->document_number }}</p>
             </div>
             <div>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Receptor</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Entidad receptora</p>
+                <p class="font-medium text-gray-900 dark:text-gray-100">{{ $receipt->company->name }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Radicado por</p>
                 <p class="font-medium text-gray-900 dark:text-gray-100">{{ $receipt->recipient_name }}</p>
             </div>
             <div>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Correo receptor</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Correo del radicador</p>
                 <p class="font-medium text-gray-900 dark:text-gray-100">{{ $receipt->recipient_email }}</p>
             </div>
             <div>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Teléfono receptor</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Teléfono del radicador</p>
                 <p class="font-medium text-gray-900 dark:text-gray-100">{{ $receipt->recipient_phone ?: 'N/A' }}</p>
             </div>
             <div>
@@ -50,4 +54,3 @@
     </div>
 </div>
 @endsection
-

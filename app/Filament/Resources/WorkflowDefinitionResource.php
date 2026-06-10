@@ -24,6 +24,10 @@ class WorkflowDefinitionResource extends Resource
 
     protected static ?string $navigationLabel = 'Flujos de Trabajo';
 
+    protected static ?string $modelLabel = 'Flujo de Trabajo';
+
+    protected static ?string $pluralModelLabel = 'Flujos de Trabajo';
+
     protected static ?string $navigationGroup = 'Gestión Documental';
 
     protected static ?int $navigationSort = 4;

@@ -27,6 +27,10 @@ class TagResource extends Resource
 
     protected static ?string $navigationLabel = 'Etiquetas';
 
+    protected static ?string $modelLabel = 'Etiqueta';
+
+    protected static ?string $pluralModelLabel = 'Etiquetas';
+
     protected static ?string $navigationGroup = 'Gestión Documental';
 
     protected static ?int $navigationSort = 3;

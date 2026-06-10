@@ -127,28 +127,20 @@ class BusinessCalendarResource extends Resource
                 Tables\Columns\TextColumn::make('timezone')
                     ->label('Zona horaria')
                     ->toggleable(),
-                Tables\Columns\TextColumn::make('weekend_days')
+                Tables\Columns\TextColumn::make('weekend_days_label')
                     ->label('No hábiles recurrentes')
-                    ->formatStateUsing(function (mixed $state): string {
-                        if (is_string($state) && $state !== '') {
-                            $decoded = json_decode($state, true);
-
-                            if (is_array($decoded)) {
-                                $state = $decoded;
-                            }
+                    ->state(function ($record): string {
+                        $labels = [
+                            '0' => 'Dom', '1' => 'Lun', '2' => 'Mar',
+                            '3' => 'Mié', '4' => 'Jue', '5' => 'Vie', '6' => 'Sáb',
+                        ];
+                        $days = $record->weekend_days ?? [];
+                        if (is_string($days)) {
+                            $days = json_decode($days, true) ?? [];
                         }
 
-                        return collect(is_array($state) ? $state : [])
-                            ->map(fn (string $value): string => match ($value) {
-                                '0' => 'Dom',
-                                '1' => 'Lun',
-                                '2' => 'Mar',
-                                '3' => 'Mié',
-                                '4' => 'Jue',
-                                '5' => 'Vie',
-                                '6' => 'Sáb',
-                                default => $value,
-                            })
+                        return collect((array) $days)
+                            ->map(fn ($v): string => $labels[(string) $v] ?? (string) $v)
                             ->implode(', ');
                     }),
                 Tables\Columns\TextColumn::make('days_count')

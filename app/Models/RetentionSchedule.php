@@ -14,6 +14,7 @@ class RetentionSchedule extends Model
 
     protected $fillable = [
         'company_id',
+        'department_id',
         'documentary_subseries_id',
         'documentary_type_id',
         'archive_phase',
@@ -41,6 +42,11 @@ class RetentionSchedule extends Model
         return $this->belongsTo(Company::class);
     }
 
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
+    }
+
     public function documentarySubseries(): BelongsTo
     {
         return $this->belongsTo(DocumentarySubseries::class);
@@ -49,5 +55,10 @@ class RetentionSchedule extends Model
     public function documentaryType(): BelongsTo
     {
         return $this->belongsTo(DocumentaryType::class);
+    }
+
+    public function documentaryTypeDisplay(): string
+    {
+        return $this->documentaryType?->code ?? 'Todos los tipos';
     }
 }

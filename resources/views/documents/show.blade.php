@@ -45,6 +45,8 @@
     $ocrPreview = $hasOcrContent ? Str::limit($ocrContent, 1600) : null;
     $ocrWordCount = data_get($document->metadata, 'ocr_result.word_count');
     $ocrProcessedAt = data_get($document->metadata, 'ocr_result.processed_at') ?: data_get($document->metadata, 'processed_at');
+    $primaryReceipt = $document->receipts->sortByDesc('issued_at')->first();
+    $historicalMetadata = $document->isHistoricalEntry() ? (array) data_get($document->metadata, 'historical', []) : [];
 @endphp
 
 <div class="space-y-6">
@@ -195,16 +197,42 @@
                         <span class="font-medium text-slate-900 dark:text-white">{{ $document->creator?->name ?? 'Desconocido' }}</span>
                         <span class="text-slate-500 dark:text-slate-400">Asignado a</span>
                         <span class="font-medium text-slate-900 dark:text-white">{{ $document->assignee?->name ?? 'No asignado' }}</span>
+                        @if($primaryReceipt)
+                            <span class="text-slate-500 dark:text-slate-400">N. recibido</span>
+                            <span class="font-medium text-slate-900 dark:text-white">{{ $primaryReceipt->receipt_number }}</span>
+                            <span class="text-slate-500 dark:text-slate-400">Radicado por</span>
+                            <span class="font-medium text-slate-900 dark:text-white">{{ $primaryReceipt->recipient_name }}</span>
+                            <span class="text-slate-500 dark:text-slate-400">Entidad receptora</span>
+                            <span class="font-medium text-slate-900 dark:text-white">{{ $document->company?->name ?? config('app.name') }}</span>
+                        @endif
                         <span class="text-slate-500 dark:text-slate-400">Creado</span>
                         <span class="font-medium text-slate-900 dark:text-white">{{ $document->created_at?->format('d/m/Y H:i') }}</span>
                         <span class="text-slate-500 dark:text-slate-400">Actualizado</span>
                         <span class="font-medium text-slate-900 dark:text-white">{{ $document->updated_at?->format('d/m/Y H:i') }}</span>
                         <span class="text-slate-500 dark:text-slate-400">Confidencial</span>
                         <span class="font-medium {{ $document->is_confidential ? 'text-rose-600' : 'text-slate-900 dark:text-white' }}">{{ $document->is_confidential ? 'Sí' : 'No' }}</span>
+                        @if($document->isHistoricalEntry())
+                            <span class="text-slate-500 dark:text-slate-400">Flujo</span>
+                            <span class="font-medium text-amber-700 dark:text-amber-300">Carga histórica</span>
+                            <span class="text-slate-500 dark:text-slate-400">Custodia</span>
+                            <span class="font-medium text-slate-900 dark:text-white">Archivo central</span>
+                            <span class="text-slate-500 dark:text-slate-400">Dependencia productora</span>
+                            <span class="font-medium text-slate-900 dark:text-white">{{ data_get($historicalMetadata, 'original_department_name', 'Sin definir') }}</span>
+                            @if(data_get($historicalMetadata, 'reference_code'))
+                                <span class="text-slate-500 dark:text-slate-400">Referencia</span>
+                                <span class="font-medium text-slate-900 dark:text-white">{{ data_get($historicalMetadata, 'reference_code') }}</span>
+                            @endif
+                        @endif
                     </div>
                 </div>
 
                 @if(Auth::user()?->hasRole(\App\Enums\Role::ArchiveManager->value))
+                    @php
+                        $isEditingArchiveLocation = ! $document->physicalLocation
+                            || request()->boolean('edit_location')
+                            || $errors->has('physical_location_id')
+                            || $errors->has('archive_note');
+                    @endphp
                     <div class="space-y-3">
                         <div class="flex items-center justify-between gap-2">
                             <h3 class="text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Archivo físico</h3>
@@ -236,40 +264,58 @@
                             </div>
                         </div>
 
-                        <form method="POST" action="{{ route('documents.archive-location.update', $document) }}" class="space-y-3 rounded-xl border border-slate-200 bg-white p-3 motion-safe:animate-fade-in-up motion-safe:animate-delay-200 dark:border-slate-700 dark:bg-slate-900 am-motion-safe">
-                            @csrf
-                            <div>
-                                <label for="physical_location_id" class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Asignar ubicación</label>
-                                <select id="physical_location_id"
-                                        name="physical_location_id"
-                                        class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
-                                    <option value="">Seleccionar ubicación</option>
-                                    @foreach(($archiveLocationOptions ?? collect()) as $locationOption)
-                                        <option value="{{ $locationOption->id }}"
-                                            @selected((int) old('physical_location_id', $document->physical_location_id) === (int) $locationOption->id)>
-                                            {{ $locationOption->full_path }} ({{ $locationOption->code }})
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('physical_location_id')
-                                    <p class="mt-1 text-xs text-rose-600 dark:text-rose-300">{{ $message }}</p>
-                                @enderror
+                        @if($document->physicalLocation)
+                            <div class="flex flex-wrap items-center gap-2">
+                                @if(! $isEditingArchiveLocation)
+                                    <a href="{{ route('documents.show', ['document' => $document, 'edit_location' => 1]) }}"
+                                       class="inline-flex h-9 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
+                                        Editar ubicación
+                                    </a>
+                                @else
+                                    <a href="{{ route('documents.show', $document) }}"
+                                       class="inline-flex h-9 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
+                                        Cancelar edición
+                                    </a>
+                                @endif
                             </div>
+                        @endif
 
-                            <div>
-                                <label for="archive_note" class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Nota de movimiento (opcional)</label>
-                                <textarea id="archive_note"
-                                          name="archive_note"
-                                          rows="2"
-                                          class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                                          placeholder="Ej. Ingreso a estante B / caja 04">{{ old('archive_note') }}</textarea>
-                            </div>
+                        @if($isEditingArchiveLocation)
+                            <form method="POST" action="{{ route('documents.archive-location.update', $document) }}" class="space-y-3 rounded-xl border border-slate-200 bg-white p-3 motion-safe:animate-fade-in-up motion-safe:animate-delay-200 dark:border-slate-700 dark:bg-slate-900 am-motion-safe">
+                                @csrf
+                                <div>
+                                    <label for="physical_location_id" class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Asignar ubicación</label>
+                                    <select id="physical_location_id"
+                                            name="physical_location_id"
+                                            class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                                        <option value="">Seleccionar ubicación</option>
+                                        @foreach(($archiveLocationOptions ?? collect()) as $locationOption)
+                                            <option value="{{ $locationOption->id }}"
+                                                @selected((int) old('physical_location_id', $document->physical_location_id) === (int) $locationOption->id)>
+                                                {{ $locationOption->full_path }} ({{ $locationOption->code }})
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('physical_location_id')
+                                        <p class="mt-1 text-xs text-rose-600 dark:text-rose-300">{{ $message }}</p>
+                                    @enderror
+                                </div>
 
-                            <button type="submit"
-                                    class="inline-flex h-10 w-full items-center justify-center rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:from-sky-400 hover:to-indigo-500">
-                                {{ $document->physicalLocation ? 'Mover / actualizar ubicación' : 'Asignar ubicación en archivo' }}
-                            </button>
-                        </form>
+                                <div>
+                                    <label for="archive_note" class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Nota de movimiento (opcional)</label>
+                                    <textarea id="archive_note"
+                                              name="archive_note"
+                                              rows="2"
+                                              class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                              placeholder="Ej. Ingreso a estante B / caja 04">{{ old('archive_note') }}</textarea>
+                                </div>
+
+                                <button type="submit"
+                                        class="inline-flex h-10 w-full items-center justify-center rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:from-sky-400 hover:to-indigo-500">
+                                    {{ $document->physicalLocation ? 'Mover / actualizar ubicación' : 'Asignar ubicación en archivo' }}
+                                </button>
+                            </form>
+                        @endif
 
                         @if(($documentLocationHistory ?? collect())->isNotEmpty())
                             <div class="space-y-2">
@@ -313,7 +359,8 @@
                             @foreach($document->receipts as $receipt)
                                 <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/40">
                                     <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ $receipt->receipt_number }}</p>
-                                    <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{{ $receipt->recipient_name }} • {{ $receipt->recipient_email }}</p>
+                                    <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Radicado por {{ $receipt->recipient_name }}</p>
+                                    <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{{ $receipt->recipient_email }} • {{ $receipt->company?->name ?? config('app.name') }}</p>
                                     <a href="{{ route('receipts.show', $receipt) }}" class="mt-2 inline-flex text-xs font-medium text-sky-700 hover:text-sky-800 dark:text-sky-300">Ver recibido</a>
                                 </div>
                             @endforeach
@@ -756,19 +803,19 @@
                                                 <option value="close">Cerrar</option>
                                             </select>
                                             <div class="rounded-lg border border-slate-300 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                                                <div class="flex flex-wrap gap-1 border-b border-slate-200 p-2 dark:border-slate-700">
-                                                    <button type="button" @click="apply('bold')" class="rounded border border-slate-200 px-2 py-1 text-xs dark:border-slate-600">B</button>
-                                                    <button type="button" @click="apply('italic')" class="rounded border border-slate-200 px-2 py-1 text-xs italic dark:border-slate-600">I</button>
-                                                    <button type="button" @click="apply('underline')" class="rounded border border-slate-200 px-2 py-1 text-xs underline dark:border-slate-600">U</button>
-                                                    <button type="button" @click="apply('justifyLeft')" class="rounded border border-slate-200 px-2 py-1 text-xs dark:border-slate-600">Izq</button>
-                                                    <button type="button" @click="apply('justifyCenter')" class="rounded border border-slate-200 px-2 py-1 text-xs dark:border-slate-600">Centro</button>
-                                                    <button type="button" @click="apply('insertUnorderedList')" class="rounded border border-slate-200 px-2 py-1 text-xs dark:border-slate-600">Lista</button>
-                                                    <button type="button" @click="applyLink()" class="rounded border border-slate-200 px-2 py-1 text-xs dark:border-slate-600">Enlace</button>
+                                                <div class="distribution-editor-toolbar flex flex-wrap gap-1 border-b border-slate-200 bg-slate-50/70 p-2 dark:border-slate-700 dark:bg-slate-900/80">
+                                                    <button type="button" @click="apply('bold')" class="distribution-editor-button rounded border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">B</button>
+                                                    <button type="button" @click="apply('italic')" class="distribution-editor-button rounded border border-slate-200 bg-white px-2 py-1 text-xs italic text-slate-700 shadow-sm hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">I</button>
+                                                    <button type="button" @click="apply('underline')" class="distribution-editor-button rounded border border-slate-200 bg-white px-2 py-1 text-xs underline text-slate-700 shadow-sm hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">U</button>
+                                                    <button type="button" @click="apply('justifyLeft')" class="distribution-editor-button rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 shadow-sm hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Izq</button>
+                                                    <button type="button" @click="apply('justifyCenter')" class="distribution-editor-button rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 shadow-sm hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Centro</button>
+                                                    <button type="button" @click="apply('insertUnorderedList')" class="distribution-editor-button rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 shadow-sm hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Lista</button>
+                                                    <button type="button" @click="applyLink()" class="distribution-editor-button rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 shadow-sm hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Enlace</button>
                                                 </div>
                                                 <div x-ref="editor"
                                                      contenteditable="true"
                                                      @input="htmlNote = $refs.editor.innerHTML; syncNote()"
-                                                     class="min-h-32 w-full rounded-b-lg px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-sky-400/20 dark:text-white"
+                                                     class="distribution-editor-content min-h-32 w-full rounded-b-lg bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-sky-400/20 dark:bg-slate-800 dark:text-white"
                                                      style="white-space: pre-wrap;"
                                                      data-placeholder="Comentario, motivo de rechazo o respuesta (con formato)..."></div>
                                                 <input type="hidden" name="note" x-ref="noteInput" value="">

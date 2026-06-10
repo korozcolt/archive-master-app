@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Enums\DocumentAccessLevel;
 use App\Filament\ResourceAccess;
 use App\Filament\Resources\DocumentaryTypeResource\Pages;
+use App\Models\Department;
 use App\Models\DocumentarySubseries;
 use App\Models\DocumentaryType;
 use Filament\Forms;
@@ -55,10 +56,24 @@ class DocumentaryTypeResource extends Resource
                             ->preload()
                             ->required()
                             ->live(),
+                        Forms\Components\Select::make('department_id')
+                            ->label('Dependencia / oficina productora')
+                            ->options(fn (Forms\Get $get): array => Department::query()
+                                ->where('company_id', $get('company_id') ?: Auth::user()?->company_id)
+                                ->orderBy('name')
+                                ->pluck('name', 'id')
+                                ->all())
+                            ->searchable()
+                            ->preload()
+                            ->placeholder('General para toda la empresa')
+                            ->live()
+                            ->afterStateUpdated(fn (Forms\Set $set) => $set('documentary_subseries_id', null)),
                         Forms\Components\Select::make('documentary_subseries_id')
                             ->label('Subserie')
                             ->options(fn (Forms\Get $get): array => DocumentarySubseries::query()
                                 ->where('company_id', $get('company_id') ?: Auth::user()?->company_id)
+                                ->when($get('department_id'), fn (Builder $query, $departmentId) => $query->where('department_id', $departmentId))
+                                ->when(blank($get('department_id')), fn (Builder $query) => $query->whereNull('department_id'))
                                 ->orderBy('code')
                                 ->pluck('name', 'id')
                                 ->all())
@@ -97,6 +112,11 @@ class DocumentaryTypeResource extends Resource
                     ->label('Empresa')
                     ->searchable()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('department.name')
+                    ->label('Dependencia')
+                    ->searchable()
+                    ->sortable()
+                    ->placeholder('General'),
                 Tables\Columns\TextColumn::make('subseries.series.code')
                     ->label('Serie')
                     ->sortable(),
@@ -123,6 +143,11 @@ class DocumentaryTypeResource extends Resource
                 Tables\Filters\SelectFilter::make('company')
                     ->label('Empresa')
                     ->relationship('company', 'name')
+                    ->searchable()
+                    ->preload(),
+                Tables\Filters\SelectFilter::make('department')
+                    ->label('Dependencia')
+                    ->relationship('department', 'name')
                     ->searchable()
                     ->preload(),
                 Tables\Filters\SelectFilter::make('subseries')
@@ -152,7 +177,7 @@ class DocumentaryTypeResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery()->with(['company', 'subseries.series']);
+        $query = parent::getEloquentQuery()->with(['company', 'department', 'subseries.series']);
         $user = Auth::user();
 
         if ($user && ! $user->hasRole('super_admin') && $user->company_id) {

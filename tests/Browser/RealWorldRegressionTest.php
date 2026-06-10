@@ -239,12 +239,15 @@ class RealWorldRegressionTest extends DuskTestCase
             );
 
             $browser->waitForLocation('/documents/'.$createdDocument->id);
+            $browser->refresh();
 
             $archiveDocumentSource = $browser->driver->getPageSource();
 
             $this->assertStringContainsString($documentTitle, $archiveDocumentSource);
             $this->assertStringContainsString($location->full_path, $archiveDocumentSource);
             $this->assertStringContainsString('Archivo físico', $archiveDocumentSource);
+            $this->assertStringContainsString('Editar ubicación', $archiveDocumentSource);
+            $browser->assertMissing('#physical_location_id');
         });
 
         $this->browse(function (Browser $browser) use ($regularUser, $receipt, $createdDocument, $documentTitle) {
@@ -359,11 +362,14 @@ class RealWorldRegressionTest extends DuskTestCase
             );
 
             $browser->waitForLocation('/documents/'.$archiveDocument->id);
+            $browser->refresh();
 
             $archiveDocumentSource = $browser->driver->getPageSource();
 
             $this->assertStringContainsString($location->full_path, $archiveDocumentSource);
             $this->assertStringContainsString('Archivo físico', $archiveDocumentSource);
+            $this->assertStringContainsString('Editar ubicación', $archiveDocumentSource);
+            $browser->assertMissing('#physical_location_id');
         });
 
         $this->browse(function (Browser $browser) use ($regularUser, $receipt, $receiptDocument) {
@@ -534,8 +540,13 @@ class RealWorldRegressionTest extends DuskTestCase
 
             $browser
                 ->waitForLocation('/documents/'.$document->id)
-                ->assertPresent('#physical_location_id')
-                ->assertSee($location->full_path);
+                ->refresh()
+                ->assertMissing('#physical_location_id');
+
+            $updatedPageSource = $browser->driver->getPageSource();
+
+            $this->assertStringContainsString('Editar ubicación', $updatedPageSource);
+            $this->assertStringContainsString($location->full_path, $updatedPageSource);
         });
 
         $document->refresh();

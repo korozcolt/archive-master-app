@@ -98,6 +98,10 @@ Route::middleware(['auth'])->group(function () {
         ->name('documents.upload-drafts.save');
     Route::delete('/documents/upload-drafts/{draft}/items/{item}', [App\Http\Controllers\UserDocumentController::class, 'deleteUploadDraftItem'])
         ->name('documents.upload-drafts.items.destroy');
+    Route::get('/documents/historical/create', [App\Http\Controllers\UserDocumentController::class, 'createHistorical'])
+        ->name('documents.historical.create');
+    Route::post('/documents/historical', [App\Http\Controllers\UserDocumentController::class, 'storeHistorical'])
+        ->name('documents.historical.store');
     Route::post('/documents/{document}/distributions', [App\Http\Controllers\UserDocumentController::class, 'sendToDepartments'])
         ->name('documents.distributions.store');
     Route::post('/documents/{document}/distribution-targets/{target}', [App\Http\Controllers\UserDocumentController::class, 'updateDistributionTarget'])
@@ -178,6 +182,18 @@ if (! function_exists('authorizeDocumentAccess')) {
 if (! function_exists('canDownloadDocument')) {
     function canDownloadDocument($user, $document): bool
     {
+        if (method_exists($document, 'isHistoricalEntry') && $document->isHistoricalEntry()) {
+            if ($user->hasAnyRole(['super_admin', 'admin', 'branch_admin', 'archive_manager'])) {
+                return true;
+            }
+
+            if ($user->hasRole('regular_user')) {
+                return false;
+            }
+
+            return in_array($document->access_level?->value, ['publico', 'interno'], true);
+        }
+
         if ($user->hasRole(['admin'])) {
             return true;
         }
@@ -187,10 +203,17 @@ if (! function_exists('canDownloadDocument')) {
         }
 
         if ($user->hasRole('office_manager')) {
-            return $document->department_id === $user->department_id;
+            return $document->department_id === $user->department_id
+                || ($user->department_id && $document->distributions()
+                    ->whereHas('targets', fn ($query) => $query->where('department_id', $user->department_id))
+                    ->exists());
         }
 
         if ($user->hasRole('archive_manager')) {
+            return true;
+        }
+
+        if ($user->hasRole('receptionist') && $document->receipts()->exists()) {
             return true;
         }
 
@@ -266,6 +289,7 @@ Route::middleware(['auth'])->prefix('stickers')->name('stickers.')->group(functi
     Route::prefix('documents')->name('documents.')->group(function () {
         Route::get('/{document}/preview', [App\Http\Controllers\StickerController::class, 'previewDocument'])->name('preview');
         Route::get('/{document}/download', [App\Http\Controllers\StickerController::class, 'downloadDocument'])->name('download');
+        Route::get('/{document}/print', [App\Http\Controllers\StickerController::class, 'printDocument'])->name('print');
         Route::get('/{document}/configure', [App\Http\Controllers\StickerController::class, 'configure'])->name('configure');
         Route::post('/batch/download', [App\Http\Controllers\StickerController::class, 'downloadBatchDocuments'])->name('batch.download');
     });
@@ -274,6 +298,7 @@ Route::middleware(['auth'])->prefix('stickers')->name('stickers.')->group(functi
     Route::prefix('locations')->name('locations.')->group(function () {
         Route::get('/{location}/preview', [App\Http\Controllers\StickerController::class, 'previewLocation'])->name('preview');
         Route::get('/{location}/download', [App\Http\Controllers\StickerController::class, 'downloadLocation'])->name('download');
+        Route::get('/{location}/print', [App\Http\Controllers\StickerController::class, 'printLocation'])->name('print');
         Route::get('/{location}/configure', [App\Http\Controllers\StickerController::class, 'configureLocation'])->name('configure');
         Route::post('/batch/download', [App\Http\Controllers\StickerController::class, 'downloadBatchLocations'])->name('batch.download');
     });

@@ -15,6 +15,7 @@ class UserResourceTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected Company $company;
 
     protected function setUp(): void
@@ -93,12 +94,15 @@ class UserResourceTest extends TestCase
     {
         $this->actingAs($this->admin);
 
+        Role::create(['name' => 'admin']);
+
         $newData = [
             'name' => 'Nuevo Usuario Test',
             'email' => 'nuevo@usuario.com',
             'company_id' => $this->company->id,
             'password' => 'password123',
             'password_confirmation' => 'password123',
+            'roles' => ['admin'],
             'is_active' => true,
             'language' => 'es',
             'timezone' => 'America/Bogota',
@@ -114,6 +118,10 @@ class UserResourceTest extends TestCase
             'email' => 'nuevo@usuario.com',
             'name' => 'Nuevo Usuario Test',
         ]);
+
+        $createdUser = User::where('email', 'nuevo@usuario.com')->firstOrFail();
+
+        $this->assertTrue($createdUser->hasRole('admin'));
     }
 
     /** @test */
@@ -180,11 +188,14 @@ class UserResourceTest extends TestCase
     {
         $this->actingAs($this->admin);
 
+        Role::create(['name' => 'admin']);
+
         Livewire::test(UserResource\Pages\CreateUser::class)
             ->fill(['data' => [
                 'name' => 'Test User',
                 'email' => 'test@user.com',
                 'company_id' => $this->company->id,
+                'roles' => ['admin'],
                 'password' => null,
             ]])
             ->call('create')
@@ -192,15 +203,38 @@ class UserResourceTest extends TestCase
     }
 
     /** @test */
+    public function user_role_is_required_on_create()
+    {
+        $this->actingAs($this->admin);
+
+        Role::create(['name' => 'admin']);
+
+        Livewire::test(UserResource\Pages\CreateUser::class)
+            ->fill(['data' => [
+                'name' => 'Test User',
+                'email' => 'test-role@user.com',
+                'company_id' => $this->company->id,
+                'password' => 'password123',
+                'password_confirmation' => 'password123',
+                'roles' => [],
+            ]])
+            ->call('create')
+            ->assertHasFormErrors(['roles']);
+    }
+
+    /** @test */
     public function super_admin_can_edit_user()
     {
         $this->actingAs($this->admin);
+
+        $adminRole = Role::create(['name' => 'admin']);
 
         $user = User::factory()->create([
             'company_id' => $this->company->id,
             'name' => 'Usuario Original',
             'email' => 'original@test.com',
         ]);
+        $user->assignRole($adminRole);
 
         Livewire::test(UserResource\Pages\EditUser::class, [
             'record' => $user->id,
@@ -215,14 +249,43 @@ class UserResourceTest extends TestCase
     }
 
     /** @test */
+    public function editing_user_syncs_selected_roles()
+    {
+        $this->actingAs($this->admin);
+
+        $adminRole = Role::create(['name' => 'admin']);
+        $archiveRole = Role::create(['name' => 'archive_manager']);
+
+        $user = User::factory()->create([
+            'company_id' => $this->company->id,
+        ]);
+        $user->assignRole($adminRole);
+
+        Livewire::test(UserResource\Pages\EditUser::class, [
+            'record' => $user->id,
+        ])
+            ->set('data.roles', ['archive_manager'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $user->refresh();
+
+        $this->assertTrue($user->hasRole('archive_manager'));
+        $this->assertFalse($user->hasRole('admin'));
+    }
+
+    /** @test */
     public function can_deactivate_user()
     {
         $this->actingAs($this->admin);
+
+        $adminRole = Role::create(['name' => 'admin']);
 
         $user = User::factory()->create([
             'company_id' => $this->company->id,
             'is_active' => true,
         ]);
+        $user->assignRole($adminRole);
 
         Livewire::test(UserResource\Pages\EditUser::class, [
             'record' => $user->id,

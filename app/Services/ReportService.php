@@ -2,19 +2,24 @@
 
 namespace App\Services;
 
+use App\Contracts\PdfRenderer;
 use App\Enums\SlaStatus;
 use App\Exports\DocumentsExport;
 use App\Models\Department;
 use App\Models\Document;
 use App\Models\User;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\Response;
 
 class ReportService
 {
+    public function __construct(
+        protected PdfRenderer $pdfRenderer,
+    ) {}
+
     /**
      * Generate documents by status report
      */
@@ -123,16 +128,20 @@ class ReportService
     /**
      * Generate PDF report
      */
-    public function generatePDF(string $reportType, array $data, array $filters = []): \Illuminate\Http\Response
+    public function generatePDF(string $reportType, Collection|array $data, array $filters = []): Response
     {
-        $pdf = Pdf::loadView("reports.{$reportType}", [
+        return $this->pdfRenderer->downloadView("reports.{$reportType}", [
             'data' => $data,
             'filters' => $filters,
             'generated_at' => now(),
             'title' => $this->getReportTitle($reportType),
+        ], "{$reportType}_".now()->format('Y-m-d_H-i-s').'.pdf', [
+            'paper' => config('reports.pdf.paper', 'A4'),
+            'orientation' => config('reports.pdf.orientation', 'portrait'),
+            'driver' => config('reports.pdf.pdf_studio.driver', 'dompdf'),
+            'cache_enabled' => (bool) config('reports.pdf.pdf_studio.cache_enabled', false),
+            'cache_ttl' => (int) config('reports.pdf.pdf_studio.cache_ttl', 1800),
         ]);
-
-        return $pdf->download("{$reportType}_".now()->format('Y-m-d_H-i-s').'.pdf');
     }
 
     /**

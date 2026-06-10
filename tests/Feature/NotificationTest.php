@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
 use App\Models\Company;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Str;
@@ -14,6 +14,7 @@ class NotificationTest extends TestCase
     use RefreshDatabase;
 
     protected $user;
+
     protected $company;
 
     protected function setUp(): void
@@ -73,6 +74,20 @@ class NotificationTest extends TestCase
             ->post("/notifications/{$notification->id}/read");
 
         $response->assertRedirect();
+
+        $notification->refresh();
+        $this->assertNotNull($notification->read_at);
+    }
+
+    public function test_user_can_mark_notification_as_read_via_json()
+    {
+        $notification = $this->user->unreadNotifications()->first();
+
+        $response = $this->actingAs($this->user)
+            ->postJson("/notifications/{$notification->id}/read");
+
+        $response->assertSuccessful()
+            ->assertJsonPath('success', true);
 
         $notification->refresh();
         $this->assertNotNull($notification->read_at);
@@ -148,8 +163,8 @@ class NotificationTest extends TestCase
                 'type' => 'App\Notifications\DocumentDueSoon',
                 'data' => [
                     'type' => 'test',
-                    'title' => 'Notificación ' . $i,
-                    'message' => 'Mensaje ' . $i,
+                    'title' => 'Notificación '.$i,
+                    'message' => 'Mensaje '.$i,
                 ],
             ]);
         }

@@ -2,10 +2,12 @@
 
 use App\Enums\SlaStatus;
 use App\Models\Company;
+use App\Models\Department;
 use App\Models\Document;
 use App\Models\DocumentarySeries;
 use App\Models\DocumentarySubseries;
 use App\Models\DocumentaryType;
+use App\Models\RetentionSchedule;
 use App\Models\Status;
 use App\Models\User;
 use Database\Seeders\ColombiaDocumentGovernanceSeeder;
@@ -105,4 +107,90 @@ it('builds archival classification and retention defaults from trd tvd catalog',
     expect($document->retention_management_years)->toBe(2);
     expect($document->retention_central_years)->toBe(8);
     expect($document->access_level?->value)->toBe('reservado');
+});
+
+it('prefers department retention rules when the trd belongs to a specific office', function () {
+    $company = Company::factory()->create();
+    $department = Department::factory()->create([
+        'company_id' => $company->id,
+    ]);
+    $user = User::factory()->create([
+        'company_id' => $company->id,
+        'department_id' => $department->id,
+    ]);
+    $status = Status::factory()->create(['company_id' => $company->id]);
+
+    $this->seed(ColombiaDocumentGovernanceSeeder::class);
+
+    $series = DocumentarySeries::query()->create([
+        'company_id' => $company->id,
+        'department_id' => $department->id,
+        'code' => 'SG',
+        'name' => 'Secretaría General',
+        'is_active' => true,
+    ]);
+
+    $subseries = DocumentarySubseries::query()->create([
+        'company_id' => $company->id,
+        'department_id' => $department->id,
+        'documentary_series_id' => $series->id,
+        'code' => '110-13-01',
+        'name' => 'Derechos de petición',
+        'is_active' => true,
+    ]);
+
+    $type = DocumentaryType::query()->create([
+        'company_id' => $company->id,
+        'department_id' => $department->id,
+        'documentary_subseries_id' => $subseries->id,
+        'code' => 'RESP',
+        'name' => 'Respuesta',
+        'access_level_default' => 'interno',
+        'is_active' => true,
+    ]);
+
+    RetentionSchedule::query()->create([
+        'company_id' => $company->id,
+        'department_id' => null,
+        'documentary_subseries_id' => $subseries->id,
+        'documentary_type_id' => $type->id,
+        'archive_phase' => 'gestion',
+        'management_years' => 1,
+        'central_years' => 2,
+        'historical_action' => 'Regla global',
+        'final_disposition' => 'eliminacion',
+        'is_active' => true,
+    ]);
+
+    RetentionSchedule::query()->create([
+        'company_id' => $company->id,
+        'department_id' => $department->id,
+        'documentary_subseries_id' => $subseries->id,
+        'documentary_type_id' => $type->id,
+        'archive_phase' => 'gestion',
+        'management_years' => 2,
+        'central_years' => 10,
+        'historical_action' => 'Regla por dependencia',
+        'final_disposition' => 'conservacion_total',
+        'is_active' => true,
+    ]);
+
+    $document = Document::factory()->create([
+        'company_id' => $company->id,
+        'department_id' => $department->id,
+        'status_id' => $status->id,
+        'created_by' => $user->id,
+        'assigned_to' => $user->id,
+        'trd_series_id' => $series->id,
+        'trd_subseries_id' => $subseries->id,
+        'documentary_type_id' => $type->id,
+        'is_archived' => true,
+    ]);
+
+    $document->refresh();
+
+    expect($document->retention_management_years)->toBe(2)
+        ->and($document->retention_central_years)->toBe(10)
+        ->and($document->retention_historical_action)->toBe('Regla por dependencia')
+        ->and($document->final_disposition?->value)->toBe('conservacion_total');
 });

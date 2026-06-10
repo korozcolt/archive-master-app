@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Storage;
 
 class OCRService
 {
+    protected float $startedAt;
+
     /**
      * Formatos de archivo soportados para OCR
      */
@@ -24,6 +26,11 @@ class OCRService
         'ita' => 'Italiano',
         'por' => 'Português',
     ];
+
+    public function __construct()
+    {
+        $this->startedAt = microtime(true);
+    }
 
     /**
      * Procesar archivo con OCR
@@ -62,7 +69,7 @@ class OCRService
                 'extracted_text' => $processedText,
                 'metadata' => $metadata,
                 'language' => $language,
-                'processing_time' => microtime(true) - LARAVEL_START,
+                'processing_time' => microtime(true) - $this->startedAt,
                 'confidence' => $this->calculateConfidence($processedText),
             ];
 
