@@ -139,7 +139,17 @@ class UserResource extends Resource
                                     ->label('Roles')
                                     ->multiple()
                                     ->options(fn () => static::getAssignableRoleOptions())
-                                    ->searchable(),
+                                    ->required()
+                                    ->minItems(1)
+                                    ->searchable()
+                                    ->dehydrated(false)
+                                    ->afterStateHydrated(function (Forms\Components\Select $component, ?User $record): void {
+                                        if (! $record) {
+                                            return;
+                                        }
+
+                                        $component->state($record->roles()->pluck('name')->all());
+                                    }),
                             ])
                             ->columns(2),
                     ])
