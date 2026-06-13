@@ -10,7 +10,7 @@ QUEUE_WORKER_QUEUES="${QUEUE_WORKER_QUEUES:-document-processing,notifications,de
 
 QUEUE_WORKER_CMD="${QUEUE_WORKER_CMD:-php artisan queue:work --sleep=1 --tries=3 --timeout=120 --queue=${QUEUE_WORKER_QUEUES}}"
 REVERB_CMD="${REVERB_CMD:-php artisan reverb:start --host=0.0.0.0 --port=${REVERB_SERVER_PORT:-8080}}"
-PHP_FPM_CMD="${PHP_FPM_CMD:-php-fpm -y /assets/php-fpm.conf}"
+PHP_FPM_CMD="${PHP_FPM_CMD:-php-fpm -F -y /assets/php-fpm.conf}"
 NGINX_CMD="${NGINX_CMD:-nginx -c /nginx.conf}"
 
 queue_pid=""
