@@ -23,50 +23,67 @@
     <div class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-duration-300 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-sky-600 dark:text-sky-400">Portal Operativo</p>
-                <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Resumen personal de documentos</h1>
-                <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">Visión rápida de tus documentos, estados y actividad reciente.</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.16em] {{ $isArchivePortal ? 'text-amber-600 dark:text-amber-300' : 'text-sky-600 dark:text-sky-400' }}">
+                    {{ $isArchivePortal ? 'Archivo Central' : 'Portal Operativo' }}
+                </p>
+                <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
+                    {{ $isArchivePortal ? 'Control de archivo histórico' : 'Resumen personal de documentos' }}
+                </h1>
+                <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                    {{ $isArchivePortal
+                        ? 'Carga histórica, custodia física y consulta interna desde una sola bandeja.'
+                        : 'Visión rápida de tus documentos, estados y actividad reciente.' }}
+                </p>
             </div>
-            <a href="{{ route('documents.create') }}" class="inline-flex h-11 items-center justify-center rounded-xl border border-sky-300/30 bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-900/20 transition hover:from-sky-400 hover:to-indigo-500 motion-safe:hover:animate-jump motion-safe:hover:animate-duration-200 am-motion-safe">
-                Nuevo Documento
-            </a>
+            <div class="flex flex-wrap gap-3">
+                <a href="{{ $isArchivePortal ? route('documents.historical.create') : route('documents.create') }}"
+                   class="inline-flex h-11 items-center justify-center rounded-xl border px-4 text-sm font-semibold text-white shadow-lg transition motion-safe:hover:animate-jump motion-safe:hover:animate-duration-200 am-motion-safe {{ $isArchivePortal ? 'border-amber-300/20 bg-gradient-to-r from-amber-500 to-orange-600 shadow-orange-900/20 hover:from-amber-400 hover:to-orange-500' : 'border-sky-300/30 bg-gradient-to-r from-sky-500 to-indigo-600 shadow-indigo-900/20 hover:from-sky-400 hover:to-indigo-500' }}">
+                    {{ $isArchivePortal ? 'Carga histórica' : 'Nuevo Documento' }}
+                </a>
+                @if($isArchivePortal)
+                    <a href="{{ route('documents.index', ['archive_phase' => \App\Enums\ArchivePhase::Central->value]) }}"
+                       class="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                        Ver archivo central
+                    </a>
+                @endif
+            </div>
         </div>
     </div>
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div class="rounded-2xl border border-white/70 bg-white p-4 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-100 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Total</p>
-            <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ $summary['total'] }}</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{{ $isArchivePortal ? 'Históricos' : 'Total' }}</p>
+            <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ $isArchivePortal ? $archiveSummary['historical_total'] : $summary['total'] }}</p>
         </div>
         <div class="rounded-2xl border border-white/70 bg-white p-4 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-150 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Enviados</p>
-            <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ $summary['sent'] }}</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{{ $isArchivePortal ? 'Sin ubicación' : 'Enviados' }}</p>
+            <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ $isArchivePortal ? $archiveSummary['historical_without_location'] : $summary['sent'] }}</p>
         </div>
         <div class="rounded-2xl border border-white/70 bg-white p-4 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-200 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Recibidos</p>
-            <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ $summary['received'] }}</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{{ $isArchivePortal ? 'Restringidos' : 'Recibidos' }}</p>
+            <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ $isArchivePortal ? $archiveSummary['historical_restricted'] : $summary['received'] }}</p>
         </div>
         <div class="rounded-2xl border border-white/70 bg-white p-4 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-250 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Pendientes</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{{ $isArchivePortal ? 'Pendientes' : 'Pendientes' }}</p>
             <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ $summary['pending'] }}</p>
         </div>
     </div>
 
     <div class="grid grid-cols-1 gap-4 xl:grid-cols-4">
         <div class="rounded-2xl border border-amber-300/30 bg-gradient-to-br from-amber-50 to-white p-4 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-300 dark:border-amber-500/20 dark:from-amber-950/20 dark:to-slate-900 am-motion-safe">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-600 dark:text-amber-300">Por vencer</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-600 dark:text-amber-300">{{ $isArchivePortal ? 'Consulta prioritaria' : 'Por vencer' }}</p>
             <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ $summary['warning'] }}</p>
-            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Documentos con SLA en advertencia.</p>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ $isArchivePortal ? 'Documentos que requieren seguimiento operativo inmediato.' : 'Documentos con SLA en advertencia.' }}</p>
         </div>
         <div class="rounded-2xl border border-rose-300/30 bg-gradient-to-br from-rose-50 to-white p-4 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-350 dark:border-rose-500/20 dark:from-rose-950/20 dark:to-slate-900 am-motion-safe">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-rose-600 dark:text-rose-300">Vencidos</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-rose-600 dark:text-rose-300">{{ $isArchivePortal ? 'Bloqueantes' : 'Vencidos' }}</p>
             <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ $summary['overdue'] }}</p>
-            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Requieren respuesta o escalamiento inmediato.</p>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ $isArchivePortal ? 'Expedientes detenidos o con vencimiento operativo.' : 'Requieren respuesta o escalamiento inmediato.' }}</p>
         </div>
         <div class="rounded-2xl border border-sky-300/30 bg-gradient-to-br from-sky-50 to-white p-4 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-400 dark:border-sky-500/20 dark:from-sky-950/20 dark:to-slate-900 am-motion-safe">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-sky-600 dark:text-sky-300">Listos para archivar</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-sky-600 dark:text-sky-300">{{ $isArchivePortal ? 'Listos para custodiar' : 'Listos para archivar' }}</p>
             <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ $summary['ready_for_archive'] }}</p>
-            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Trámites cerrados pendientes de archivo formal.</p>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ $isArchivePortal ? 'Documentos cerrados listos para consolidar en custodia.' : 'Trámites cerrados pendientes de archivo formal.' }}</p>
         </div>
         <div class="rounded-2xl border border-fuchsia-300/30 bg-gradient-to-br from-fuchsia-50 to-white p-4 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-450 dark:border-fuchsia-500/20 dark:from-fuchsia-950/20 dark:to-slate-900 am-motion-safe">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-fuchsia-600 dark:text-fuchsia-300">Archivo incompleto</p>
@@ -74,6 +91,40 @@
             <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Archivados sin TRD/TVD o sin nivel de acceso.</p>
         </div>
     </div>
+
+    @if($isArchivePortal)
+        <div class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-475 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
+            <div class="flex items-center justify-between border-b border-slate-200/80 px-5 py-4 dark:border-slate-800">
+                <div>
+                    <h2 class="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">Carga histórica reciente</h2>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">Últimos documentos incorporados al archivo central.</p>
+                </div>
+                <a href="{{ route('documents.index', ['archive_phase' => \App\Enums\ArchivePhase::Central->value]) }}" class="inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-medium text-amber-700 transition hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-slate-800">Abrir bandeja</a>
+            </div>
+            <div class="divide-y divide-slate-200 dark:divide-slate-800">
+                @forelse ($archiveSummary['historical_recent'] as $document)
+                    <a href="{{ route('documents.show', $document) }}" class="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                        <div class="min-w-0">
+                            <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ $document->title }}</p>
+                            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                {{ data_get($document->metadata, 'historical.original_department_name', 'Sin productora') }}
+                                ·
+                                {{ data_get($document->metadata, 'historical.reference_code', 'Sin referencia') }}
+                            </p>
+                        </div>
+                        <div class="shrink-0 text-right">
+                            <p class="text-xs font-medium text-slate-600 dark:text-slate-300">{{ $document->created_at?->format('d/m/Y') }}</p>
+                            <p class="mt-1 text-[11px] text-slate-400 dark:text-slate-500">{{ $document->physicalLocation?->code ?? 'Sin ubicación' }}</p>
+                        </div>
+                    </a>
+                @empty
+                    <div class="px-5 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
+                        Todavía no hay carga histórica registrada.
+                    </div>
+                @endforelse
+            </div>
+        </div>
+    @endif
 
     <div class="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-delay-500 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
         <div class="flex items-center justify-between border-b border-slate-200/80 px-5 py-4 dark:border-slate-800">

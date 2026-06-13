@@ -71,10 +71,32 @@ it('shows sla and archive operational trays in the portal dashboard', function (
         ->get('/portal')
         ->assertSuccessful()
         ->assertSee('Atención SLA')
-        ->assertSee('Por vencer')
-        ->assertSee('Vencidos')
-        ->assertSee('Listos para archivar')
+        ->assertSee('Consulta prioritaria')
+        ->assertSee('Bloqueantes')
+        ->assertSee('Listos para custodiar')
         ->assertSee('Archivo incompleto')
         ->assertSee('Documento en advertencia')
         ->assertSee('Documento vencido');
+});
+
+it('shows archive focused actions for archive managers on the portal dashboard', function () {
+    $company = Company::factory()->create();
+    $user = User::factory()->create([
+        'company_id' => $company->id,
+    ]);
+
+    $role = Role::firstOrCreate([
+        'name' => RoleEnum::ArchiveManager->value,
+        'guard_name' => 'web',
+    ]);
+    $user->assignRole($role);
+
+    $this->actingAs($user)
+        ->get('/portal')
+        ->assertSuccessful()
+        ->assertSee('Archivo Central')
+        ->assertSee('Control de archivo histórico')
+        ->assertSee('Carga histórica')
+        ->assertSee('Ver archivo central')
+        ->assertDontSee('Nuevo Documento');
 });

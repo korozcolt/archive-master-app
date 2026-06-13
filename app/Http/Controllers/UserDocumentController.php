@@ -26,6 +26,7 @@ use App\Notifications\DocumentDistributedToOfficeNotification;
 use App\Notifications\DocumentDistributionTargetUpdatedNotification;
 use App\Notifications\ReceiptIssuedNotification;
 use App\Services\DocumentFileService;
+use App\Services\SlaCalculatorService;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -162,6 +163,13 @@ class UserDocumentController extends Controller
     {
         $user = Auth::user();
 
+        if (
+            $user->hasRole(Role::ArchiveManager->value)
+            && ! $user->hasAnyRole(['super_admin', 'admin', 'branch_admin'])
+        ) {
+            return redirect()->route('documents.historical.create');
+        }
+
         // Obtener categorías y estados de la empresa del usuario
         $categories = Category::where('company_id', $user->company_id)->get();
         $statuses = Status::where('company_id', $user->company_id)->get();
@@ -212,12 +220,15 @@ class UserDocumentController extends Controller
             ->where('slug', 'archivado')
             ->first();
 
+        $rememberedPhysicalLocationId = $this->rememberedHistoricalPhysicalLocationId($user);
+
         return view('documents.historical-create', compact(
             'categories',
             'producerDepartments',
             'physicalLocations',
             'defaultStatus',
             'centralArchiveDepartment',
+            'rememberedPhysicalLocationId',
         ));
     }
 
@@ -235,6 +246,8 @@ class UserDocumentController extends Controller
             'physical_location_id' => 'required|integer|exists:physical_locations,id',
             'description' => 'nullable|string',
             'access_level' => 'required|in:publico,interno,reservado,clasificado_confidencial',
+            'digital_document_type' => 'required|in:original,copia',
+            'physical_document_type' => 'required|in:original,copia,no_aplica',
             'date_start' => 'nullable|date',
             'date_end' => 'nullable|date|after_or_equal:date_start',
             'box' => 'nullable|string|max:100',
@@ -275,6 +288,7 @@ class UserDocumentController extends Controller
             $metadata = [
                 'entry_mode' => 'historical',
                 'historical' => array_filter([
+                    'workflow' => 'historical_upload',
                     'custody' => 'archivo_central',
                     'visibility_scope' => 'company_wide_internal',
                     'custody_department_id' => $centralArchiveDepartment->id,
@@ -290,6 +304,8 @@ class UserDocumentController extends Controller
                     'keywords_text' => $validated['keywords'] ?? null,
                     'uploaded_to_central_archive_by' => $user->name,
                     'uploaded_to_central_archive_at' => now()->toISOString(),
+                    'digital_document_type' => $validated['digital_document_type'],
+                    'physical_document_type' => $validated['physical_document_type'],
                 ], fn (mixed $value): bool => $value !== null && $value !== ''),
                 'file_name' => $uploadedFile->getClientOriginalName(),
                 'file_size' => $uploadedFile->getSize(),
@@ -310,22 +326,57 @@ class UserDocumentController extends Controller
                 'priority' => Priority::Medium->value,
                 'file_path' => $filePath,
                 'physical_location_id' => $physicalLocation->id,
-                'digital_document_type' => 'copia',
-                'physical_document_type' => 'original',
+                'digital_document_type' => $validated['digital_document_type'],
+                'physical_document_type' => $validated['physical_document_type'],
                 'is_archived' => true,
                 'archived_at' => now(),
                 'archive_phase' => ArchivePhase::Central->value,
                 'access_level' => $validated['access_level'],
                 'metadata' => $metadata,
             ]));
+
+            app(SlaCalculatorService::class)->freeze($createdDocuments->last(), 'historical_upload');
+            $createdDocuments->last()->saveQuietly();
         }
 
         $count = $createdDocuments->count();
+
+        $this->rememberHistoricalPhysicalLocation($user, $physicalLocation);
 
         return redirect()->route('documents.index', ['archive_phase' => ArchivePhase::Central->value])
             ->with('success', $count === 1
                 ? 'Documento histórico cargado en archivo central.'
                 : "Se cargaron {$count} documentos históricos en archivo central.");
+    }
+
+    protected function rememberedHistoricalPhysicalLocationId(User $user): ?int
+    {
+        $locationId = data_get($user->settings, 'historical_upload.last_physical_location_id');
+
+        if (! is_numeric($locationId)) {
+            return null;
+        }
+
+        return PhysicalLocation::query()
+            ->where('company_id', $user->company_id)
+            ->where('is_active', true)
+            ->whereKey((int) $locationId)
+            ->exists()
+            ? (int) $locationId
+            : null;
+    }
+
+    protected function rememberHistoricalPhysicalLocation(User $user, PhysicalLocation $physicalLocation): void
+    {
+        $settings = (array) ($user->settings ?? []);
+
+        data_set($settings, 'historical_upload.last_physical_location_id', $physicalLocation->id);
+        data_set($settings, 'historical_upload.last_physical_location_code', $physicalLocation->code);
+        data_set($settings, 'historical_upload.last_physical_location_path', $physicalLocation->full_path);
+
+        $user->forceFill([
+            'settings' => $settings,
+        ])->saveQuietly();
     }
 
     /**

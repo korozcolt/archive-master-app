@@ -351,24 +351,101 @@ class Document extends Model
                     });
                 }
 
-                if (! $user->hasRole(Role::RegularUser->value)) {
+                if ($user->hasAnyRole([
+                    Role::OfficeManager->value,
+                    Role::ArchiveManager->value,
+                    Role::Admin->value,
+                    Role::BranchAdmin->value,
+                    Role::SuperAdmin->value,
+                ])) {
                     $builder->orWhere(function (Builder $historicalQuery) use ($user): void {
                         $historicalQuery->where('metadata->entry_mode', 'historical');
 
-                        if (! $user->hasAnyRole([
-                            Role::ArchiveManager->value,
-                            Role::Admin->value,
-                            Role::BranchAdmin->value,
-                            Role::SuperAdmin->value,
-                        ])) {
-                            $historicalQuery->whereIn('access_level', [
-                                DocumentAccessLevel::Publico->value,
-                                DocumentAccessLevel::Interno->value,
-                            ]);
+                        if (! $this->hasHistoricalAccessWithoutRestriction($user)) {
+                            $historicalQuery->whereIn('access_level', $this->historicalPortalAccessLevels($user));
                         }
                     });
                 }
             });
+    }
+
+    public function canBeAccessedByPortalUser(User $user): bool
+    {
+        if ($this->company_id !== $user->company_id) {
+            return false;
+        }
+
+        if ($this->isHistoricalEntry()) {
+            return $this->canBeAccessedAsHistoricalBy($user);
+        }
+
+        if ($user->hasRole(Role::Admin->value)) {
+            return true;
+        }
+
+        if ($user->hasRole(Role::BranchAdmin->value)) {
+            return $this->branch_id === null || $this->branch_id === $user->branch_id;
+        }
+
+        if ($user->hasRole(Role::OfficeManager->value)) {
+            return $this->department_id === $user->department_id
+                || ($user->department_id && $this->distributions()
+                    ->whereHas('targets', fn (Builder $query) => $query->where('department_id', $user->department_id))
+                    ->exists());
+        }
+
+        if ($user->hasRole(Role::ArchiveManager->value)) {
+            return true;
+        }
+
+        if ($user->hasRole(Role::Receptionist->value) && $this->receipts()->exists()) {
+            return true;
+        }
+
+        return $this->created_by === $user->id
+            || $this->assigned_to === $user->id
+            || ($user->hasRole(Role::RegularUser->value) && $this->receipts()
+                ->where('recipient_user_id', $user->id)
+                ->exists());
+    }
+
+    public function canBeAccessedAsHistoricalBy(User $user): bool
+    {
+        if (! $this->isHistoricalEntry() || $this->company_id !== $user->company_id) {
+            return false;
+        }
+
+        if ($this->hasHistoricalAccessWithoutRestriction($user)) {
+            return true;
+        }
+
+        if (! $user->hasRole(Role::OfficeManager->value)) {
+            return false;
+        }
+
+        return in_array($this->access_level?->value, $this->historicalPortalAccessLevels($user), true);
+    }
+
+    protected function historicalPortalAccessLevels(User $user): array
+    {
+        if ($user->hasRole(Role::OfficeManager->value)) {
+            return [
+                DocumentAccessLevel::Publico->value,
+                DocumentAccessLevel::Interno->value,
+            ];
+        }
+
+        return [];
+    }
+
+    protected function hasHistoricalAccessWithoutRestriction(User $user): bool
+    {
+        return $user->hasAnyRole([
+            Role::ArchiveManager->value,
+            Role::Admin->value,
+            Role::BranchAdmin->value,
+            Role::SuperAdmin->value,
+        ]);
     }
 
     public function scopeConfidential($query)

@@ -3,6 +3,8 @@
 use App\Enums\ArchivePhase;
 use App\Enums\DocumentAccessLevel;
 use App\Enums\Role;
+use App\Enums\SlaStatus;
+use App\Jobs\ProcessDocumentOcr;
 use App\Models\Branch;
 use App\Models\Category;
 use App\Models\Company;
@@ -13,6 +15,7 @@ use App\Models\Status;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Role as SpatieRole;
 
@@ -88,6 +91,7 @@ function historicalFlowSetup(): array
 
 it('allows archive manager to upload historical documents directly to central archive', function () {
     Storage::fake('local');
+    Queue::fake();
     $setup = historicalFlowSetup();
 
     $response = $this->actingAs($setup['archiveManager'])
@@ -100,6 +104,8 @@ it('allows archive manager to upload historical documents directly to central ar
             'physical_location_id' => $setup['location']->id,
             'description' => 'Digitalización masiva de archivo histórico.',
             'access_level' => DocumentAccessLevel::Interno->value,
+            'digital_document_type' => 'original',
+            'physical_document_type' => 'copia',
             'date_start' => '1999-01-01',
             'date_end' => '1999-12-31',
             'box' => 'Caja 12',
@@ -119,8 +125,20 @@ it('allows archive manager to upload historical documents directly to central ar
         ->and($document->department_id)->toBe($setup['archiveDepartment']->id)
         ->and($document->assigned_to)->toBeNull()
         ->and($document->status_id)->toBe($setup['archivedStatus']->id)
+        ->and($document->digital_document_type)->toBe('original')
+        ->and($document->physical_document_type)->toBe('copia')
+        ->and($document->sla_status)->toBe(SlaStatus::Frozen)
+        ->and($document->sla_frozen_at)->not->toBeNull()
         ->and(data_get($document->metadata, 'historical.original_department_id'))->toBe($setup['producerDepartment']->id)
-        ->and(data_get($document->metadata, 'historical.reference_code'))->toBe('G100-1999-ACT-01');
+        ->and(data_get($document->metadata, 'historical.reference_code'))->toBe('G100-1999-ACT-01')
+        ->and(data_get($document->metadata, 'historical.workflow'))->toBe('historical_upload')
+        ->and(data_get($document->metadata, 'historical.digital_document_type'))->toBe('original')
+        ->and(data_get($document->metadata, 'historical.physical_document_type'))->toBe('copia');
+
+    expect($document->slaEvents()->where('event_type', 'sla_frozen')->where('metadata->reason', 'historical_upload')->exists())
+        ->toBeTrue();
+
+    Queue::assertNotPushed(ProcessDocumentOcr::class);
 });
 
 it('shows a production-ready historical upload experience for archive users', function () {
@@ -134,10 +152,30 @@ it('shows a production-ready historical upload experience for archive users', fu
         ->assertSee('Buscar ubicación física')
         ->assertSee('Resumen de incorporación')
         ->assertSee('Incorporar al archivo central')
+        ->assertSee('Tipo de documento digital')
+        ->assertSee('Tipo de documento físico')
         ->assertSee('Cambiar selección')
         ->assertSee('Limpiar')
         ->assertSee('sm:flex-row sm:items-center sm:justify-between', false)
         ->assertSee('name="physical_location_id"', false);
+});
+
+it('remembers the last physical location used by the archive manager in the historical form', function () {
+    $setup = historicalFlowSetup();
+
+    $setup['archiveManager']->forceFill([
+        'settings' => [
+            'historical_upload' => [
+                'last_physical_location_id' => $setup['location']->id,
+            ],
+        ],
+    ])->saveQuietly();
+
+    $this->actingAs($setup['archiveManager'])
+        ->get(route('documents.historical.create'))
+        ->assertOk()
+        ->assertSee('Se propone automáticamente la última ubicación usada en tu carga histórica anterior.')
+        ->assertSee('selectedLocationId: '.$setup['location']->id, false);
 });
 
 it('shows internal historical documents to office managers across the company and lets them search by producer', function () {

@@ -63,6 +63,7 @@
         'Dependencia productora original',
         'Ubicación física',
         'Nivel de acceso',
+        'Tipo digital y tipo físico',
     ];
 @endphp
 
@@ -71,7 +72,7 @@
     x-data="{
         dragging: false,
         selectedFiles: [],
-        selectedLocationId: @js(old('physical_location_id')),
+        selectedLocationId: @js(old('physical_location_id', $rememberedPhysicalLocationId)),
         selectedLocation: null,
         locationSearch: '',
         locationOptions: @js($locationOptions),
@@ -385,6 +386,49 @@
                     </p>
 
                     <div class="mt-5 space-y-5">
+                        <div class="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+                            <h3 class="text-sm font-semibold text-white">Tipo documental del lote</h3>
+                            <p class="mt-1 text-xs leading-5 text-slate-400">
+                                Define de forma explícita si el archivo digital es original o copia, y qué sucede con el soporte físico.
+                            </p>
+
+                            <div class="mt-4 grid grid-cols-1 gap-4">
+                                <div>
+                                    <label class="mb-2 block text-sm font-medium text-slate-200">Tipo de documento digital <span class="text-rose-400">*</span></label>
+                                    <div class="grid gap-2 sm:grid-cols-2">
+                                        @foreach (['original' => 'Original digital', 'copia' => 'Copia digital'] as $value => $label)
+                                            <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-100 transition hover:border-amber-400/40 hover:bg-slate-700">
+                                                <input type="radio" name="digital_document_type" value="{{ $value }}" @checked(old('digital_document_type') === $value) class="h-4 w-4 border-slate-500 bg-slate-900 text-amber-500 focus:ring-amber-400/30">
+                                                <span>{{ $label }}</span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                    @error('digital_document_type')
+                                        <p class="mt-1.5 text-sm text-rose-600 dark:text-rose-300">{{ $message }}</p>
+                                    @enderror
+                                </div>
+
+                                <div>
+                                    <label class="mb-2 block text-sm font-medium text-slate-200">Tipo de documento físico <span class="text-rose-400">*</span></label>
+                                    <div class="grid gap-2">
+                                        @foreach ([
+                                            'original' => 'Existe físico original',
+                                            'copia' => 'Existe físico copia',
+                                            'no_aplica' => 'No aplica / no existe soporte físico',
+                                        ] as $value => $label)
+                                            <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-100 transition hover:border-amber-400/40 hover:bg-slate-700">
+                                                <input type="radio" name="physical_document_type" value="{{ $value }}" @checked(old('physical_document_type') === $value) class="h-4 w-4 border-slate-500 bg-slate-900 text-amber-500 focus:ring-amber-400/30">
+                                                <span>{{ $label }}</span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                    @error('physical_document_type')
+                                        <p class="mt-1.5 text-sm text-rose-600 dark:text-rose-300">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
                         <div>
                             <label for="location_search" class="mb-1.5 block text-sm font-medium text-slate-200">Buscar ubicación física <span class="text-rose-400">*</span></label>
                             <input
@@ -397,6 +441,11 @@
                             <p class="mt-1.5 text-xs text-slate-400">
                                 Busca y elige una ubicación. Si te equivocas, puedes cambiarla o limpiarla antes de guardar.
                             </p>
+                            @if($rememberedPhysicalLocationId)
+                                <p class="mt-1.5 text-xs text-amber-200/90">
+                                    Se propone automáticamente la última ubicación usada en tu carga histórica anterior.
+                                </p>
+                            @endif
 
                             <select name="physical_location_id" x-model="selectedLocationId" @change="syncSelectedLocation()" class="sr-only">
                                 <option value="">Seleccionar ubicación</option>
