@@ -4,6 +4,7 @@ set -euo pipefail
 
 cd /app
 
+RUNTIME_ROLE="${RUNTIME_ROLE:-all}"
 RUN_QUEUE_WORKER="${RUN_QUEUE_WORKER:-1}"
 RUN_REVERB="${RUN_REVERB:-1}"
 RUN_SCHEDULER="${RUN_SCHEDULER:-1}"
@@ -21,6 +22,15 @@ scheduler_pid=""
 php_fpm_pid=""
 nginx_pid=""
 stopping="0"
+started_services=0
+
+should_run_web() {
+  [ "$RUNTIME_ROLE" = "all" ] || [ "$RUNTIME_ROLE" = "web" ]
+}
+
+should_run_background() {
+  [ "$RUNTIME_ROLE" = "all" ] || [ "$RUNTIME_ROLE" = "worker" ]
+}
 
 start_service() {
   local service="$1"
@@ -29,6 +39,7 @@ start_service() {
   echo "[runtime] starting ${service}: ${cmd}"
   bash -lc "$cmd" &
   local pid=$!
+  started_services=$((started_services + 1))
 
   case "$service" in
     queue)
@@ -76,21 +87,37 @@ stop_all() {
   wait || true
 }
 
+case "$RUNTIME_ROLE" in
+  all|web|worker)
+    ;;
+  *)
+    echo "[runtime] unsupported RUNTIME_ROLE=${RUNTIME_ROLE}. Use all, web, or worker."
+    exit 1
+    ;;
+esac
+
 trap stop_all TERM INT
 
-start_service "php-fpm" "$PHP_FPM_CMD"
-start_service "nginx" "$NGINX_CMD"
+if should_run_web; then
+  start_service "php-fpm" "$PHP_FPM_CMD"
+  start_service "nginx" "$NGINX_CMD"
+fi
 
-if [ "$RUN_QUEUE_WORKER" = "1" ]; then
+if should_run_background && [ "$RUN_QUEUE_WORKER" = "1" ]; then
   start_service "queue" "$QUEUE_WORKER_CMD"
 fi
 
-if [ "$RUN_REVERB" = "1" ]; then
+if should_run_background && [ "$RUN_REVERB" = "1" ]; then
   start_service "reverb" "$REVERB_CMD"
 fi
 
-if [ "$RUN_SCHEDULER" = "1" ]; then
+if should_run_background && [ "$RUN_SCHEDULER" = "1" ]; then
   start_service "scheduler" "$SCHEDULER_CMD"
+fi
+
+if [ "$started_services" -eq 0 ]; then
+  echo "[runtime] no services enabled for RUNTIME_ROLE=${RUNTIME_ROLE}."
+  exit 1
 fi
 
 while [ "$stopping" = "0" ]; do
@@ -108,27 +135,27 @@ while [ "$stopping" = "0" ]; do
     continue
   fi
 
-  if ! is_running "$php_fpm_pid"; then
+  if should_run_web && ! is_running "$php_fpm_pid"; then
     echo "[runtime] php-fpm exited. Restarting..."
     start_service "php-fpm" "$PHP_FPM_CMD"
   fi
 
-  if ! is_running "$nginx_pid"; then
+  if should_run_web && ! is_running "$nginx_pid"; then
     echo "[runtime] nginx exited. Restarting..."
     start_service "nginx" "$NGINX_CMD"
   fi
 
-  if [ "$RUN_QUEUE_WORKER" = "1" ] && ! is_running "$queue_pid"; then
+  if should_run_background && [ "$RUN_QUEUE_WORKER" = "1" ] && ! is_running "$queue_pid"; then
     echo "[runtime] queue worker exited. Restarting..."
     start_service "queue" "$QUEUE_WORKER_CMD"
   fi
 
-  if [ "$RUN_REVERB" = "1" ] && ! is_running "$reverb_pid"; then
+  if should_run_background && [ "$RUN_REVERB" = "1" ] && ! is_running "$reverb_pid"; then
     echo "[runtime] reverb exited. Restarting..."
     start_service "reverb" "$REVERB_CMD"
   fi
 
-  if [ "$RUN_SCHEDULER" = "1" ] && ! is_running "$scheduler_pid"; then
+  if should_run_background && [ "$RUN_SCHEDULER" = "1" ] && ! is_running "$scheduler_pid"; then
     echo "[runtime] scheduler exited. Restarting..."
     start_service "scheduler" "$SCHEDULER_CMD"
   fi

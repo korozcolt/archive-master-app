@@ -6,6 +6,11 @@ cd /app
 
 echo "[deploy-bootstrap] Starting deploy bootstrap..."
 
+if [ "${RUN_DEPLOY_BOOTSTRAP:-1}" != "1" ]; then
+  echo "[deploy-bootstrap] RUN_DEPLOY_BOOTSTRAP disabled. Skipping bootstrap."
+  exit 0
+fi
+
 if [ ! -f artisan ]; then
   echo "[deploy-bootstrap] artisan not found in /app. Skipping bootstrap."
   exit 0
