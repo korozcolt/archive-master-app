@@ -40,19 +40,20 @@ Route::middleware(['auth', RedirectBasedOnRole::class])
         Route::get('/reports', PortalReports::class)->name('reports');
     });
 
-// Debug route for testing
-Route::get('/debug-user', function () {
-    $user = Auth::user();
+if (app()->environment('local', 'testing')) {
+    Route::get('/debug-user', function () {
+        $user = Auth::user();
 
-    return response()->json([
-        'id' => $user->id,
-        'email' => $user->email,
-        'roles' => $user->roles->pluck('name'),
-        'has_admin' => $user->hasRole('admin'),
-        'has_regular_user' => $user->hasRole('regular_user'),
-        'has_any_admin' => $user->hasAnyRole(['admin', 'super_admin', 'branch_admin', 'office_manager']),
-    ]);
-})->middleware(['auth']);
+        return response()->json([
+            'id' => $user->id,
+            'email' => $user->email,
+            'roles' => $user->roles->pluck('name'),
+            'has_admin' => $user->hasRole('admin'),
+            'has_regular_user' => $user->hasRole('regular_user'),
+            'has_any_admin' => $user->hasAnyRole(['admin', 'super_admin', 'branch_admin', 'office_manager']),
+        ]);
+    })->middleware(['auth']);
+}
 
 // Ruta de logout
 Route::post('/logout', function () {

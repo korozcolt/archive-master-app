@@ -6,15 +6,18 @@ cd /app
 
 RUN_QUEUE_WORKER="${RUN_QUEUE_WORKER:-1}"
 RUN_REVERB="${RUN_REVERB:-1}"
+RUN_SCHEDULER="${RUN_SCHEDULER:-1}"
 QUEUE_WORKER_QUEUES="${QUEUE_WORKER_QUEUES:-document-processing,notifications,default,ai-processing}"
 
 QUEUE_WORKER_CMD="${QUEUE_WORKER_CMD:-php artisan queue:work --sleep=1 --tries=3 --timeout=120 --queue=${QUEUE_WORKER_QUEUES}}"
 REVERB_CMD="${REVERB_CMD:-php artisan reverb:start --host=0.0.0.0 --port=${REVERB_SERVER_PORT:-8080}}"
+SCHEDULER_CMD="${SCHEDULER_CMD:-while true; do php artisan schedule:run --no-interaction; sleep 60; done}"
 PHP_FPM_CMD="${PHP_FPM_CMD:-php-fpm -F -y /assets/php-fpm.conf}"
 NGINX_CMD="${NGINX_CMD:-nginx -c /nginx.conf}"
 
 queue_pid=""
 reverb_pid=""
+scheduler_pid=""
 php_fpm_pid=""
 nginx_pid=""
 stopping="0"
@@ -33,6 +36,9 @@ start_service() {
       ;;
     reverb)
       reverb_pid="$pid"
+      ;;
+    scheduler)
+      scheduler_pid="$pid"
       ;;
     php-fpm)
       php_fpm_pid="$pid"
@@ -61,7 +67,7 @@ stop_all() {
   stopping="1"
   echo "[runtime] stopping services..."
 
-  for pid in "$queue_pid" "$reverb_pid" "$php_fpm_pid" "$nginx_pid"; do
+  for pid in "$queue_pid" "$reverb_pid" "$scheduler_pid" "$php_fpm_pid" "$nginx_pid"; do
     if is_running "$pid"; then
       kill "$pid" 2>/dev/null || true
     fi
@@ -81,6 +87,10 @@ fi
 
 if [ "$RUN_REVERB" = "1" ]; then
   start_service "reverb" "$REVERB_CMD"
+fi
+
+if [ "$RUN_SCHEDULER" = "1" ]; then
+  start_service "scheduler" "$SCHEDULER_CMD"
 fi
 
 while [ "$stopping" = "0" ]; do
@@ -116,5 +126,10 @@ while [ "$stopping" = "0" ]; do
   if [ "$RUN_REVERB" = "1" ] && ! is_running "$reverb_pid"; then
     echo "[runtime] reverb exited. Restarting..."
     start_service "reverb" "$REVERB_CMD"
+  fi
+
+  if [ "$RUN_SCHEDULER" = "1" ] && ! is_running "$scheduler_pid"; then
+    echo "[runtime] scheduler exited. Restarting..."
+    start_service "scheduler" "$SCHEDULER_CMD"
   fi
 done
