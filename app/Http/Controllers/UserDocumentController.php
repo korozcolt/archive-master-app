@@ -13,6 +13,7 @@ use App\Models\Department;
 use App\Models\Document;
 use App\Models\DocumentAiOutput;
 use App\Models\DocumentAiRun;
+use App\Models\DocumentaryType;
 use App\Models\DocumentDistribution;
 use App\Models\DocumentDistributionTarget;
 use App\Models\DocumentUploadDraft;
@@ -26,7 +27,7 @@ use App\Notifications\DocumentDistributedToOfficeNotification;
 use App\Notifications\DocumentDistributionTargetUpdatedNotification;
 use App\Notifications\ReceiptIssuedNotification;
 use App\Services\DocumentFileService;
-use App\Services\SlaCalculatorService;
+use App\Services\HistoricalDocumentIntakeService;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -46,8 +47,10 @@ class UserDocumentController extends Controller
 
     protected DocumentFileService $documentFileService;
 
-    public function __construct(DocumentFileService $documentFileService)
-    {
+    public function __construct(
+        DocumentFileService $documentFileService,
+        private readonly HistoricalDocumentIntakeService $historicalDocumentIntakeService,
+    ) {
         $this->documentFileService = $documentFileService;
     }
 
@@ -164,7 +167,7 @@ class UserDocumentController extends Controller
         $user = Auth::user();
 
         if (
-            $user->hasRole(Role::ArchiveManager->value)
+            $user->hasAnyRole([Role::ArchiveManager->value, Role::ArchiveOperator->value])
             && ! $user->hasAnyRole(['super_admin', 'admin', 'branch_admin'])
         ) {
             return redirect()->route('documents.historical.create');
@@ -212,7 +215,16 @@ class UserDocumentController extends Controller
         $physicalLocations = PhysicalLocation::query()
             ->where('company_id', $user->company_id)
             ->where('is_active', true)
+            ->whereNotNull('structured_data->caja')
             ->orderBy('full_path')
+            ->get();
+
+        $documentaryTypes = DocumentaryType::query()
+            ->with('subseries.series')
+            ->where('company_id', $user->company_id)
+            ->where('is_active', true)
+            ->whereHas('subseries.series')
+            ->orderBy('name')
             ->get();
 
         $defaultStatus = Status::query()
@@ -226,6 +238,7 @@ class UserDocumentController extends Controller
             'categories',
             'producerDepartments',
             'physicalLocations',
+            'documentaryTypes',
             'defaultStatus',
             'centralArchiveDepartment',
             'rememberedPhysicalLocationId',
@@ -239,13 +252,24 @@ class UserDocumentController extends Controller
         $this->authorizeHistoricalWorkflow($user);
 
         $validated = $request->validate([
-            'files' => 'required|array|min:1',
+            'files' => 'nullable|array',
             'files.*' => 'required|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png',
+            'rows' => 'nullable|array',
+            'rows.*.file' => 'required_with:rows|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png',
+            'rows.*.documentary_type_id' => 'nullable|integer|exists:documentary_types,id',
+            'rows.*.folder' => 'nullable|string|max:100',
+            'rows.*.volume' => 'nullable|string|max:100',
+            'rows.*.reference_code' => 'nullable|string|max:100',
+            'rows.*.year' => 'nullable|integer|min:1800|max:2200',
+            'rows.*.date_start' => 'nullable|date',
+            'rows.*.date_end' => 'nullable|date',
+            'rows.*.description' => 'nullable|string|max:1000',
             'category_id' => 'required|exists:categories,id',
             'original_department_id' => 'required|integer|exists:departments,id',
             'physical_location_id' => 'required|integer|exists:physical_locations,id',
+            'documentary_type_id' => 'nullable|integer|exists:documentary_types,id',
             'description' => 'nullable|string',
-            'access_level' => 'required|in:publico,interno,reservado,clasificado_confidencial',
+            'access_level' => 'nullable|in:publico,interno,reservado,clasificado_confidencial',
             'digital_document_type' => 'required|in:original,copia',
             'physical_document_type' => 'required|in:original,copia,no_aplica',
             'date_start' => 'nullable|date',
@@ -257,91 +281,21 @@ class UserDocumentController extends Controller
             'keywords' => 'nullable|string|max:1000',
         ]);
 
-        $category = Category::query()
-            ->where('company_id', $user->company_id)
-            ->findOrFail($validated['category_id']);
-
-        $producerDepartment = Department::query()
-            ->where('company_id', $user->company_id)
-            ->findOrFail($validated['original_department_id']);
-
-        $physicalLocation = PhysicalLocation::query()
-            ->where('company_id', $user->company_id)
-            ->where('is_active', true)
-            ->findOrFail($validated['physical_location_id']);
-        $centralArchiveDepartment = $this->resolveCentralArchiveDepartment($user);
-
-        $archivedStatus = Status::query()
-            ->where('company_id', $user->company_id)
-            ->where('slug', 'archivado')
-            ->first();
-
-        $createdDocuments = collect();
-
-        foreach ($request->file('files', []) as $uploadedFile) {
-            if (! $uploadedFile instanceof UploadedFile) {
-                continue;
-            }
-
-            $filePath = $this->documentFileService->storeUploadedFile($uploadedFile);
-
-            $metadata = [
-                'entry_mode' => 'historical',
-                'historical' => array_filter([
-                    'workflow' => 'historical_upload',
-                    'custody' => 'archivo_central',
-                    'visibility_scope' => 'company_wide_internal',
-                    'custody_department_id' => $centralArchiveDepartment->id,
-                    'custody_department_name' => $this->translatedDepartmentName($centralArchiveDepartment),
-                    'original_department_id' => $producerDepartment->id,
-                    'original_department_name' => $this->translatedDepartmentName($producerDepartment),
-                    'date_start' => $validated['date_start'] ?? null,
-                    'date_end' => $validated['date_end'] ?? null,
-                    'box' => $validated['box'] ?? null,
-                    'folder' => $validated['folder'] ?? null,
-                    'volume' => $validated['volume'] ?? null,
-                    'reference_code' => $validated['reference_code'] ?? null,
-                    'keywords_text' => $validated['keywords'] ?? null,
-                    'uploaded_to_central_archive_by' => $user->name,
-                    'uploaded_to_central_archive_at' => now()->toISOString(),
-                    'digital_document_type' => $validated['digital_document_type'],
-                    'physical_document_type' => $validated['physical_document_type'],
-                ], fn (mixed $value): bool => $value !== null && $value !== ''),
-                'file_name' => $uploadedFile->getClientOriginalName(),
-                'file_size' => $uploadedFile->getSize(),
-                'mime_type' => $uploadedFile->getMimeType(),
-            ];
-
-            $createdDocuments->push(Document::create([
-                'company_id' => $user->company_id,
-                'branch_id' => $user->branch_id,
-                'department_id' => $centralArchiveDepartment->id,
-                'created_by' => $user->id,
-                'assigned_to' => null,
-                'title' => $this->makeTitleFromFilename($uploadedFile),
-                'description' => $validated['description'] ?? null,
-                'category_id' => $category->id,
-                'status_id' => $archivedStatus?->id,
-                'is_confidential' => $validated['access_level'] !== DocumentAccessLevel::Publico->value,
-                'priority' => Priority::Medium->value,
-                'file_path' => $filePath,
-                'physical_location_id' => $physicalLocation->id,
-                'digital_document_type' => $validated['digital_document_type'],
-                'physical_document_type' => $validated['physical_document_type'],
-                'is_archived' => true,
-                'archived_at' => now(),
-                'archive_phase' => ArchivePhase::Central->value,
-                'access_level' => $validated['access_level'],
-                'metadata' => $metadata,
-            ]));
-
-            app(SlaCalculatorService::class)->freeze($createdDocuments->last(), 'historical_upload');
-            $createdDocuments->last()->saveQuietly();
+        if (! $request->hasFile('files') && ! collect($request->file('rows', []))->filter(fn ($row) => is_array($row) && isset($row['file']))->isNotEmpty()) {
+            return back()->withErrors(['rows' => 'Agrega al menos un documento para cargar.'])->withInput();
         }
 
-        $count = $createdDocuments->count();
+        if (blank($validated['documentary_type_id'] ?? null) && collect($validated['rows'] ?? [])->contains(fn (array $row): bool => blank($row['documentary_type_id'] ?? null))) {
+            return back()->withErrors(['documentary_type_id' => 'Selecciona un tipo documental para cada documento.'])->withInput();
+        }
 
-        $this->rememberHistoricalPhysicalLocation($user, $physicalLocation);
+        $createdDocuments = $this->historicalDocumentIntakeService->store(
+            user: $user,
+            data: $validated,
+            legacyFiles: $request->file('files', []),
+        );
+
+        $count = $createdDocuments->count();
 
         return redirect()->route('documents.index', ['archive_phase' => ArchivePhase::Central->value])
             ->with('success', $count === 1
@@ -1214,7 +1168,7 @@ class UserDocumentController extends Controller
         }
 
         $archiveLocationOptions = collect();
-        if ($user->hasRole(Role::ArchiveManager->value) || $user->hasAnyRole(['admin', 'super_admin', 'branch_admin'])) {
+        if ($user->hasRole(Role::ArchiveManager->value) || $user->hasAnyRole(['admin', 'super_admin'])) {
             $archiveLocationOptions = PhysicalLocation::query()
                 ->where('company_id', $document->company_id)
                 ->where(function ($query) use ($document): void {
@@ -1307,7 +1261,7 @@ class UserDocumentController extends Controller
             abort(403, 'No tienes permiso para gestionar archivo físico de este documento.');
         }
 
-        if (! $user->hasRole(Role::ArchiveManager->value)) {
+        if (! $user->hasRole(Role::ArchiveManager->value) && ! $user->hasAnyRole(['admin', 'super_admin'])) {
             abort(403, 'Solo el rol de archivo puede asignar ubicación física desde el portal.');
         }
 
@@ -1703,6 +1657,10 @@ class UserDocumentController extends Controller
                 return false;
             }
 
+            if ($user->hasRole(Role::ArchiveOperator->value)) {
+                return $document->created_by === $user->id;
+            }
+
             return in_array($document->access_level?->value, [
                 DocumentAccessLevel::Publico->value,
                 DocumentAccessLevel::Interno->value,
@@ -1822,6 +1780,7 @@ class UserDocumentController extends Controller
             'admin',
             'branch_admin',
             Role::ArchiveManager->value,
+            Role::ArchiveOperator->value,
         ])) {
             abort(403, 'No tienes permiso para gestionar carga histórica.');
         }

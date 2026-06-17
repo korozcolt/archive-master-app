@@ -354,6 +354,7 @@ class Document extends Model
                 if ($user->hasAnyRole([
                     Role::OfficeManager->value,
                     Role::ArchiveManager->value,
+                    Role::ArchiveOperator->value,
                     Role::Admin->value,
                     Role::BranchAdmin->value,
                     Role::SuperAdmin->value,
@@ -396,6 +397,10 @@ class Document extends Model
 
         if ($user->hasRole(Role::ArchiveManager->value)) {
             return true;
+        }
+
+        if ($user->hasRole(Role::ArchiveOperator->value)) {
+            return $this->created_by === $user->id;
         }
 
         if ($user->hasRole(Role::Receptionist->value) && $this->receipts()->exists()) {

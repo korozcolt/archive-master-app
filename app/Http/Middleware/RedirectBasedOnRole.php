@@ -31,6 +31,7 @@ class RedirectBasedOnRole
         $portalRoles = [
             Role::OfficeManager->value,
             Role::ArchiveManager->value,
+            Role::ArchiveOperator->value,
             Role::Receptionist->value,
             Role::RegularUser->value,
         ];

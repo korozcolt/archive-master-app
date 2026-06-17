@@ -59,3 +59,16 @@ it('redirects archive portal users to historical upload instead of the generic c
         ->get(route('documents.create'))
         ->assertRedirect(route('documents.historical.create'));
 });
+
+it('redirects archive operators to historical upload instead of the generic create flow', function (): void {
+    $user = User::factory()->create();
+    $role = Role::firstOrCreate([
+        'name' => RoleEnum::ArchiveOperator->value,
+        'guard_name' => 'web',
+    ]);
+    $user->assignRole($role);
+
+    $this->actingAs($user)
+        ->get(route('documents.create'))
+        ->assertRedirect(route('documents.historical.create'));
+});
