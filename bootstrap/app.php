@@ -14,8 +14,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $trustedProxies = $_ENV['TRUSTED_PROXIES']
+            ?? $_SERVER['TRUSTED_PROXIES']
+            ?? getenv('TRUSTED_PROXIES')
+            ?: '*';
+
         $middleware->trustProxies(
-            at: config('app.trusted_proxies', '*'),
+            at: $trustedProxies,
             headers: Request::HEADER_X_FORWARDED_FOR
                 | Request::HEADER_X_FORWARDED_HOST
                 | Request::HEADER_X_FORWARDED_PORT
