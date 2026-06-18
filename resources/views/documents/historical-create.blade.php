@@ -56,14 +56,22 @@
         ->map(fn ($type) => [
             'id' => (int) $type->id,
             'label' => trim(sprintf(
-                '%s - %s / %s',
+                '%s - [%s / %s] %s',
                 $type->code,
-                $type->subseries?->series?->name ?? 'Serie',
+                $type->subseries?->series?->name ?? 'Sin Serie',
+                $type->subseries?->name ?? 'Sin Subserie',
                 $type->name,
             )),
             'series' => (string) ($type->subseries?->series?->name ?? ''),
             'subseries' => (string) ($type->subseries?->name ?? ''),
+            'sort_key' => trim(sprintf(
+                '%s - %s - %s',
+                $type->subseries?->series?->name ?? '',
+                $type->subseries?->name ?? '',
+                $type->name
+            )),
         ])
+        ->sortBy('sort_key')
         ->values();
 
     $rememberedLocationId = old('physical_location_id', $rememberedPhysicalLocationId);
@@ -79,6 +87,7 @@
         defaultDocumentaryTypeId: @js((string) old('documentary_type_id', '')),
         rows: [
             {
+                uid: 'row-' + Date.now() + '-' + Math.random().toString(36).slice(2, 11),
                 fileName: '',
                 folder: '',
                 volume: '',
@@ -121,6 +130,7 @@
         },
         addRow() {
             this.rows.push({
+                uid: 'row-' + Date.now() + '-' + Math.random().toString(36).slice(2, 11),
                 fileName: '',
                 folder: '',
                 volume: '',
@@ -143,6 +153,42 @@
                 ...row,
                 documentary_type_id: row.documentary_type_id || value,
             }));
+        },
+        handleBulkFiles(filesList) {
+            const files = Array.from(filesList);
+            if (files.length === 0) {
+                return;
+            }
+
+            if (this.rows.length === 1 && !this.rows[0].fileName) {
+                this.rows = [];
+            }
+
+            const startIndex = this.rows.length;
+
+            files.forEach((file, i) => {
+                const uid = 'row-' + Date.now() + '-' + Math.random().toString(36).slice(2, 11) + '-' + i;
+                this.rows.push({
+                    uid: uid,
+                    fileName: file.name,
+                    folder: '',
+                    volume: '',
+                    reference_code: '',
+                    year: '',
+                    description: '',
+                    documentary_type_id: this.defaultDocumentaryTypeId,
+                });
+
+                this.$nextTick(() => {
+                    const index = startIndex + i;
+                    const inputs = document.getElementsByName(`rows[${index}][file]`);
+                    if (inputs && inputs[0]) {
+                        const dt = new DataTransfer();
+                        dt.items.add(file);
+                        inputs[0].files = dt.files;
+                    }
+                });
+            });
         },
         hasMissingDocumentaryType() {
             return this.rows.some((row) => !row.documentary_type_id);
@@ -191,7 +237,19 @@
             <h2 class="text-lg font-semibold text-white">1. Ubicacion fisica</h2>
             <p class="mt-1 text-sm text-slate-400">El flujo sigue la forma de trabajo del archivo: estante, entrepano y caja.</p>
 
-            <input type="hidden" name="physical_location_id" :value="selectedLocationId">
+            <select
+                name="physical_location_id"
+                x-model="selectedLocationId"
+                required
+                aria-hidden="true"
+                tabindex="-1"
+                class="absolute h-px w-px overflow-hidden opacity-0"
+            >
+                <option value="">Seleccionar caja</option>
+                <template x-for="location in locations" :key="location.id">
+                    <option :value="String(location.id)" x-text="location.path"></option>
+                </template>
+            </select>
 
             <div class="mt-5 grid gap-4 lg:grid-cols-3">
                 <div>
@@ -276,20 +334,73 @@
                 </div>
 
                 <div>
-                    <label for="documentary_type_id" class="mb-1.5 block text-sm font-medium text-slate-200">Tipo documental por defecto</label>
-                    <select
-                        dusk="historical-default-type-select"
-                        name="documentary_type_id"
-                        id="documentary_type_id"
-                        x-model="defaultDocumentaryTypeId"
-                        @change="setDefaultDocumentaryType($event.target.value)"
-                        class="block h-11 w-full border border-slate-700 bg-slate-800 px-3 text-sm text-white outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
-                    >
-                        <option value="">Seleccionar tipo documental</option>
-                        @foreach ($documentaryTypeOptions as $type)
-                            <option value="{{ $type['id'] }}">{{ $type['label'] }}</option>
-                        @endforeach
-                    </select>
+                    <label class="mb-1.5 block text-sm font-medium text-slate-200">Tipo documental por defecto</label>
+                    <div class="relative" x-data="{
+                        open: false,
+                        search: '',
+                        options: @js($documentaryTypeOptions),
+                        get filteredOptions() {
+                            if (!this.search) return this.options;
+                            const q = this.search.toLowerCase();
+                            return this.options.filter(opt => opt.label.toLowerCase().includes(q));
+                        },
+                        selectedLabel() {
+                            const found = this.options.find(opt => String(opt.id) === String(defaultDocumentaryTypeId));
+                            return found ? found.label : 'Seleccionar tipo documental';
+                        }
+                    }">
+                        <!-- Trigger Button -->
+                        <button
+                            type="button"
+                            @click="open = !open"
+                            @keydown.escape="open = false"
+                            role="combobox"
+                            aria-controls="default-documentary-type-options"
+                            :aria-expanded="open.toString()"
+                            aria-haspopup="listbox"
+                            class="flex h-11 w-full items-center justify-between border border-slate-700 bg-slate-800 px-3 text-left text-sm text-white outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
+                        >
+                            <span x-text="selectedLabel()" class="truncate"></span>
+                            <svg class="h-4 w-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        <!-- Hidden Select for Form Submission -->
+                        <select
+                            name="documentary_type_id"
+                            x-model="defaultDocumentaryTypeId"
+                            class="absolute opacity-0 w-px h-px overflow-hidden"
+                            tabindex="-1"
+                            @change="setDefaultDocumentaryType($event.target.value)"
+                        >
+                            <option value="">Seleccionar tipo documental</option>
+                            @foreach ($documentaryTypeOptions as $type)
+                                <option value="{{ $type['id'] }}">{{ $type['label'] }}</option>
+                            @endforeach
+                        </select>
+
+                        <!-- Dropdown Panel -->
+                        <div id="default-documentary-type-options" x-show="open" @click.away="open = false" role="listbox" class="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto border border-slate-700 bg-slate-900 p-2 shadow-lg" x-cloak>
+                            <!-- Search Input -->
+                            <input type="text" x-model="search" placeholder="Buscar por código, serie o tipo..." class="mb-2 h-9 w-full border border-slate-700 bg-slate-950 px-2 text-sm text-white outline-none focus:border-amber-400">
+
+                            <!-- Options List -->
+                            <div class="space-y-1">
+                                <button type="button" role="option" @click="setDefaultDocumentaryType(''); open = false; search = '';" class="block w-full px-2 py-1.5 text-left text-sm text-slate-400 transition hover:bg-amber-500 hover:text-slate-950">
+                                    Seleccionar tipo documental
+                                </button>
+                                <template x-for="opt in filteredOptions" :key="opt.id">
+                                    <button type="button" role="option" @click="setDefaultDocumentaryType(String(opt.id)); open = false; search = '';" class="block w-full px-2 py-1.5 text-left text-sm text-slate-200 transition hover:bg-amber-500 hover:text-slate-950">
+                                        <span x-text="opt.label"></span>
+                                    </button>
+                                </template>
+                                <div x-show="filteredOptions.length === 0" class="px-2 py-1.5 text-sm text-slate-500">
+                                    No se encontraron resultados
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <p class="mt-1.5 text-xs text-slate-400">El sistema derivara automaticamente serie y subserie desde este tipo.</p>
                 </div>
 
@@ -335,13 +446,19 @@
                     <h2 class="text-lg font-semibold text-white">3. Carpetas y documentos de la caja</h2>
                     <p class="mt-1 text-sm text-slate-400">Cada fila crea un documento independiente dentro de la caja seleccionada.</p>
                 </div>
-                <button type="button" @click="addRow()" class="inline-flex h-10 items-center justify-center border border-amber-400/40 bg-amber-500/10 px-4 text-sm font-semibold text-amber-100">
-                    Agregar fila
-                </button>
+                <div class="flex flex-wrap gap-2">
+                    <button type="button" @click="$refs.bulkFiles.click()" class="inline-flex h-10 items-center justify-center border border-sky-400/40 bg-sky-500/10 px-4 text-sm font-semibold text-white">
+                        📄 Cargar varios archivos
+                    </button>
+                    <button type="button" @click="addRow()" class="inline-flex h-10 items-center justify-center border border-amber-400/40 bg-amber-500/10 px-4 text-sm font-semibold text-amber-100">
+                        Agregar fila
+                    </button>
+                </div>
+                <input type="file" x-ref="bulkFiles" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" class="hidden" @change="handleBulkFiles($event.target.files)">
             </div>
 
             <div class="mt-5 space-y-4">
-                <template x-for="(row, index) in rows" :key="index">
+                <template x-for="(row, index) in rows" :key="row.uid">
                     <div class="border border-slate-800 bg-slate-950 p-4">
                         <div class="flex items-center justify-between gap-3">
                             <p class="text-sm font-semibold text-white" x-text="`Documento ${index + 1}`"></p>
@@ -367,18 +484,74 @@
 
                             <div class="lg:col-span-3">
                                 <label class="mb-1.5 block text-sm font-medium text-slate-200">Tipo documental</label>
-                                <select
-                                    dusk="historical-row-type-select"
-                                    :name="`rows[${index}][documentary_type_id]`"
-                                    x-model="row.documentary_type_id"
-                                    required
-                                    class="block h-11 w-full border border-slate-700 bg-slate-800 px-3 text-sm text-white outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
-                                >
-                                    <option value="">Seleccionar tipo documental</option>
-                                    @foreach ($documentaryTypeOptions as $type)
-                                        <option value="{{ $type['id'] }}">{{ $type['label'] }}</option>
-                                    @endforeach
-                                </select>
+                                <div class="relative" x-data="{
+                                    open: false,
+                                    search: '',
+                                    options: @js($documentaryTypeOptions),
+                                    get filteredOptions() {
+                                        if (!this.search) return this.options;
+                                        const q = this.search.toLowerCase();
+                                        return this.options.filter(opt => opt.label.toLowerCase().includes(q));
+                                    },
+                                    selectedLabel() {
+                                        const found = this.options.find(opt => String(opt.id) === String(row.documentary_type_id));
+                                        return found ? found.label : 'Seleccionar tipo documental';
+                                    }
+                                }">
+                                    <!-- Trigger Button -->
+                                    <button
+                                        type="button"
+                                        @click="open = !open"
+                                        @keydown.escape="open = false"
+                                        role="combobox"
+                                        :aria-controls="`documentary-row-options-${row.uid}`"
+                                        :aria-expanded="open.toString()"
+                                        aria-haspopup="listbox"
+                                        class="flex h-11 w-full items-center justify-between border border-slate-700 bg-slate-800 px-3 text-left text-sm text-white outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
+                                    >
+                                        <span x-text="selectedLabel()" class="truncate"></span>
+                                        <svg class="h-4 w-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </button>
+
+                                    <!-- Hidden Select for Form Submission & Dusk Testing -->
+                                    <select
+                                        dusk="historical-row-type-select"
+                                        :name="`rows[${index}][documentary_type_id]`"
+                                        x-model="row.documentary_type_id"
+                                        @change="row.documentary_type_id = $event.target.value"
+                                        required
+                                        class="absolute opacity-0 w-px h-px overflow-hidden"
+                                        tabindex="-1"
+                                    >
+                                        <option value="">Seleccionar tipo documental</option>
+                                        @foreach ($documentaryTypeOptions as $type)
+                                            <option value="{{ $type['id'] }}">{{ $type['label'] }}</option>
+                                        @endforeach
+                                    </select>
+
+                                    <!-- Dropdown Panel -->
+                                    <div :id="`documentary-row-options-${row.uid}`" x-show="open" @click.away="open = false" role="listbox" class="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto border border-slate-700 bg-slate-900 p-2 shadow-lg" x-cloak>
+                                        <!-- Search Input -->
+                                        <input type="text" x-model="search" placeholder="Buscar por código, serie o tipo..." class="mb-2 h-9 w-full border border-slate-700 bg-slate-950 px-2 text-sm text-white outline-none focus:border-amber-400">
+
+                                        <!-- Options List -->
+                                        <div class="space-y-1">
+                                            <button type="button" role="option" @click="row.documentary_type_id = ''; open = false; search = '';" class="block w-full px-2 py-1.5 text-left text-sm text-slate-400 transition hover:bg-amber-500 hover:text-slate-950">
+                                                Seleccionar tipo documental
+                                            </button>
+                                            <template x-for="opt in filteredOptions" :key="opt.id">
+                                                <button type="button" role="option" @click="row.documentary_type_id = String(opt.id); open = false; search = '';" class="block w-full px-2 py-1.5 text-left text-sm text-slate-200 transition hover:bg-amber-500 hover:text-slate-950">
+                                                    <span x-text="opt.label"></span>
+                                                </button>
+                                            </template>
+                                            <div x-show="filteredOptions.length === 0" class="px-2 py-1.5 text-sm text-slate-500">
+                                                No se encontraron resultados
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <div>
@@ -392,7 +565,7 @@
                             </div>
 
                             <div>
-                                <label class="mb-1.5 block text-sm font-medium text-slate-200">Anio</label>
+                                <label class="mb-1.5 block text-sm font-medium text-slate-200">Año</label>
                                 <input dusk="historical-row-year" type="number" min="1800" max="2200" :name="`rows[${index}][year]`" x-model="row.year" class="block h-11 w-full border border-slate-700 bg-slate-800 px-3 text-sm text-white outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
                             </div>
 
