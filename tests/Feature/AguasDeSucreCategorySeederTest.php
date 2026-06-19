@@ -14,7 +14,16 @@ it('creates operational categories for aguas de sucre', function () {
         'active' => true,
     ]);
 
+    dump([
+        'all_companies' => Company::all()->toArray(),
+        'created_company_id' => $company->id,
+    ]);
+
     $this->seed(AguasDeSucreCategorySeeder::class);
+
+    dump([
+        'categories_after_seed' => Category::all()->toArray(),
+    ]);
 
     expect(Category::query()->where('company_id', $company->id)->root()->count())->toBe(8)
         ->and(Category::query()->where('company_id', $company->id)->count())->toBe(33)

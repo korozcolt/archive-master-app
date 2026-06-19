@@ -50,6 +50,7 @@ class AguasDeSucreArchiveCentralSeeder extends Seeder
         );
 
         SpatieRole::firstOrCreate(['name' => Role::ArchiveManager->value]);
+        SpatieRole::firstOrCreate(['name' => Role::ArchiveOperator->value]);
 
         $user = User::query()->updateOrCreate(
             ['email' => 'archivo.central.aguasdesucre@test.local'],
@@ -68,6 +69,42 @@ class AguasDeSucreArchiveCentralSeeder extends Seeder
         );
 
         $user->syncRoles([Role::ArchiveManager->value]);
+
+        $admin = User::query()->updateOrCreate(
+            ['email' => 'admin.archivo@aguas.local'],
+            [
+                'name' => 'Administrador de Archivo',
+                'password' => Hash::make('ArchiveMaster2026!'),
+                'company_id' => $company->id,
+                'branch_id' => $department->branch_id,
+                'department_id' => $department->id,
+                'position' => 'Administrador de Archivo',
+                'language' => 'es',
+                'timezone' => 'America/Bogota',
+                'is_active' => true,
+                'email_verified_at' => now(),
+            ]
+        );
+
+        $admin->syncRoles([Role::ArchiveManager->value]);
+
+        $operator = User::query()->updateOrCreate(
+            ['email' => 'operador.archivo@aguas.local'],
+            [
+                'name' => 'Operador de Archivo',
+                'password' => Hash::make('ArchiveMaster2026!'),
+                'company_id' => $company->id,
+                'branch_id' => $department->branch_id,
+                'department_id' => $department->id,
+                'position' => 'Operador de Archivo',
+                'language' => 'es',
+                'timezone' => 'America/Bogota',
+                'is_active' => true,
+                'email_verified_at' => now(),
+            ]
+        );
+
+        $operator->syncRoles([Role::ArchiveOperator->value]);
 
         $this->command?->info('Archivo Central de AGUAS DE SUCRE configurado.');
     }

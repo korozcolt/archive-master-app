@@ -50,9 +50,9 @@ it('creates a basement archive template and shelf locations for aguas de sucre',
     $template = PhysicalLocationTemplate::query()->where('company_id', $company->id)->firstOrFail();
 
     expect($template->name)->toBe('Archivo Principal Sótano')
-        ->and($template->getLevelNames())->toBe(['Nivel', 'Archivo', 'Estante', 'Entrepaño'])
-        ->and(PhysicalLocation::query()->where('company_id', $company->id)->count())->toBe(120)
-        ->and(PhysicalLocation::query()->where('company_id', $company->id)->where('full_path', 'Nivel Sótano / Archivo Principal / Estante 01 / Entrepaño 01')->exists())->toBeTrue()
-        ->and(PhysicalLocation::query()->where('company_id', $company->id)->where('full_path', 'Nivel Sótano / Archivo Principal / Estante 20 / Entrepaño 06')->exists())->toBeTrue()
-        ->and(PhysicalLocation::query()->where('company_id', $company->id)->where('code', 'C1/NIV-Sótano/ARC-Principal/EST-01/ENT-01')->exists())->toBeTrue();
+        ->and($template->getLevelNames())->toBe(['Nivel', 'Archivo', 'Estante', 'Entrepaño', 'Caja'])
+        ->and(PhysicalLocation::query()->where('company_id', $company->id)->count())->toBe(1920)
+        ->and(PhysicalLocation::query()->where('company_id', $company->id)->where('full_path', 'Nivel Sótano / Archivo Principal / Estante 01 / Entrepaño 01 / Caja 001')->exists())->toBeTrue()
+        ->and(PhysicalLocation::query()->where('company_id', $company->id)->where('full_path', 'Nivel Sótano / Archivo Principal / Estante 40 / Entrepaño 06 / Caja 008')->exists())->toBeTrue()
+        ->and(PhysicalLocation::query()->where('company_id', $company->id)->where('code', 'C1/NIV-Sótano/ARC-Principal/EST-01/ENT-01/CJ-001')->exists())->toBeTrue();
 });

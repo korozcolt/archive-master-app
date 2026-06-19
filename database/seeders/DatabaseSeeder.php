@@ -11,6 +11,13 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call(ClientDefaultSeeder::class);
+        $this->call([
+            ClientDefaultSeeder::class,
+            ColombiaDocumentGovernanceSeeder::class,
+            AguasDeSucreCategorySeeder::class,
+            AguasDeSucreDocumentGovernanceSeeder::class,
+            AguasDeSucrePhysicalLocationSeeder::class,
+            AguasDeSucreArchiveCentralSeeder::class,
+        ]);
     }
 }

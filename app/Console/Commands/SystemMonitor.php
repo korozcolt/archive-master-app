@@ -4,11 +4,10 @@ namespace App\Console\Commands;
 
 use App\Services\CacheService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 
 class SystemMonitor extends Command
 {
@@ -53,7 +52,7 @@ class SystemMonitor extends Command
         $this->displayMetrics($metrics, $this->option('detailed'));
 
         // Mostrar alertas si las hay
-        if (!empty($alerts)) {
+        if (! empty($alerts)) {
             $this->displayAlerts($alerts);
         }
 
@@ -97,9 +96,10 @@ class SystemMonitor extends Command
             }
 
             // Espacio en disco
+            $archivePath = config('filesystems.disks.archive.root') ?: storage_path('app');
             $metrics['disk_space'] = [
-                'free_gb' => round(disk_free_space(storage_path()) / 1024 / 1024 / 1024, 2),
-                'total_gb' => round(disk_total_space(storage_path()) / 1024 / 1024 / 1024, 2),
+                'free_gb' => round(disk_free_space($archivePath) / 1024 / 1024 / 1024, 2),
+                'total_gb' => round(disk_total_space($archivePath) / 1024 / 1024 / 1024, 2),
             ];
             $metrics['disk_space']['used_percentage'] = round(
                 (($metrics['disk_space']['total_gb'] - $metrics['disk_space']['free_gb']) / $metrics['disk_space']['total_gb']) * 100,
@@ -136,7 +136,7 @@ class SystemMonitor extends Command
             $startTime = microtime(true);
             $connectionTest = DB::select('SELECT 1 as test');
             $metrics['connection_time_ms'] = round((microtime(true) - $startTime) * 1000, 2);
-            $metrics['connection_status'] = !empty($connectionTest) ? 'connected' : 'error';
+            $metrics['connection_status'] = ! empty($connectionTest) ? 'connected' : 'error';
 
             // Estadísticas de tablas principales
             $tables = ['documents', 'users', 'companies', 'workflow_histories'];
@@ -147,12 +147,12 @@ class SystemMonitor extends Command
                     $count = DB::table($table)->count();
                     $metrics['tables'][$table] = [
                         'row_count' => $count,
-                        'status' => 'ok'
+                        'status' => 'ok',
                     ];
                 } catch (\Exception $e) {
                     $metrics['tables'][$table] = [
                         'status' => 'error',
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ];
                 }
             }
@@ -252,8 +252,9 @@ class SystemMonitor extends Command
             ];
 
             // Espacio disponible
-            $freeSpace = disk_free_space(storage_path());
-            $totalSpace = disk_total_space(storage_path());
+            $archivePath = config('filesystems.disks.archive.root') ?: storage_path('app');
+            $freeSpace = disk_free_space($archivePath);
+            $totalSpace = disk_total_space($archivePath);
             $metrics['disk_usage'] = [
                 'free_gb' => round($freeSpace / 1024 / 1024 / 1024, 2),
                 'total_gb' => round($totalSpace / 1024 / 1024 / 1024, 2),
@@ -379,7 +380,7 @@ class SystemMonitor extends Command
             $alerts[] = [
                 'type' => 'warning',
                 'category' => 'memory',
-                'message' => 'Alto uso de memoria: ' . $metrics['system']['memory_usage']['current_mb'] . 'MB',
+                'message' => 'Alto uso de memoria: '.$metrics['system']['memory_usage']['current_mb'].'MB',
             ];
         }
 
@@ -389,7 +390,7 @@ class SystemMonitor extends Command
             $alerts[] = [
                 'type' => 'critical',
                 'category' => 'disk',
-                'message' => 'Espacio en disco bajo: ' . $metrics['system']['disk_space']['used_percentage'] . '% usado',
+                'message' => 'Espacio en disco bajo: '.$metrics['system']['disk_space']['used_percentage'].'% usado',
             ];
         }
 
@@ -399,7 +400,7 @@ class SystemMonitor extends Command
             $alerts[] = [
                 'type' => 'warning',
                 'category' => 'database',
-                'message' => 'Conexión lenta a base de datos: ' . $metrics['database']['connection_time_ms'] . 'ms',
+                'message' => 'Conexión lenta a base de datos: '.$metrics['database']['connection_time_ms'].'ms',
             ];
         }
 
@@ -409,7 +410,7 @@ class SystemMonitor extends Command
             $alerts[] = [
                 'type' => 'warning',
                 'category' => 'cache',
-                'message' => 'Baja tasa de aciertos en cache: ' . $metrics['cache']['hit_rate'] . '%',
+                'message' => 'Baja tasa de aciertos en cache: '.$metrics['cache']['hit_rate'].'%',
             ];
         }
 
@@ -419,7 +420,7 @@ class SystemMonitor extends Command
             $alerts[] = [
                 'type' => 'warning',
                 'category' => 'queue',
-                'message' => 'Muchos trabajos fallidos: ' . $metrics['application']['queues']['failed_jobs'],
+                'message' => 'Muchos trabajos fallidos: '.$metrics['application']['queues']['failed_jobs'],
             ];
         }
 
@@ -454,7 +455,7 @@ class SystemMonitor extends Command
 
             if (isset($metrics['database']['tables'])) {
                 $totalRows = array_sum(array_column($metrics['database']['tables'], 'row_count'));
-                $this->line("   • Total registros: " . number_format($totalRows));
+                $this->line('   • Total registros: '.number_format($totalRows));
             }
         }
 
@@ -500,7 +501,7 @@ class SystemMonitor extends Command
 
         foreach ($metrics as $category => $data) {
             if (is_array($data)) {
-                $this->line(strtoupper($category) . ':');
+                $this->line(strtoupper($category).':');
                 $this->displayArrayRecursive($data, '  ');
                 $this->newLine();
             }
@@ -515,7 +516,7 @@ class SystemMonitor extends Command
         foreach ($data as $key => $value) {
             if (is_array($value)) {
                 $this->line("{$indent}• {$key}:");
-                $this->displayArrayRecursive($value, $indent . '  ');
+                $this->displayArrayRecursive($value, $indent.'  ');
             } else {
                 $this->line("{$indent}• {$key}: {$value}");
             }
