@@ -74,6 +74,14 @@
         ->sortBy('sort_key')
         ->values();
 
+    $categoryOptions = $categories
+        ->map(fn ($category) => [
+            'id' => (int) $category->id,
+            'label' => $translateName($category, 'Categoría'),
+        ])
+        ->sortBy('label', SORT_NATURAL | SORT_FLAG_CASE)
+        ->values();
+
     $rememberedLocationId = old('physical_location_id', $rememberedPhysicalLocationId);
 @endphp
 
@@ -314,13 +322,80 @@
             <h2 class="text-lg font-semibold text-white">2. Datos generales</h2>
             <div class="mt-5 grid gap-4 md:grid-cols-2">
                 <div>
-                    <label for="category_id" class="mb-1.5 block text-sm font-medium text-slate-200">Categoria tematica</label>
-                    <select name="category_id" id="category_id" required class="block h-11 w-full border border-slate-700 bg-slate-800 px-3 text-sm text-white outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
-                        <option value="">Seleccionar categoria</option>
-                        @foreach ($categories as $category)
-                            <option value="{{ $category->id }}" @selected((string) old('category_id') === (string) $category->id)>{{ $translateName($category, 'Categoria') }}</option>
-                        @endforeach
-                    </select>
+                    <label class="mb-1.5 block text-sm font-medium text-slate-200">Categoria tematica</label>
+                    <div class="relative" x-data="{
+                        open: false,
+                        search: '',
+                        options: @js($categoryOptions),
+                        selectedCategoryId: @js((string) old('category_id', '')),
+                        get filteredOptions() {
+                            if (!this.search) return this.options;
+                            const q = this.search.toLowerCase();
+                            return this.options.filter(opt => opt.label.toLowerCase().includes(q));
+                        },
+                        selectedLabel() {
+                            const found = this.options.find(opt => String(opt.id) === String(this.selectedCategoryId));
+                            return found ? found.label : 'Seleccionar categoria';
+                        }
+                    }">
+                        <!-- Trigger Button -->
+                        <button
+                            type="button"
+                            @click="open = !open"
+                            @keydown.escape="open = false; search = '';"
+                            role="combobox"
+                            aria-controls="category-options"
+                            :aria-expanded="open.toString()"
+                            aria-haspopup="listbox"
+                            class="flex h-11 w-full items-center justify-between border border-slate-700 bg-slate-800 px-3 text-left text-sm text-white outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
+                        >
+                            <span x-text="selectedLabel()" class="truncate"></span>
+                            <svg class="h-4 w-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        <!-- Hidden Select for Form Submission & Browser Validation -->
+                        <select
+                            name="category_id"
+                            id="category_id"
+                            required
+                            x-model="selectedCategoryId"
+                            class="absolute opacity-0 w-px h-px overflow-hidden"
+                            tabindex="-1"
+                        >
+                            <option value="">Seleccionar categoria</option>
+                            @foreach ($categoryOptions as $opt)
+                                <option value="{{ $opt['id'] }}">{{ $opt['label'] }}</option>
+                            @endforeach
+                        </select>
+
+                        <!-- Dropdown Panel -->
+                        <div id="category-options" x-show="open" @click.away="open = false; search = '';" role="listbox" class="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto border border-slate-700 bg-slate-900 p-2 shadow-lg" x-cloak>
+                            <!-- Search Input -->
+                            <input
+                                type="text"
+                                x-model="search"
+                                placeholder="Buscar categoría..."
+                                class="mb-2 h-9 w-full border border-slate-700 bg-slate-950 px-2 text-sm text-white outline-none focus:border-amber-400"
+                            >
+
+                            <!-- Options List -->
+                            <div class="space-y-1">
+                                <button type="button" role="option" @click="selectedCategoryId = ''; open = false; search = '';" class="block w-full px-2 py-1.5 text-left text-sm text-slate-400 transition hover:bg-amber-500 hover:text-slate-950">
+                                    Seleccionar categoria
+                                </button>
+                                <template x-for="opt in filteredOptions" :key="opt.id">
+                                    <button type="button" role="option" @click="selectedCategoryId = String(opt.id); open = false; search = '';" class="block w-full px-2 py-1.5 text-left text-sm text-slate-200 transition hover:bg-amber-500 hover:text-slate-950">
+                                        <span x-text="opt.label"></span>
+                                    </button>
+                                </template>
+                                <div x-show="filteredOptions.length === 0" class="px-2 py-1.5 text-sm text-slate-500">
+                                    No se encontraron resultados
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div>
