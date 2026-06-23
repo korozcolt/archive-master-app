@@ -58,10 +58,10 @@ it('queues automatic ocr when a document is created with a file path', function 
     });
 });
 
-it('does not queue automatic ocr for historical documents', function () {
+it('queues automatic ocr for historical documents', function () {
     Queue::fake();
 
-    makeAutomaticOcrDocument([
+    $document = makeAutomaticOcrDocument([
         'file_path' => 'documents/ocr/historical.pdf',
         'is_archived' => true,
         'metadata' => [
@@ -69,7 +69,9 @@ it('does not queue automatic ocr for historical documents', function () {
         ],
     ]);
 
-    Queue::assertNotPushed(ProcessDocumentOcr::class);
+    Queue::assertPushed(ProcessDocumentOcr::class, function (ProcessDocumentOcr $job) use ($document): bool {
+        return $job->documentId === $document->id && $job->force === false;
+    });
 });
 
 it('queues automatic ocr only when file path changes on update', function () {
