@@ -7,24 +7,32 @@ cd /app
 echo "[deploy-bootstrap] Starting deploy bootstrap..."
 
 # ============================================================
-# PHP Upload Limits — applied on every deploy
+# PHP Upload Limits — applied on every deploy via php-fpm.conf
 # ============================================================
-echo "[deploy-bootstrap] Applying PHP upload limits..."
-PHP_INI_SCAN=$(php -r "echo php_ini_scanned_files();" 2>/dev/null | head -1 | tr ',' '\n' | head -1 | xargs dirname 2>/dev/null || true)
-if [ -z "$PHP_INI_SCAN" ]; then
-  # Fallback: write to all known php.ini scan dirs in nix store
-  PHP_INI_SCAN=$(find /nix/store -name 'php.ini' -path '*/lib/php.ini' 2>/dev/null | head -1 | xargs dirname 2>/dev/null || echo '/etc')
+echo "[deploy-bootstrap] Applying PHP upload limits via php-fpm..."
+# Write limits into fpm pool config (safe: does not touch extension ini files)
+PHP_FPM_CONF="/assets/php-fpm.conf"
+if [ -f "$PHP_FPM_CONF" ]; then
+  # Remove previously injected php_admin_value lines to avoid duplicates
+  sed -i '/php_admin_value\[upload_max_filesize\]/d' "$PHP_FPM_CONF"
+  sed -i '/php_admin_value\[post_max_size\]/d' "$PHP_FPM_CONF"
+  sed -i '/php_admin_value\[memory_limit\]/d' "$PHP_FPM_CONF"
+  sed -i '/php_admin_value\[max_file_uploads\]/d' "$PHP_FPM_CONF"
+  sed -i '/php_admin_value\[max_execution_time\]/d' "$PHP_FPM_CONF"
+  sed -i '/php_admin_value\[max_input_time\]/d' "$PHP_FPM_CONF"
+  # Append limits at end of [www] pool
+  cat >> "$PHP_FPM_CONF" << 'FPMEOF'
+php_admin_value[upload_max_filesize] = 1024M
+php_admin_value[post_max_size] = 2048M
+php_admin_value[memory_limit] = 512M
+php_admin_value[max_file_uploads] = 200
+php_admin_value[max_execution_time] = 300
+php_admin_value[max_input_time] = 300
+FPMEOF
+  echo "[deploy-bootstrap] PHP-FPM limits injected into ${PHP_FPM_CONF}"
+else
+  echo "[deploy-bootstrap] WARNING: php-fpm.conf not found at ${PHP_FPM_CONF}"
 fi
-cat > "${PHP_INI_SCAN}/php.ini" << 'PHPEOF'
-upload_max_filesize = 1024M
-post_max_size = 2048M
-memory_limit = 512M
-max_file_uploads = 200
-max_execution_time = 300
-max_input_time = 300
-PHPEOF
-echo "[deploy-bootstrap] PHP limits written to ${PHP_INI_SCAN}/php.ini"
-php -r "echo '[deploy-bootstrap] upload_max_filesize: ' . ini_get('upload_max_filesize') . PHP_EOL;" 2>/dev/null || true
 
 # ============================================================
 # Nginx client_max_body_size — applied on every deploy

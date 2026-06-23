@@ -21,8 +21,7 @@ aptPkgs = [
 cmds = [
   "mkdir -p /var/log/nginx && mkdir -p /var/cache/nginx",
   "composer install --ignore-platform-reqs",
-  "npm install --include=dev",
-  "PHP_INI_DIR=$(find /nix/store -name 'php.ini' -path '*/lib/php.ini' 2>/dev/null | head -1 | xargs dirname 2>/dev/null || echo '/etc') && printf 'upload_max_filesize = 1024M\\npost_max_size = 2048M\\nmemory_limit = 512M\\nmax_file_uploads = 200\\nmax_execution_time = 300\\nmax_input_time = 300\\n' > ${PHP_INI_DIR}/php.ini && echo 'PHP limits written to '${PHP_INI_DIR}'/php.ini'"
+  "npm install --include=dev"
 ]
 
 [phases.build]
