@@ -3,8 +3,6 @@
 use App\Http\Middleware\RedirectBasedOnRole;
 use App\Livewire\Portal\Dashboard as PortalDashboard;
 use App\Livewire\Portal\Reports as PortalReports;
-use App\Models\Document;
-use App\Models\DocumentVersion;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -116,41 +114,15 @@ Route::middleware(['auth'])->group(function () {
 
 // Grupo de rutas adicionales para documentos
 Route::prefix('documents')->name('documents.')->middleware(['auth'])->group(function () {
-    Route::get('/{id}/preview', function ($id) {
-        $document = Document::findOrFail($id);
-        authorizeDocumentAccess($document);
-        validateFileExists($document->file_path);
-
-        if (function_exists('logDocumentAccess')) {
-            logDocumentAccess($document, 'preview');
-        }
-
-        return app(\App\Services\DocumentFileService::class)->inlineResponse($document->file_path);
-    })->name('preview');
+    Route::get('/{id}/preview', [App\Http\Controllers\DocumentFileController::class, 'preview'])->name('preview');
 
     // Descarga de documento principal
-    Route::get('/{id}/download', function ($id) {
-        $document = Document::findOrFail($id);
-        authorizeDocumentAccess($document);
-        validateFileExists($document->file_path);
-
-        logDocumentDownload($document);
-
-        return downloadFile($document->file_path);
-    })->name('download');
+    Route::get('/{id}/download', [App\Http\Controllers\DocumentFileController::class, 'download'])->name('download');
 
     // Grupo para versiones de documentos
     Route::prefix('versions')->name('versions.')->group(function () {
         // Descarga de versión específica
-        Route::get('/{id}/download', function ($id) {
-            $version = DocumentVersion::findOrFail($id);
-            authorizeDocumentAccess($version->document);
-            validateFileExists($version->file_path);
-
-            logDocumentDownload($version->document, $version->id);
-
-            return downloadFile($version->file_path);
-        })->name('download');
+        Route::get('/{id}/download', [App\Http\Controllers\DocumentFileController::class, 'downloadVersion'])->name('download');
     });
 });
 
