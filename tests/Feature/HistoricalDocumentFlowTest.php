@@ -266,6 +266,43 @@ it('allows archive operator to upload historical documents into an active box', 
         ->and($setup['location']->refresh()->capacity_used)->toBe(1);
 });
 
+it('rejects duplicate historical uploads from the same operator into the same box', function () {
+    Storage::fake('local');
+    Queue::fake();
+    $setup = historicalFlowSetup();
+
+    $payload = [
+        'rows' => [
+            [
+                'file' => UploadedFile::fake()->create('Egreso 239.pdf', 100, 'application/pdf'),
+                'documentary_type_id' => $setup['documentaryType']->id,
+                'folder' => '8',
+                'volume' => '1 DE 1',
+                'reference_code' => 'EGRESO 239',
+                'year' => 2020,
+            ],
+        ],
+        'category_id' => $setup['category']->id,
+        'original_department_id' => $setup['producerDepartment']->id,
+        'physical_location_id' => $setup['location']->id,
+        'digital_document_type' => 'copia',
+        'physical_document_type' => 'original',
+    ];
+
+    $this->actingAs($setup['archiveOperator'])
+        ->post(route('documents.historical.store'), $payload)
+        ->assertRedirect(route('documents.index', ['archive_phase' => ArchivePhase::Central->value]));
+
+    $payload['rows'][0]['file'] = UploadedFile::fake()->create('Egreso 239 retry.pdf', 100, 'application/pdf');
+
+    $this->actingAs($setup['archiveOperator'])
+        ->post(route('documents.historical.store'), $payload)
+        ->assertSessionHasErrors('rows');
+
+    expect(Document::query()->where('title', 'EGRESO 239')->count())->toBe(1)
+        ->and($setup['location']->refresh()->capacity_used)->toBe(1);
+});
+
 it('prevents archive operator from correcting a document physical location after upload', function () {
     $setup = historicalFlowSetup();
     $document = Document::factory()->create([
