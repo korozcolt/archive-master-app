@@ -375,7 +375,7 @@ class Document extends Model
                     Role::BranchAdmin->value,
                     Role::SuperAdmin->value,
                 ])) {
-                    $builder->orWhereIn('archive_phase', [ArchivePhase::Central->value, ArchivePhase::Historical->value]);
+                    $builder->orWhereIn('archive_phase', [ArchivePhase::Central->value, ArchivePhase::Historico->value]);
                 }
             });
     }
@@ -412,7 +412,7 @@ class Document extends Model
         if ($user->hasRole(Role::ArchiveOperator->value)) {
             return $this->created_by === $user->id
                 || $this->isHistoricalEntry()
-                || in_array($this->archive_phase, [ArchivePhase::Central, ArchivePhase::Historical], true);
+                || in_array($this->archive_phase, [ArchivePhase::Central, ArchivePhase::Historico], true);
         }
 
         if ($user->hasRole(Role::Receptionist->value) && $this->receipts()->exists()) {

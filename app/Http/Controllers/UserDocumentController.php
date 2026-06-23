@@ -1678,7 +1678,7 @@ class UserDocumentController extends Controller
                 ->whereHas('targets', fn ($q) => $q->where('department_id', $user->department_id))
                 ->exists())
             || $user->hasRole(Role::ArchiveManager->value)
-            || ($user->hasRole(Role::ArchiveOperator->value) && in_array($document->archive_phase?->value, [ArchivePhase::Central->value, ArchivePhase::Historical->value], true))
+            || ($user->hasRole(Role::ArchiveOperator->value) && in_array($document->archive_phase?->value, [ArchivePhase::Central->value, ArchivePhase::Historico->value], true))
             || $user->hasAnyRole(['admin', 'super_admin', 'branch_admin']);
     }
 

@@ -67,7 +67,7 @@ class DocumentPolicy
             return true;
         }
 
-        if ($user->hasRole(Role::ArchiveOperator->value) && in_array($document->archive_phase?->value, [ArchivePhase::Central->value, ArchivePhase::Historical->value], true)) {
+        if ($user->hasRole(Role::ArchiveOperator->value) && in_array($document->archive_phase?->value, [ArchivePhase::Central->value, ArchivePhase::Historico->value], true)) {
             return true;
         }
 
