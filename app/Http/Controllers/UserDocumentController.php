@@ -257,7 +257,7 @@ class UserDocumentController extends Controller
             'rows' => 'nullable|array',
             'rows.*.file' => 'required_with:rows|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png',
             'rows.*.documentary_type_id' => 'nullable|integer|exists:documentary_types,id',
-            'rows.*.folder' => 'nullable|string|max:100',
+            'rows.*.folder' => 'nullable|string',
             'rows.*.volume' => 'nullable|string|max:100',
             'rows.*.reference_code' => 'nullable|string|max:100',
             'rows.*.year' => 'nullable|integer|min:1800|max:2200',
@@ -275,7 +275,7 @@ class UserDocumentController extends Controller
             'date_start' => 'nullable|date',
             'date_end' => 'nullable|date|after_or_equal:date_start',
             'box' => 'nullable|string|max:100',
-            'folder' => 'nullable|string|max:100',
+            'folder' => 'nullable|string',
             'volume' => 'nullable|string|max:100',
             'reference_code' => 'nullable|string|max:100',
             'keywords' => 'nullable|string|max:1000',
@@ -1646,6 +1646,10 @@ class UserDocumentController extends Controller
         // Mismo company
         if ($document->company_id !== $user->company_id) {
             return false;
+        }
+
+        if ($document->created_by === $user->id) {
+            return true;
         }
 
         if ($document->isHistoricalEntry()) {

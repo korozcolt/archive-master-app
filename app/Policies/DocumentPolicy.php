@@ -32,6 +32,10 @@ class DocumentPolicy
             return false;
         }
 
+        if ($document->created_by === $user->id) {
+            return true;
+        }
+
         if ($document->isHistoricalEntry()) {
             if ($user->hasAnyRole(['super_admin', 'admin', 'branch_admin', Role::ArchiveManager->value])) {
                 return true;

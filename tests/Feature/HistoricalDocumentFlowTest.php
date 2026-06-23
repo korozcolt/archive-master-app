@@ -401,3 +401,42 @@ it('does not expose reserved historical documents to regular office users', func
         ->whereKey($document->id)
         ->exists())->toBeFalse();
 });
+
+it('allows the creator of a historical document to view it regardless of role or access level', function () {
+    $setup = historicalFlowSetup();
+
+    $regularUserRole = SpatieRole::firstOrCreate(['name' => Role::RegularUser->value, 'guard_name' => 'web']);
+    $creatorUser = User::factory()->create([
+        'company_id' => $setup['company']->id,
+        'branch_id' => $setup['branch']->id,
+        'department_id' => $setup['officeDepartment']->id,
+        'is_active' => true,
+    ]);
+    $creatorUser->assignRole($regularUserRole);
+
+    $document = Document::factory()->create([
+        'company_id' => $setup['company']->id,
+        'branch_id' => $setup['branch']->id,
+        'department_id' => null,
+        'category_id' => $setup['category']->id,
+        'status_id' => $setup['archivedStatus']->id,
+        'created_by' => $creatorUser->id,
+        'assigned_to' => null,
+        'title' => 'Documento Creado Por Mi',
+        'archive_phase' => ArchivePhase::Central,
+        'access_level' => DocumentAccessLevel::Reservado,
+        'is_archived' => true,
+        'physical_location_id' => $setup['location']->id,
+        'metadata' => [
+            'entry_mode' => 'historical',
+            'historical' => [
+                'original_department_id' => $setup['producerDepartment']->id,
+                'original_department_name' => 'Gerencia',
+            ],
+        ],
+    ]);
+
+    $this->actingAs($creatorUser)
+        ->get(route('documents.show', $document))
+        ->assertOk();
+});
