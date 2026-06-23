@@ -481,9 +481,9 @@ class SystemMonitor extends Command
         if (isset($metrics['performance'])) {
             $this->line('🚀 RENDIMIENTO:');
             $perf = $metrics['performance'];
-            $this->line("   • Consulta BD: {$perf['db_query_time_ms']}ms");
-            $this->line("   • Acceso cache: {$perf['cache_access_time_ms']}ms");
-            $this->line("   • I/O archivos: {$perf['file_io_time_ms']}ms");
+            $this->line('   • Consulta BD: '.($perf['db_query_time_ms'] ?? 'n/a').'ms');
+            $this->line('   • Acceso cache: '.($perf['cache_access_time_ms'] ?? 'n/a').'ms');
+            $this->line('   • I/O archivos: '.($perf['file_io_time_ms'] ?? 'n/a').'ms');
         }
 
         if ($detailed) {
