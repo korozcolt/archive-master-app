@@ -367,6 +367,16 @@ class Document extends Model
                         }
                     });
                 }
+
+                if ($user->hasAnyRole([
+                    Role::ArchiveManager->value,
+                    Role::ArchiveOperator->value,
+                    Role::Admin->value,
+                    Role::BranchAdmin->value,
+                    Role::SuperAdmin->value,
+                ])) {
+                    $builder->orWhereIn('archive_phase', [ArchivePhase::Central->value, ArchivePhase::Historical->value]);
+                }
             });
     }
 
@@ -400,7 +410,9 @@ class Document extends Model
         }
 
         if ($user->hasRole(Role::ArchiveOperator->value)) {
-            return $this->created_by === $user->id;
+            return $this->created_by === $user->id
+                || $this->isHistoricalEntry()
+                || in_array($this->archive_phase, [ArchivePhase::Central, ArchivePhase::Historical], true);
         }
 
         if ($user->hasRole(Role::Receptionist->value) && $this->receipts()->exists()) {
@@ -447,6 +459,7 @@ class Document extends Model
     {
         return $user->hasAnyRole([
             Role::ArchiveManager->value,
+            Role::ArchiveOperator->value,
             Role::Admin->value,
             Role::BranchAdmin->value,
             Role::SuperAdmin->value,

@@ -1653,16 +1653,12 @@ class UserDocumentController extends Controller
         }
 
         if ($document->isHistoricalEntry()) {
-            if ($user->hasAnyRole(['super_admin', 'admin', 'branch_admin', Role::ArchiveManager->value])) {
+            if ($user->hasAnyRole(['super_admin', 'admin', 'branch_admin', Role::ArchiveManager->value, Role::ArchiveOperator->value])) {
                 return true;
             }
 
             if ($user->hasRole(Role::RegularUser->value)) {
                 return false;
-            }
-
-            if ($user->hasRole(Role::ArchiveOperator->value)) {
-                return $document->created_by === $user->id;
             }
 
             return in_array($document->access_level?->value, [
@@ -1682,6 +1678,7 @@ class UserDocumentController extends Controller
                 ->whereHas('targets', fn ($q) => $q->where('department_id', $user->department_id))
                 ->exists())
             || $user->hasRole(Role::ArchiveManager->value)
+            || ($user->hasRole(Role::ArchiveOperator->value) && in_array($document->archive_phase?->value, [ArchivePhase::Central->value, ArchivePhase::Historical->value], true))
             || $user->hasAnyRole(['admin', 'super_admin', 'branch_admin']);
     }
 

@@ -37,7 +37,7 @@ class DocumentPolicy
         }
 
         if ($document->isHistoricalEntry()) {
-            if ($user->hasAnyRole(['super_admin', 'admin', 'branch_admin', Role::ArchiveManager->value])) {
+            if ($user->hasAnyRole(['super_admin', 'admin', 'branch_admin', Role::ArchiveManager->value, Role::ArchiveOperator->value])) {
                 return true;
             }
 
@@ -64,6 +64,10 @@ class DocumentPolicy
         }
 
         if ($user->hasRole('archive_manager')) {
+            return true;
+        }
+
+        if ($user->hasRole(Role::ArchiveOperator->value) && in_array($document->archive_phase?->value, [ArchivePhase::Central->value, ArchivePhase::Historical->value], true)) {
             return true;
         }
 

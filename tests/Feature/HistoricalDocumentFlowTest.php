@@ -440,3 +440,33 @@ it('allows the creator of a historical document to view it regardless of role or
         ->get(route('documents.show', $document))
         ->assertOk();
 });
+
+it('allows archive operator to view historical documents created by others', function () {
+    $setup = historicalFlowSetup();
+
+    $document = Document::factory()->create([
+        'company_id' => $setup['company']->id,
+        'branch_id' => $setup['branch']->id,
+        'department_id' => null,
+        'category_id' => $setup['category']->id,
+        'status_id' => $setup['archivedStatus']->id,
+        'created_by' => $setup['archiveManager']->id,
+        'assigned_to' => null,
+        'title' => 'Documento Confidencial Historico',
+        'archive_phase' => ArchivePhase::Central,
+        'access_level' => DocumentAccessLevel::Reservado,
+        'is_archived' => true,
+        'physical_location_id' => $setup['location']->id,
+        'metadata' => [
+            'entry_mode' => 'historical',
+            'historical' => [
+                'original_department_id' => $setup['producerDepartment']->id,
+                'original_department_name' => 'Gerencia',
+            ],
+        ],
+    ]);
+
+    $this->actingAs($setup['archiveOperator'])
+        ->get(route('documents.show', $document))
+        ->assertOk();
+});
