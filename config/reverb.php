@@ -1,5 +1,11 @@
 <?php
 
+$reverbTlsOptions = array_filter([
+    'local_cert' => env('REVERB_TLS_CERT'),
+    'local_pk' => env('REVERB_TLS_KEY'),
+    'passphrase' => env('REVERB_TLS_PASSPHRASE'),
+]);
+
 return [
 
     /*
@@ -33,13 +39,9 @@ return [
             'port' => env('REVERB_SERVER_PORT', 8080),
             'path' => env('REVERB_SERVER_PATH', ''),
             'hostname' => env('REVERB_HOST'),
-            'options' => [
-                'tls' => array_filter([
-                    'local_cert' => env('REVERB_TLS_CERT'),
-                    'local_pk' => env('REVERB_TLS_KEY'),
-                    'passphrase' => env('REVERB_TLS_PASSPHRASE'),
-                ]),
-            ],
+            'options' => array_filter([
+                'tls' => $reverbTlsOptions ?: null,
+            ]),
             'max_request_size' => env('REVERB_MAX_REQUEST_SIZE', 10_000),
             'scaling' => [
                 'enabled' => env('REVERB_SCALING_ENABLED', false),

@@ -9,7 +9,6 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Auth;
 
 class VersionsRelationManager extends RelationManager
@@ -37,7 +36,7 @@ class VersionsRelationManager extends RelationManager
                     ->directory('documents/versions')
                     ->preserveFilenames()
                     ->acceptedFileTypes(['application/pdf', 'image/*', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/plain'])
-                    ->maxSize(10240),
+                    ->maxSize(config('documents.files.max_size', 2048) * 1024),
                 Forms\Components\Textarea::make('content')
                     ->label('Contenido')
                     ->rows(5),
@@ -132,7 +131,7 @@ class VersionsRelationManager extends RelationManager
                             ->directory('documents/versions')
                             ->preserveFilenames()
                             ->acceptedFileTypes(['application/pdf', 'image/*', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/plain'])
-                            ->maxSize(10240),
+                            ->maxSize(config('documents.files.max_size', 2048) * 1024),
                         Forms\Components\Textarea::make('content')
                             ->label('Contenido')
                             ->rows(5),
@@ -164,7 +163,7 @@ class VersionsRelationManager extends RelationManager
                             ->success()
                             ->send();
                     })
-                    ->visible(fn ($record) => !$record->is_current),
+                    ->visible(fn ($record) => ! $record->is_current),
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\Action::make('download')
                     ->label('Descargar')
@@ -203,6 +202,6 @@ class VersionsRelationManager extends RelationManager
         $sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
         $i = floor(log($bytes, 1024));
 
-        return round($bytes / pow(1024, $i), 2) . ' ' . $sizes[$i];
+        return round($bytes / pow(1024, $i), 2).' '.$sizes[$i];
     }
 }

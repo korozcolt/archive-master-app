@@ -38,13 +38,14 @@ class OCRService
     public function processFile(string $filePath, string $language = 'spa'): array
     {
         try {
+            $disk = $this->storageDisk();
             // Verificar que el archivo existe
-            if (! Storage::exists($filePath)) {
+            if (! Storage::disk($disk)->exists($filePath)) {
                 throw new Exception("Archivo no encontrado: {$filePath}");
             }
 
             // Obtener información del archivo
-            $fileInfo = $this->getFileInfo($filePath);
+            $fileInfo = $this->getFileInfo($filePath, $disk);
 
             // Verificar formato soportado
             if (! in_array($fileInfo['extension'], self::SUPPORTED_FORMATS)) {
@@ -53,8 +54,8 @@ class OCRService
 
             // Procesar según el tipo de archivo
             $extractedText = match ($fileInfo['extension']) {
-                'pdf' => $this->processPDF($filePath, $language),
-                default => $this->processImage($filePath, $language),
+                'pdf' => $this->processPDF($filePath, $language, $disk),
+                default => $this->processImage($filePath, $language, $disk),
             };
 
             // Procesar y limpiar el texto extraído
@@ -91,7 +92,7 @@ class OCRService
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
-                'file_info' => $this->getFileInfo($filePath),
+                'file_info' => $this->getFileInfo($filePath, $this->storageDisk()),
                 'language' => $language,
             ];
         }
@@ -100,9 +101,9 @@ class OCRService
     /**
      * Procesar archivo PDF con OCR
      */
-    private function processPDF(string $filePath, string $language): string
+    private function processPDF(string $filePath, string $language, string $disk): string
     {
-        $fullPath = Storage::path($filePath);
+        $fullPath = Storage::disk($disk)->path($filePath);
 
         // Para PDFs, primero necesitamos convertir a imágenes usando Imagick o similar
         // Por ahora, si el PDF tiene texto nativo, usamos pdftotext
@@ -125,9 +126,9 @@ class OCRService
     /**
      * Procesar imagen con OCR
      */
-    private function processImage(string $filePath, string $language): string
+    private function processImage(string $filePath, string $language, string $disk): string
     {
-        $fullPath = Storage::path($filePath);
+        $fullPath = Storage::disk($disk)->path($filePath);
 
         // Mapear código de idioma a código de Tesseract
         $tesseractLang = $this->mapLanguageToTesseract($language);
@@ -350,9 +351,11 @@ class OCRService
     /**
      * Obtener información del archivo
      */
-    private function getFileInfo(string $filePath): array
+    private function getFileInfo(string $filePath, ?string $disk = null): array
     {
-        if (! Storage::exists($filePath)) {
+        $disk ??= $this->storageDisk();
+
+        if (! Storage::disk($disk)->exists($filePath)) {
             return [
                 'path' => $filePath,
                 'name' => basename($filePath),
@@ -367,10 +370,15 @@ class OCRService
             'path' => $filePath,
             'name' => basename($filePath),
             'extension' => strtolower(pathinfo($filePath, PATHINFO_EXTENSION)),
-            'size' => Storage::size($filePath),
-            'mime_type' => Storage::mimeType($filePath),
-            'last_modified' => Storage::lastModified($filePath),
+            'size' => Storage::disk($disk)->size($filePath),
+            'mime_type' => Storage::disk($disk)->mimeType($filePath),
+            'last_modified' => Storage::disk($disk)->lastModified($filePath),
         ];
+    }
+
+    private function storageDisk(): string
+    {
+        return config('documents.files.storage_disk', config('filesystems.default', 'local'));
     }
 
     /**

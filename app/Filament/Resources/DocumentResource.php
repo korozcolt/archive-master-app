@@ -276,7 +276,7 @@ class DocumentResource extends Resource
                                             ->storeUploadedFile($file);
                                     })
                                     ->acceptedFileTypes(['application/pdf', 'image/*', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/plain'])
-                                    ->maxSize(10240)
+                                    ->maxSize(config('documents.files.max_size', 2048) * 1024)
                                     ->columnSpanFull(),
                                 Forms\Components\MarkdownEditor::make('content')
                                     ->label('Contenido')

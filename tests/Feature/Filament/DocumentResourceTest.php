@@ -231,7 +231,7 @@ class DocumentResourceTest extends TestCase
         ])
             ->assertSuccessful()
             ->assertSee('Ver Documento')
-            ->assertSee('Generar Etiqueta')
+            ->assertSee('Imprimir Etiqueta')
             ->assertSee('Correspondencia')
             ->assertSee('Borrador');
     }

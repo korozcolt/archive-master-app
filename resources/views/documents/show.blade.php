@@ -287,6 +287,7 @@
                                     <label for="physical_location_id" class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Asignar ubicación</label>
                                     <select id="physical_location_id"
                                             name="physical_location_id"
+                                            dusk="archive-location-select"
                                             class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
                                         <option value="">Seleccionar ubicación</option>
                                         @foreach(($archiveLocationOptions ?? collect()) as $locationOption)
@@ -311,6 +312,7 @@
                                 </div>
 
                                 <button type="submit"
+                                        dusk="archive-location-submit"
                                         class="inline-flex h-10 w-full items-center justify-center rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:from-sky-400 hover:to-indigo-500">
                                     {{ $document->physicalLocation ? 'Mover / actualizar ubicación' : 'Asignar ubicación en archivo' }}
                                 </button>

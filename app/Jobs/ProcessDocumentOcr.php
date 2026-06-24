@@ -96,14 +96,16 @@ class ProcessDocumentOcr implements ShouldQueue
 
     private function buildFingerprint(string $filePath): string
     {
-        if (! Storage::exists($filePath)) {
+        $disk = config('documents.files.storage_disk', config('filesystems.default', 'local'));
+
+        if (! Storage::disk($disk)->exists($filePath)) {
             return sha1($filePath.'|missing');
         }
 
         return sha1(implode('|', [
             $filePath,
-            (string) Storage::size($filePath),
-            (string) Storage::lastModified($filePath),
+            (string) Storage::disk($disk)->size($filePath),
+            (string) Storage::disk($disk)->lastModified($filePath),
         ]));
     }
 

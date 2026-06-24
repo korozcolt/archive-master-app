@@ -108,8 +108,10 @@ class PhysicalLocation extends Model
 
     public function scopeAvailable($query)
     {
-        return $query->whereRaw('capacity_used < capacity_total')
-            ->orWhereNull('capacity_total');
+        return $query->where(function ($query): void {
+            $query->whereRaw('capacity_used < capacity_total')
+                ->orWhereNull('capacity_total');
+        });
     }
 
     public function scopeFull($query)
@@ -182,13 +184,25 @@ class PhysicalLocation extends Model
      */
     public function incrementCapacity(int $amount = 1): bool
     {
-        if ($this->capacity_total && $this->capacity_used + $amount > $this->capacity_total) {
+        if ($amount <= 0) {
+            return true;
+        }
+
+        $updated = static::query()
+            ->whereKey($this->getKey())
+            ->where(function ($query) use ($amount): void {
+                $query->whereNull('capacity_total')
+                    ->orWhereRaw('capacity_used + ? <= capacity_total', [$amount]);
+            })
+            ->increment('capacity_used', $amount);
+
+        if ($updated < 1) {
             return false;
         }
 
-        $this->capacity_used += $amount;
+        $this->refresh();
 
-        return $this->save();
+        return true;
     }
 
     /**
@@ -196,13 +210,22 @@ class PhysicalLocation extends Model
      */
     public function decrementCapacity(int $amount = 1): bool
     {
-        if ($this->capacity_used - $amount < 0) {
+        if ($amount <= 0) {
+            return true;
+        }
+
+        $updated = static::query()
+            ->whereKey($this->getKey())
+            ->where('capacity_used', '>=', $amount)
+            ->decrement('capacity_used', $amount);
+
+        if ($updated < 1) {
             return false;
         }
 
-        $this->capacity_used -= $amount;
+        $this->refresh();
 
-        return $this->save();
+        return true;
     }
 
     /**

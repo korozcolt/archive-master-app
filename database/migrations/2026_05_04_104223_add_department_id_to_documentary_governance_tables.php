@@ -59,30 +59,26 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('retention_schedules', function (Blueprint $table) {
-            $table->dropIndex('retention_schedules_department_type_idx');
-            $table->dropIndex('retention_schedules_company_department_idx');
-            $table->dropConstrainedForeignId('department_id');
+            $table->dropForeign(['department_id']);
+            $table->dropColumn('department_id');
         });
 
         Schema::table('documentary_types', function (Blueprint $table) {
-            $table->dropIndex('doc_types_company_department_idx');
-            $table->dropUnique('doc_types_company_department_subseries_code_uq');
+            $table->dropForeign(['department_id']);
+            $table->dropColumn('department_id');
             $table->unique(['company_id', 'documentary_subseries_id', 'code'], 'doc_types_company_subseries_code_uq');
-            $table->dropConstrainedForeignId('department_id');
         });
 
         Schema::table('documentary_subseries', function (Blueprint $table) {
-            $table->dropIndex('doc_subseries_company_department_idx');
-            $table->dropUnique('doc_subseries_company_department_series_code_uq');
+            $table->dropForeign(['department_id']);
+            $table->dropColumn('department_id');
             $table->unique(['company_id', 'documentary_series_id', 'code'], 'doc_subseries_company_series_code_uq');
-            $table->dropConstrainedForeignId('department_id');
         });
 
         Schema::table('documentary_series', function (Blueprint $table) {
-            $table->dropIndex('doc_series_company_department_idx');
-            $table->dropUnique('doc_series_company_department_code_uq');
+            $table->dropForeign(['department_id']);
+            $table->dropColumn('department_id');
             $table->unique(['company_id', 'code']);
-            $table->dropConstrainedForeignId('department_id');
         });
     }
 };

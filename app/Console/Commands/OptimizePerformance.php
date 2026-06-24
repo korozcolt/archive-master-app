@@ -3,14 +3,14 @@
 namespace App\Console\Commands;
 
 use App\Services\CacheService;
-use App\Services\FileCompressionService;
 use App\Services\CDNService;
+use App\Services\FileCompressionService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class OptimizePerformance extends Command
 {
@@ -47,21 +47,31 @@ class OptimizePerformance extends Command
         $runCDN = $this->option('cdn') || $this->option('all');
         $force = $this->option('force');
 
-        if (!$runCache && !$runDatabase && !$runFiles && !$runCDN) {
+        if (! $runCache && ! $runDatabase && ! $runFiles && ! $runCDN) {
             $this->error('❌ Debe especificar al menos una optimización: --cache, --database, --files, --cdn, o --all');
+
             return self::FAILURE;
         }
 
         // Mostrar resumen de optimizaciones
         $this->info('📋 Optimizaciones a ejecutar:');
-        if ($runCache) $this->line('  • Cache y Redis');
-        if ($runDatabase) $this->line('  • Base de datos e índices');
-        if ($runFiles) $this->line('  • Compresión de archivos');
-        if ($runCDN) $this->line('  • CDN y assets estáticos');
+        if ($runCache) {
+            $this->line('  • Cache y Redis');
+        }
+        if ($runDatabase) {
+            $this->line('  • Base de datos e índices');
+        }
+        if ($runFiles) {
+            $this->line('  • Compresión de archivos');
+        }
+        if ($runCDN) {
+            $this->line('  • CDN y assets estáticos');
+        }
 
         // Confirmar si no es forzado
-        if (!$force && !$this->confirm('¿Continuar con las optimizaciones?')) {
+        if (! $force && ! $this->confirm('¿Continuar con las optimizaciones?')) {
             $this->info('❌ Optimización cancelada por el usuario.');
+
             return self::SUCCESS;
         }
 
@@ -150,7 +160,7 @@ class OptimizePerformance extends Command
         } catch (\Exception $e) {
             $results['status'] = 'error';
             $results['error'] = $e->getMessage();
-            $this->error('❌ Error en optimización de cache: ' . $e->getMessage());
+            $this->error('❌ Error en optimización de cache: '.$e->getMessage());
             Log::error('Cache optimization failed', ['error' => $e->getMessage()]);
         }
 
@@ -203,7 +213,7 @@ class OptimizePerformance extends Command
         } catch (\Exception $e) {
             $results['status'] = 'error';
             $results['error'] = $e->getMessage();
-            $this->error('❌ Error en optimización de base de datos: ' . $e->getMessage());
+            $this->error('❌ Error en optimización de base de datos: '.$e->getMessage());
             Log::error('Database optimization failed', ['error' => $e->getMessage()]);
         }
 
@@ -221,7 +231,7 @@ class OptimizePerformance extends Command
         $results = [];
 
         try {
-            $compressionService = new FileCompressionService();
+            $compressionService = new FileCompressionService;
 
             // Comprimir archivos en directorio de documentos
             $this->line('  • Comprimiendo archivos de documentos...');
@@ -260,7 +270,7 @@ class OptimizePerformance extends Command
         } catch (\Exception $e) {
             $results['status'] = 'error';
             $results['error'] = $e->getMessage();
-            $this->error('❌ Error en optimización de archivos: ' . $e->getMessage());
+            $this->error('❌ Error en optimización de archivos: '.$e->getMessage());
             Log::error('File optimization failed', ['error' => $e->getMessage()]);
         }
 
@@ -278,7 +288,7 @@ class OptimizePerformance extends Command
         $results = [];
 
         try {
-            $cdnService = new CDNService();
+            $cdnService = new CDNService;
 
             // Verificar conectividad CDN
             $this->line('  • Verificando conectividad CDN...');
@@ -288,7 +298,7 @@ class OptimizePerformance extends Command
             // Precargar assets críticos
             $this->line('  • Precargando assets críticos...');
             $preloadResult = $cdnService->preloadCriticalAssets();
-            $successCount = count(array_filter($preloadResult, fn($r) => $r['status'] === 'preloaded'));
+            $successCount = count(array_filter($preloadResult, fn ($r) => $r['status'] === 'preloaded'));
             $results['preload_assets'] = $successCount > 0 ? 'OK' : 'ERROR';
             $results['preloaded_count'] = $successCount;
 
@@ -315,7 +325,7 @@ class OptimizePerformance extends Command
         } catch (\Exception $e) {
             $results['status'] = 'error';
             $results['error'] = $e->getMessage();
-            $this->error('❌ Error en optimización de CDN: ' . $e->getMessage());
+            $this->error('❌ Error en optimización de CDN: '.$e->getMessage());
             Log::error('CDN optimization failed', ['error' => $e->getMessage()]);
         }
 
@@ -348,6 +358,7 @@ class OptimizePerformance extends Command
     {
         try {
             Cache::put('test_connection', 'ok', 10);
+
             return Cache::get('test_connection') === 'ok';
         } catch (\Exception $e) {
             return false;
@@ -367,7 +378,7 @@ class OptimizePerformance extends Command
                 $count = DB::table($table)->count();
                 $stats[$table] = [
                     'row_count' => $count,
-                    'status' => $count > 10000 ? 'needs_optimization' : 'ok'
+                    'status' => $count > 10000 ? 'needs_optimization' : 'ok',
                 ];
             } catch (\Exception $e) {
                 $stats[$table] = ['status' => 'error', 'error' => $e->getMessage()];
@@ -455,7 +466,7 @@ class OptimizePerformance extends Command
         // Limpiar cache de vistas compiladas antiguas
         $viewPath = storage_path('framework/views');
         if (is_dir($viewPath)) {
-            $files = glob($viewPath . '/*.php');
+            $files = glob($viewPath.'/*.php');
             foreach ($files as $file) {
                 if (filemtime($file) < strtotime('-7 days')) {
                     unlink($file);
@@ -473,7 +484,7 @@ class OptimizePerformance extends Command
 
         try {
             // Tamaño del directorio storage
-            $storageSize = $this->getDirectorySize(storage_path());
+            $storageSize = $this->getDirectorySize(storage_path('app'));
             $stats['storage_size_mb'] = round($storageSize / 1024 / 1024, 2);
 
             // Tamaño del directorio public
@@ -481,7 +492,8 @@ class OptimizePerformance extends Command
             $stats['public_size_mb'] = round($publicSize / 1024 / 1024, 2);
 
             // Espacio libre en disco
-            $freeSpace = disk_free_space(storage_path());
+            $archivePath = config('filesystems.disks.archive.root') ?: storage_path('app');
+            $freeSpace = disk_free_space($archivePath);
             $stats['free_space_gb'] = round($freeSpace / 1024 / 1024 / 1024, 2);
 
             $stats['status'] = 'ok';
@@ -531,7 +543,7 @@ class OptimizePerformance extends Command
                 default => '⚠️'
             };
 
-            $this->line("$statusIcon " . ucfirst($type) . " - {$time}s");
+            $this->line("$statusIcon ".ucfirst($type)." - {$time}s");
 
             // Mostrar detalles específicos
             if ($type === 'files' && isset($result['documents_compression'])) {

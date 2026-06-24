@@ -67,11 +67,34 @@ class Dashboard extends Component
             ->limit(5)
             ->get();
 
+        $isArchivePortal = $this->isArchivePortalUser($user);
+
+        $archiveSummary = [
+            'historical_total' => (clone $baseQuery)
+                ->where('metadata->entry_mode', 'historical')
+                ->count(),
+            'historical_without_location' => (clone $baseQuery)
+                ->where('metadata->entry_mode', 'historical')
+                ->whereNull('physical_location_id')
+                ->count(),
+            'historical_restricted' => (clone $baseQuery)
+                ->where('metadata->entry_mode', 'historical')
+                ->whereIn('access_level', ['reservado', 'clasificado_confidencial'])
+                ->count(),
+            'historical_recent' => (clone $baseQuery)
+                ->where('metadata->entry_mode', 'historical')
+                ->latest()
+                ->limit(5)
+                ->get(),
+        ];
+
         return view('livewire.portal.dashboard', [
             'user' => $user,
             'summary' => $summary,
             'recentDocuments' => $recentDocuments,
             'slaAttentionDocuments' => $slaAttentionDocuments,
+            'isArchivePortal' => $isArchivePortal,
+            'archiveSummary' => $archiveSummary,
         ])->layout('layouts.app');
     }
 
@@ -102,5 +125,15 @@ class Dashboard extends Component
                 });
             }
         });
+    }
+
+    private function isArchivePortalUser(User $user): bool
+    {
+        return $user->hasRole(\App\Enums\Role::ArchiveManager->value)
+            && ! $user->hasAnyRole([
+                \App\Enums\Role::SuperAdmin->value,
+                \App\Enums\Role::Admin->value,
+                \App\Enums\Role::BranchAdmin->value,
+            ]);
     }
 }

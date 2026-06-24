@@ -18,7 +18,7 @@ return [
     */
     'files' => [
         // Tamaño máximo de archivo en MB
-        'max_size' => env('DOCUMENT_MAX_FILE_SIZE', 10),
+        'max_size' => env('DOCUMENT_MAX_FILE_SIZE', 2048),
 
         // Tipos de archivo permitidos
         'allowed_types' => [

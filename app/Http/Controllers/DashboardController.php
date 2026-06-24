@@ -26,6 +26,7 @@ class DashboardController extends Controller
         if ($user->hasAnyRole([
             Role::OfficeManager->value,
             Role::ArchiveManager->value,
+            Role::ArchiveOperator->value,
             Role::Receptionist->value,
             Role::RegularUser->value,
         ])) {

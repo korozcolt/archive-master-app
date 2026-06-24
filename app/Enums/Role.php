@@ -13,6 +13,7 @@ enum Role: string implements HasColor, HasIcon, HasLabel
     case BranchAdmin = 'branch_admin';         // Administrador de sucursal
     case OfficeManager = 'office_manager';     // Encargado de oficina
     case ArchiveManager = 'archive_manager';   // Encargado de archivo
+    case ArchiveOperator = 'archive_operator'; // Operador de archivo central
     case Receptionist = 'receptionist';        // Recepcionista
     case RegularUser = 'regular_user';         // Usuario regular
 
@@ -24,6 +25,7 @@ enum Role: string implements HasColor, HasIcon, HasLabel
             self::BranchAdmin => 'Administrador de Sucursal',
             self::OfficeManager => 'Encargado de Oficina',
             self::ArchiveManager => 'Encargado de Archivo',
+            self::ArchiveOperator => 'Operador de Archivo',
             self::Receptionist => 'Recepcionista',
             self::RegularUser => 'Usuario Regular',
         };
@@ -37,6 +39,7 @@ enum Role: string implements HasColor, HasIcon, HasLabel
             self::BranchAdmin => 'Gestiona la operación y reportes de su sucursal con alcance limitado.',
             self::OfficeManager => 'Gestiona documentos del área y participa en aprobaciones.',
             self::ArchiveManager => 'Administra archivo, custodia documental y ubicaciones.',
+            self::ArchiveOperator => 'Carga documentos en cajas del archivo central con permisos operativos limitados.',
             self::Receptionist => 'Registra documentos entrantes y genera recibidos para usuarios.',
             self::RegularUser => 'Consulta sus documentos y recibidos, con acceso limitado al portal.',
         };
@@ -50,6 +53,7 @@ enum Role: string implements HasColor, HasIcon, HasLabel
             self::BranchAdmin => 'warning',
             self::OfficeManager => 'success',
             self::ArchiveManager => 'info',
+            self::ArchiveOperator => 'cyan',
             self::Receptionist => 'purple',
             self::RegularUser => 'gray',
         };
@@ -63,6 +67,7 @@ enum Role: string implements HasColor, HasIcon, HasLabel
             self::BranchAdmin => 'heroicon-o-building-storefront',
             self::OfficeManager => 'heroicon-o-briefcase',
             self::ArchiveManager => 'heroicon-o-archive-box',
+            self::ArchiveOperator => 'heroicon-o-archive-box-arrow-down',
             self::Receptionist => 'heroicon-o-inbox',
             self::RegularUser => 'heroicon-o-user',
         };
@@ -76,6 +81,7 @@ enum Role: string implements HasColor, HasIcon, HasLabel
             self::BranchAdmin => 'bg-yellow-100',
             self::OfficeManager => 'bg-green-100',
             self::ArchiveManager => 'bg-cyan-100',
+            self::ArchiveOperator => 'bg-sky-100',
             self::Receptionist => 'bg-purple-100',
             self::RegularUser => 'bg-gray-100',
         };
@@ -116,6 +122,10 @@ enum Role: string implements HasColor, HasIcon, HasLabel
                 'manage-archives', 'view-documents', 'archive-documents',
                 'ai.run.generate', 'ai.output.view', 'ai.output.regenerate',
                 'ai.output.apply_suggestions',
+            ],
+            self::ArchiveOperator => [
+                'upload-archive-documents', 'view-documents',
+                'ai.output.view',
             ],
             self::Receptionist => [
                 'create-documents', 'view-documents', 'update-documents',

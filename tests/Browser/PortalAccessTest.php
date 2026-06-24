@@ -42,8 +42,7 @@ class PortalAccessTest extends DuskTestCase
                     $browser->driver->getPageSource()
                 );
 
-                $browser->waitForText('Portal', 5)
-                    ->assertSee('Portal')
+                $browser->waitForText($roleName === 'archive_manager' ? 'Control de archivo histórico' : 'Resumen personal de documentos', 5)
                     ->screenshot("portal-{$roleName}-dashboard")
                     ->visit('/portal/reports')
                     ->waitForLocation('/portal/reports')

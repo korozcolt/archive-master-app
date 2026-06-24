@@ -245,6 +245,10 @@ class DocumentObserver
             return;
         }
 
+        if (! $force && $document->isHistoricalEntry()) {
+            return;
+        }
+
         ProcessDocumentOcr::dispatch($document->id, $force)
             ->afterCommit()
             ->onQueue('document-processing');
