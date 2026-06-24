@@ -66,9 +66,9 @@ Schedule::command('reports:process-scheduled')
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/scheduled-reports.log'));
 
-// Procesar documentos con OCR diariamente a las 3:00 AM
-Schedule::command('documents:process-ocr --limit=50')
-    ->dailyAt('03:00')
+// Procesar documentos con OCR de forma continua durante la jornada operativa
+Schedule::command('documents:process-ocr --limit=25 --language=spa')
+    ->everyFiveMinutes()
     ->withoutOverlapping()
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/ocr-processing.log'));
@@ -91,7 +91,7 @@ Schedule::command('system:monitor --alert')
 
 // Comprimir archivos semanalmente
 Schedule::call(function () {
-    $compressionService = new FileCompressionService();
+    $compressionService = new FileCompressionService;
     $result = $compressionService->compressExistingFiles('documents', 100);
     Log::info('Compresión automática de archivos completada', $result);
 })->weekly()->mondays()->at('02:00');

@@ -30,4 +30,4 @@ cmds = [
 ]
 
 [start]
-cmd = "bash /app/scripts/deploy-bootstrap.sh && node /assets/scripts/prestart.mjs /assets/nginx.template.conf /nginx.conf && bash /app/scripts/run-runtime-services.sh"
+cmd = "node /assets/scripts/prestart.mjs /assets/nginx.template.conf /nginx.conf && bash /app/scripts/deploy-bootstrap.sh && bash /app/scripts/run-runtime-services.sh"

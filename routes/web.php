@@ -3,8 +3,6 @@
 use App\Http\Middleware\RedirectBasedOnRole;
 use App\Livewire\Portal\Dashboard as PortalDashboard;
 use App\Livewire\Portal\Reports as PortalReports;
-use App\Models\Document;
-use App\Models\DocumentVersion;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -40,19 +38,20 @@ Route::middleware(['auth', RedirectBasedOnRole::class])
         Route::get('/reports', PortalReports::class)->name('reports');
     });
 
-// Debug route for testing
-Route::get('/debug-user', function () {
-    $user = Auth::user();
+if (app()->environment('local', 'testing')) {
+    Route::get('/debug-user', function () {
+        $user = Auth::user();
 
-    return response()->json([
-        'id' => $user->id,
-        'email' => $user->email,
-        'roles' => $user->roles->pluck('name'),
-        'has_admin' => $user->hasRole('admin'),
-        'has_regular_user' => $user->hasRole('regular_user'),
-        'has_any_admin' => $user->hasAnyRole(['admin', 'super_admin', 'branch_admin', 'office_manager']),
-    ]);
-})->middleware(['auth']);
+        return response()->json([
+            'id' => $user->id,
+            'email' => $user->email,
+            'roles' => $user->roles->pluck('name'),
+            'has_admin' => $user->hasRole('admin'),
+            'has_regular_user' => $user->hasRole('regular_user'),
+            'has_any_admin' => $user->hasAnyRole(['admin', 'super_admin', 'branch_admin', 'office_manager']),
+        ]);
+    })->middleware(['auth']);
+}
 
 // Ruta de logout
 Route::post('/logout', function () {
@@ -115,41 +114,15 @@ Route::middleware(['auth'])->group(function () {
 
 // Grupo de rutas adicionales para documentos
 Route::prefix('documents')->name('documents.')->middleware(['auth'])->group(function () {
-    Route::get('/{id}/preview', function ($id) {
-        $document = Document::findOrFail($id);
-        authorizeDocumentAccess($document);
-        validateFileExists($document->file_path);
-
-        if (function_exists('logDocumentAccess')) {
-            logDocumentAccess($document, 'preview');
-        }
-
-        return app(\App\Services\DocumentFileService::class)->inlineResponse($document->file_path);
-    })->name('preview');
+    Route::get('/{id}/preview', [App\Http\Controllers\DocumentFileController::class, 'preview'])->name('preview');
 
     // Descarga de documento principal
-    Route::get('/{id}/download', function ($id) {
-        $document = Document::findOrFail($id);
-        authorizeDocumentAccess($document);
-        validateFileExists($document->file_path);
-
-        logDocumentDownload($document);
-
-        return downloadFile($document->file_path);
-    })->name('download');
+    Route::get('/{id}/download', [App\Http\Controllers\DocumentFileController::class, 'download'])->name('download');
 
     // Grupo para versiones de documentos
     Route::prefix('versions')->name('versions.')->group(function () {
         // Descarga de versión específica
-        Route::get('/{id}/download', function ($id) {
-            $version = DocumentVersion::findOrFail($id);
-            authorizeDocumentAccess($version->document);
-            validateFileExists($version->file_path);
-
-            logDocumentDownload($version->document, $version->id);
-
-            return downloadFile($version->file_path);
-        })->name('download');
+        Route::get('/{id}/download', [App\Http\Controllers\DocumentFileController::class, 'downloadVersion'])->name('download');
     });
 });
 
@@ -182,46 +155,11 @@ if (! function_exists('authorizeDocumentAccess')) {
 if (! function_exists('canDownloadDocument')) {
     function canDownloadDocument($user, $document): bool
     {
-        if (method_exists($document, 'isHistoricalEntry') && $document->isHistoricalEntry()) {
-            if ($user->hasAnyRole(['super_admin', 'admin', 'branch_admin', 'archive_manager'])) {
-                return true;
-            }
-
-            if ($user->hasRole('regular_user')) {
-                return false;
-            }
-
-            return in_array($document->access_level?->value, ['publico', 'interno'], true);
+        if (method_exists($document, 'canBeAccessedByPortalUser')) {
+            return $document->canBeAccessedByPortalUser($user);
         }
 
-        if ($user->hasRole(['admin'])) {
-            return true;
-        }
-
-        if ($user->hasRole('branch_admin')) {
-            return $document->branch_id === null || $document->branch_id === $user->branch_id;
-        }
-
-        if ($user->hasRole('office_manager')) {
-            return $document->department_id === $user->department_id
-                || ($user->department_id && $document->distributions()
-                    ->whereHas('targets', fn ($query) => $query->where('department_id', $user->department_id))
-                    ->exists());
-        }
-
-        if ($user->hasRole('archive_manager')) {
-            return true;
-        }
-
-        if ($user->hasRole('receptionist') && $document->receipts()->exists()) {
-            return true;
-        }
-
-        return $document->created_by === $user->id
-            || $document->assigned_to === $user->id
-            || ($user->hasRole('regular_user') && $document->receipts()
-                ->where('recipient_user_id', $user->id)
-                ->exists());
+        return false;
     }
 }
 

@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Scout\Searchable;
 use Spatie\Activitylog\LogOptions;
@@ -351,24 +352,119 @@ class Document extends Model
                     });
                 }
 
-                if (! $user->hasRole(Role::RegularUser->value)) {
+                if ($user->hasAnyRole([
+                    Role::OfficeManager->value,
+                    Role::ArchiveManager->value,
+                    Role::ArchiveOperator->value,
+                    Role::Admin->value,
+                    Role::BranchAdmin->value,
+                    Role::SuperAdmin->value,
+                ])) {
                     $builder->orWhere(function (Builder $historicalQuery) use ($user): void {
                         $historicalQuery->where('metadata->entry_mode', 'historical');
 
-                        if (! $user->hasAnyRole([
-                            Role::ArchiveManager->value,
-                            Role::Admin->value,
-                            Role::BranchAdmin->value,
-                            Role::SuperAdmin->value,
-                        ])) {
-                            $historicalQuery->whereIn('access_level', [
-                                DocumentAccessLevel::Publico->value,
-                                DocumentAccessLevel::Interno->value,
-                            ]);
+                        if (! $this->hasHistoricalAccessWithoutRestriction($user)) {
+                            $historicalQuery->whereIn('access_level', $this->historicalPortalAccessLevels($user));
                         }
                     });
                 }
+
+                if ($user->hasAnyRole([
+                    Role::ArchiveManager->value,
+                    Role::ArchiveOperator->value,
+                    Role::Admin->value,
+                    Role::BranchAdmin->value,
+                    Role::SuperAdmin->value,
+                ])) {
+                    $builder->orWhereIn('archive_phase', [ArchivePhase::Central->value, ArchivePhase::Historico->value]);
+                }
             });
+    }
+
+    public function canBeAccessedByPortalUser(User $user): bool
+    {
+        if ($this->company_id !== $user->company_id) {
+            return false;
+        }
+
+        if ($this->isHistoricalEntry()) {
+            return $this->canBeAccessedAsHistoricalBy($user);
+        }
+
+        if ($user->hasRole(Role::Admin->value)) {
+            return true;
+        }
+
+        if ($user->hasRole(Role::BranchAdmin->value)) {
+            return $this->branch_id === null || $this->branch_id === $user->branch_id;
+        }
+
+        if ($user->hasRole(Role::OfficeManager->value)) {
+            return $this->department_id === $user->department_id
+                || ($user->department_id && $this->distributions()
+                    ->whereHas('targets', fn (Builder $query) => $query->where('department_id', $user->department_id))
+                    ->exists());
+        }
+
+        if ($user->hasRole(Role::ArchiveManager->value)) {
+            return true;
+        }
+
+        if ($user->hasRole(Role::ArchiveOperator->value)) {
+            return $this->created_by === $user->id
+                || $this->isHistoricalEntry()
+                || in_array($this->archive_phase, [ArchivePhase::Central, ArchivePhase::Historico], true);
+        }
+
+        if ($user->hasRole(Role::Receptionist->value) && $this->receipts()->exists()) {
+            return true;
+        }
+
+        return $this->created_by === $user->id
+            || $this->assigned_to === $user->id
+            || ($user->hasRole(Role::RegularUser->value) && $this->receipts()
+                ->where('recipient_user_id', $user->id)
+                ->exists());
+    }
+
+    public function canBeAccessedAsHistoricalBy(User $user): bool
+    {
+        if (! $this->isHistoricalEntry() || $this->company_id !== $user->company_id) {
+            return false;
+        }
+
+        if ($this->hasHistoricalAccessWithoutRestriction($user)) {
+            return true;
+        }
+
+        if (! $user->hasRole(Role::OfficeManager->value)) {
+            return false;
+        }
+
+        return in_array($this->access_level?->value, $this->historicalPortalAccessLevels($user), true);
+    }
+
+    protected function historicalPortalAccessLevels(User $user): array
+    {
+        if ($user->hasRole(Role::OfficeManager->value)) {
+            return [
+                DocumentAccessLevel::Publico->value,
+                DocumentAccessLevel::Interno->value,
+            ];
+        }
+
+        return [];
+    }
+
+    protected function hasHistoricalAccessWithoutRestriction(User $user): bool
+    {
+        return $user->hasAnyRole([
+            Role::ArchiveManager->value,
+            Role::ArchiveOperator->value,
+            Role::Admin->value,
+            Role::BranchAdmin->value,
+            Role::SuperAdmin->value,
+        ]);
     }
 
     public function scopeConfidential($query)
@@ -981,17 +1077,28 @@ class Document extends Model
         ?User $movedBy = null,
         string $movementType = 'moved'
     ): bool {
-        $oldLocationId = $this->physical_location_id;
+        return DB::transaction(function () use ($newLocation, $notes, $movedBy, $movementType): bool {
+            $oldLocationId = $this->physical_location_id;
+            $newLocationId = $newLocation->getKey();
+            $isSameLocation = $oldLocationId && (int) $oldLocationId === (int) $newLocationId;
 
-        // Actualizar la ubicación del documento
-        $this->physical_location_id = $newLocation->id;
-        $success = $this->save();
+            if (! $isSameLocation && ! $newLocation->incrementCapacity()) {
+                return false;
+            }
 
-        if ($success) {
-            // Registrar en el historial
+            $this->physical_location_id = $newLocationId;
+
+            if (! $this->saveQuietly()) {
+                if (! $isSameLocation) {
+                    $newLocation->decrementCapacity();
+                }
+
+                return false;
+            }
+
             DocumentLocationHistory::create([
                 'document_id' => $this->id,
-                'physical_location_id' => $newLocation->id,
+                'physical_location_id' => $newLocationId,
                 'moved_from_location_id' => $oldLocationId,
                 'moved_by' => $movedBy?->id ?? Auth::id(),
                 'movement_type' => $movementType,
@@ -999,16 +1106,13 @@ class Document extends Model
                 'moved_at' => now(),
             ]);
 
-            // Actualizar capacidades
-            if ($oldLocationId) {
+            if ($oldLocationId && ! $isSameLocation) {
                 $oldLocation = PhysicalLocation::find($oldLocationId);
                 $oldLocation?->decrementCapacity();
             }
 
-            $newLocation->incrementCapacity();
-        }
-
-        return $success;
+            return true;
+        });
     }
 
     /**

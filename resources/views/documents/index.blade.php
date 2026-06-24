@@ -51,6 +51,9 @@
         'date_from' => request('date_from'),
         'date_to' => request('date_to'),
     ])->filter(fn ($v) => $v !== null && $v !== '');
+
+    $isArchivePortal = Auth::user()?->hasRole(\App\Enums\Role::ArchiveManager->value)
+        && ! Auth::user()?->hasAnyRole(['super_admin', 'admin', 'branch_admin']);
 @endphp
 
 <div class="space-y-6">
@@ -58,26 +61,32 @@
         <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
                 <div class="mb-1 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                    <span>Portal</span>
+                    <span>{{ $isArchivePortal ? 'Archivo Central' : 'Portal' }}</span>
                     <span class="text-slate-300 dark:text-slate-600">/</span>
-                    <span class="font-medium text-slate-700 dark:text-slate-200">Mis Documentos</span>
+                    <span class="font-medium text-slate-700 dark:text-slate-200">{{ $isArchivePortal ? 'Archivo histórico' : 'Mis Documentos' }}</span>
                 </div>
-                <h1 class="text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">Document Explorer</h1>
+                <h1 class="text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">
+                    {{ $isArchivePortal ? 'Bandeja de archivo central' : 'Document Explorer' }}
+                </h1>
                 <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                    Administra, filtra y consulta tus documentos. Total: {{ $documents->total() }} documento(s).
+                    {{ $isArchivePortal
+                        ? "Consulta y controla la carga histórica del archivo central. Total visible: {$documents->total()} documento(s)."
+                        : "Administra, filtra y consulta tus documentos. Total: {$documents->total()} documento(s)." }}
                 </p>
             </div>
             <div class="flex flex-wrap items-center gap-3">
                 @if(Auth::user()?->hasAnyRole(['super_admin', 'admin', 'branch_admin', \App\Enums\Role::ArchiveManager->value]))
                     <a href="{{ route('documents.historical.create') }}"
                        class="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-amber-300/30 bg-amber-50 px-4 text-sm font-semibold text-amber-800 shadow-sm transition hover:bg-amber-100 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200 dark:hover:bg-amber-500/20">
-                        <span>Carga histórica</span>
+                        <span>{{ $isArchivePortal ? 'Incorporar histórico' : 'Carga histórica' }}</span>
                     </a>
                 @endif
-                <a href="{{ route('documents.create') }}"
-                   class="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-900/20 transition hover:from-sky-400 hover:to-indigo-500 motion-safe:hover:animate-jump motion-safe:hover:animate-duration-200 am-motion-safe">
-                    <span>Subir / Crear</span>
-                </a>
+                @unless($isArchivePortal)
+                    <a href="{{ route('documents.create') }}"
+                       class="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-900/20 transition hover:from-sky-400 hover:to-indigo-500 motion-safe:hover:animate-jump motion-safe:hover:animate-duration-200 am-motion-safe">
+                        <span>Subir / Crear</span>
+                    </a>
+                @endunless
                 @if($documents->total() > 0)
                     <a href="{{ route('documents.export', request()->all()) }}"
                        class="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
@@ -127,6 +136,12 @@
                    class="inline-flex items-center rounded-xl border px-3 py-1.5 text-xs font-medium transition border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
                     Últimos 7 días
                 </a>
+                @if($isArchivePortal)
+                    <a href="{{ route('documents.index', array_merge(request()->except('archive_phase'), ['archive_phase' => \App\Enums\ArchivePhase::Central->value])) }}"
+                       class="inline-flex items-center rounded-xl border px-3 py-1.5 text-xs font-medium transition {{ request('archive_phase') === \App\Enums\ArchivePhase::Central->value ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-white text-slate-600 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300' }}">
+                        Solo archivo central
+                    </a>
+                @endif
             </div>
 
             <details class="rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-800/40" {{ $activeFilters->isNotEmpty() ? 'open' : '' }}>
@@ -215,7 +230,7 @@
                 <div class="mt-5">
                     <a href="{{ $activeFilters->isNotEmpty() ? route('documents.index') : route('documents.create') }}"
                        class="inline-flex h-10 items-center justify-center rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-sm">
-                        {{ $activeFilters->isNotEmpty() ? 'Ver todos los documentos' : 'Subir / Crear Documento' }}
+                        {{ $activeFilters->isNotEmpty() ? 'Ver todos los documentos' : ($isArchivePortal ? 'Incorporar histórico' : 'Subir / Crear Documento') }}
                     </a>
                 </div>
             </div>

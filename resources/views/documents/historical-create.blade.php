@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Carga Histórica')
+@section('title', 'Carga Historica')
 
 @section('content')
 @php
@@ -36,506 +36,642 @@
 
     $locationOptions = $physicalLocations
         ->map(function ($location) {
-            $segments = collect(explode(' / ', $location->full_path))
-                ->filter()
-                ->values()
-                ->all();
+            $structured = (array) $location->structured_data;
 
             return [
                 'id' => (int) $location->id,
                 'code' => (string) ($location->code ?? ''),
                 'path' => (string) $location->full_path,
-                'segments' => $segments,
-                'label' => (string) ($location->code ? "{$location->code} - {$location->full_path}" : $location->full_path),
+                'shelf' => (string) data_get($structured, 'estante', ''),
+                'bay' => (string) (data_get($structured, 'entrepaño') ?? data_get($structured, 'entrepano') ?? ''),
+                'box' => (string) data_get($structured, 'caja', ''),
+                'capacity_used' => (int) ($location->capacity_used ?? 0),
+                'capacity_total' => $location->capacity_total,
             ];
         })
+        ->filter(fn (array $location): bool => $location['box'] !== '')
         ->values();
 
-    $historicalBenefits = [
-        'Sin radicación ni recibido',
-        'Custodia directa en archivo central',
-        'Consulta transversal según nivel de acceso',
-    ];
+    $documentaryTypeOptions = $documentaryTypes
+        ->map(fn ($type) => [
+            'id' => (int) $type->id,
+            'label' => trim(sprintf(
+                '%s - [%s / %s] %s',
+                $type->code,
+                $type->subseries?->series?->name ?? 'Sin Serie',
+                $type->subseries?->name ?? 'Sin Subserie',
+                $type->name,
+            )),
+            'series' => (string) ($type->subseries?->series?->name ?? ''),
+            'subseries' => (string) ($type->subseries?->name ?? ''),
+            'sort_key' => trim(sprintf(
+                '%s - %s - %s',
+                $type->subseries?->series?->name ?? '',
+                $type->subseries?->name ?? '',
+                $type->name
+            )),
+        ])
+        ->sortBy('sort_key')
+        ->values();
 
-    $requiredFields = [
-        'Documentos digitalizados',
-        'Categoría temática',
-        'Dependencia productora original',
-        'Ubicación física',
-        'Nivel de acceso',
-    ];
+    $categoryOptions = $categories
+        ->map(fn ($category) => [
+            'id' => (int) $category->id,
+            'label' => $translateName($category, 'Categoría'),
+        ])
+        ->sortBy('label', SORT_NATURAL | SORT_FLAG_CASE)
+        ->values();
+
+    $rememberedLocationId = old('physical_location_id', $rememberedPhysicalLocationId);
 @endphp
 
 <div
     class="space-y-6"
     x-data="{
-        dragging: false,
-        selectedFiles: [],
-        selectedLocationId: @js(old('physical_location_id')),
-        selectedLocation: null,
-        locationSearch: '',
-        locationOptions: @js($locationOptions),
+        locations: @js($locationOptions),
+        selectedShelf: '',
+        selectedBay: '',
+        selectedLocationId: @js($rememberedLocationId ? (string) $rememberedLocationId : ''),
+        defaultDocumentaryTypeId: @js((string) old('documentary_type_id', '')),
+        rows: [
+            {
+                uid: 'row-' + Date.now() + '-' + Math.random().toString(36).slice(2, 11),
+                fileName: '',
+                folder: '',
+                volume: '',
+                reference_code: '',
+                year: '',
+                description: '',
+                documentary_type_id: @js((string) old('documentary_type_id', '')),
+            },
+        ],
         init() {
-            this.syncSelectedLocation();
+            const remembered = this.locations.find((location) => String(location.id) === String(this.selectedLocationId));
+
+            if (remembered) {
+                this.selectedShelf = remembered.shelf;
+                this.selectedBay = remembered.bay;
+            }
         },
-        handleFiles(event) {
-            const files = Array.from(event.target.files || []);
-            this.selectedFiles = files.map((file) => ({
-                name: file.name,
-                size: this.formatBytes(file.size),
-                extension: this.extensionFrom(file.name),
+        shelves() {
+            return [...new Set(this.locations.map((location) => location.shelf).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+        },
+        bays() {
+            return [...new Set(this.locations.filter((location) => location.shelf === this.selectedShelf).map((location) => location.bay).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+        },
+        boxes() {
+            return this.locations
+                .filter((location) => location.shelf === this.selectedShelf && location.bay === this.selectedBay)
+                .sort((a, b) => String(a.box).localeCompare(String(b.box), undefined, { numeric: true }));
+        },
+        selectedLocation() {
+            return this.locations.find((location) => String(location.id) === String(this.selectedLocationId)) || null;
+        },
+        selectShelf(value) {
+            this.selectedShelf = value;
+            this.selectedBay = '';
+            this.selectedLocationId = '';
+        },
+        selectBay(value) {
+            this.selectedBay = value;
+            this.selectedLocationId = '';
+        },
+        addRow() {
+            this.rows.push({
+                uid: 'row-' + Date.now() + '-' + Math.random().toString(36).slice(2, 11),
+                fileName: '',
+                folder: '',
+                volume: '',
+                reference_code: '',
+                year: '',
+                description: '',
+                documentary_type_id: this.defaultDocumentaryTypeId,
+            });
+        },
+        removeRow(index) {
+            if (this.rows.length === 1) {
+                return;
+            }
+
+            this.rows.splice(index, 1);
+        },
+        setDefaultDocumentaryType(value) {
+            this.defaultDocumentaryTypeId = value;
+            this.rows = this.rows.map((row) => ({
+                ...row,
+                documentary_type_id: row.documentary_type_id || value,
             }));
         },
-        clearFiles() {
-            this.selectedFiles = [];
-
-            if (this.$refs.filesInput) {
-                this.$refs.filesInput.value = '';
-            }
-        },
-        extensionFrom(name) {
-            const parts = String(name || '').split('.');
-
-            return parts.length > 1 ? parts.pop().toUpperCase() : 'DOC';
-        },
-        formatBytes(bytes) {
-            if (!bytes) {
-                return '0 KB';
+        handleBulkFiles(filesList) {
+            const files = Array.from(filesList);
+            if (files.length === 0) {
+                return;
             }
 
-            const units = ['B', 'KB', 'MB', 'GB'];
-            let size = bytes;
-            let unitIndex = 0;
-
-            while (size >= 1024 && unitIndex < units.length - 1) {
-                size /= 1024;
-                unitIndex++;
+            if (this.rows.length === 1 && !this.rows[0].fileName) {
+                this.rows = [];
             }
 
-            return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
-        },
-        filteredLocations() {
-            const search = this.locationSearch.trim().toLowerCase();
+            const startIndex = this.rows.length;
 
-            if (!search) {
-                return this.locationOptions.slice(0, 8);
-            }
+            files.forEach((file, i) => {
+                const uid = 'row-' + Date.now() + '-' + Math.random().toString(36).slice(2, 11) + '-' + i;
+                this.rows.push({
+                    uid: uid,
+                    fileName: file.name,
+                    folder: '',
+                    volume: '',
+                    reference_code: '',
+                    year: '',
+                    description: '',
+                    documentary_type_id: this.defaultDocumentaryTypeId,
+                });
 
-            return this.locationOptions
-                .filter((location) => {
-                    const haystack = [
-                        location.code,
-                        location.path,
-                        ...(location.segments || []),
-                    ].join(' ').toLowerCase();
-
-                    return haystack.includes(search);
-                })
-                .slice(0, 8);
+                this.$nextTick(() => {
+                    const index = startIndex + i;
+                    const inputs = document.getElementsByName(`rows[${index}][file]`);
+                    if (inputs && inputs[0]) {
+                        const dt = new DataTransfer();
+                        dt.items.add(file);
+                        inputs[0].files = dt.files;
+                    }
+                });
+            });
         },
-        selectLocation(id) {
-            this.selectedLocationId = String(id);
-            this.locationSearch = '';
-            this.syncSelectedLocation();
-        },
-        clearSelectedLocation() {
-            this.selectedLocationId = '';
-            this.selectedLocation = null;
-            this.locationSearch = '';
-        },
-        syncSelectedLocation() {
-            const selectedId = Number(this.selectedLocationId);
-            this.selectedLocation = this.locationOptions.find((location) => Number(location.id) === selectedId) || null;
+        hasMissingDocumentaryType() {
+            return this.rows.some((row) => !row.documentary_type_id);
         },
     }"
 >
-    <section class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-sm">
-        <div class="grid gap-0 lg:grid-cols-[minmax(0,1fr)_320px]">
-            <div class="p-6 sm:p-7">
-                <div class="flex flex-wrap items-center gap-2">
-                    <span class="inline-flex items-center rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-200">
+    <section class="border border-slate-800 bg-slate-900 p-6 shadow-sm">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+                <div class="flex flex-wrap gap-2">
+                    <span class="inline-flex items-center border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">
                         Archivo Central
                     </span>
-                    <span class="inline-flex items-center rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-200">
-                        Flujo exclusivo de histórico
+                    <span class="inline-flex items-center border border-sky-500/20 bg-sky-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-sky-200">
+                        Carga por caja
                     </span>
                 </div>
-
-                <h1 class="mt-4 text-3xl font-semibold tracking-tight text-white">Carga histórica</h1>
-                <p class="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
-                    Incorpora documentos ya digitalizados al archivo central sin pasar por recepción, radicación ni distribución inicial. Cada archivo crea un documento histórico independiente y queda listo para consulta interna según su nivel de acceso.
+                <h1 class="mt-4 text-2xl font-semibold text-white">Carga historica por caja</h1>
+                <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                    Selecciona primero la ubicacion fisica final y luego registra cada carpeta o documento digitalizado dentro de esa caja.
                 </p>
-
-                <div class="mt-6 grid gap-3 sm:grid-cols-3">
-                    @foreach($historicalBenefits as $benefit)
-                        <div class="rounded-2xl border border-slate-800 bg-slate-800/70 px-4 py-3 text-sm font-medium text-slate-200">
-                            {{ $benefit }}
-                        </div>
-                    @endforeach
-                </div>
             </div>
 
-            <div class="border-t border-slate-800 bg-slate-950/70 p-6 lg:border-t-0 lg:border-l">
-                <h2 class="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">Tratamiento automático</h2>
-                <dl class="mt-4 space-y-4 text-sm">
-                    <div>
-                        <dt class="text-slate-400">Custodio</dt>
-                        <dd class="mt-1 font-semibold text-white">
-                            {{ $translateName($centralArchiveDepartment, 'Archivo Central') }}
-                            <span class="text-slate-400">({{ $centralArchiveDepartment->code }})</span>
-                        </dd>
-                    </div>
-                    <div>
-                        <dt class="text-slate-400">Estado inicial</dt>
-                        <dd class="mt-1 font-semibold text-white">{{ $defaultStatus?->name ?? 'Archivado' }}</dd>
-                    </div>
-                    <div>
-                        <dt class="text-slate-400">Resultado</dt>
-                        <dd class="mt-1 text-slate-300">Queda en archivo central con trazabilidad de procedencia y ubicación física obligatoria.</dd>
-                    </div>
-                </dl>
+            <div class="border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-300">
+                <span class="block text-xs uppercase tracking-[0.14em] text-slate-500">Custodio</span>
+                <span class="mt-1 block font-semibold text-white">{{ $translateName($centralArchiveDepartment, 'Archivo Central') }}</span>
             </div>
         </div>
     </section>
 
+    @if ($errors->any())
+        <div class="border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-100">
+            <p class="font-semibold">Revisa los datos antes de continuar.</p>
+            <ul class="mt-2 list-disc space-y-1 pl-5">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <form action="{{ route('documents.historical.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
         @csrf
 
-        <section class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <div class="space-y-6">
-                <div class="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-sm">
-                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <h2 class="text-lg font-semibold text-white">1. Archivos a incorporar</h2>
-                            <p class="mt-1 text-sm text-slate-400">
-                                Carga uno o varios documentos digitalizados. El título de cada registro se tomará del nombre del archivo.
-                            </p>
-                        </div>
-                        <span class="inline-flex items-center rounded-full border border-slate-700 bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-300">
-                            PDF, Office e imagen
-                        </span>
-                    </div>
+        <section class="border border-slate-800 bg-slate-900 p-6 shadow-sm">
+            <h2 class="text-lg font-semibold text-white">1. Ubicacion fisica</h2>
+            <p class="mt-1 text-sm text-slate-400">El flujo sigue la forma de trabajo del archivo: estante, entrepano y caja.</p>
 
-                    <div class="mt-5">
-                        <label
-                            for="files"
-                            class="group block cursor-pointer rounded-2xl border-2 border-dashed border-slate-700 bg-slate-950/50 p-6 transition hover:border-amber-400 hover:bg-amber-500/5"
-                            :class="dragging ? 'border-amber-500 bg-amber-500/10' : ''"
-                            @dragover.prevent="dragging = true"
-                            @dragleave.prevent="dragging = false"
-                            @drop.prevent="dragging = false; $refs.filesInput.files = $event.dataTransfer.files; handleFiles({ target: $refs.filesInput });"
-                        >
-                            <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                                <div class="flex items-start gap-4">
-                                    <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-200">
-                                        @svg('heroicon-o-archive-box-arrow-down', 'h-7 w-7')
-                                    </div>
-                                    <div>
-                                        <p class="text-base font-semibold text-white">Documentos digitalizados <span class="text-rose-400">*</span></p>
-                                        <p class="mt-1 text-sm text-slate-400">
-                                            Arrastra archivos aquí o selecciona un lote desde tu equipo.
-                                        </p>
-                                        <p class="mt-2 text-xs uppercase tracking-[0.14em] text-slate-500">
-                                            Cada archivo crea un documento histórico independiente
-                                        </p>
-                                    </div>
-                                </div>
+            <select
+                name="physical_location_id"
+                x-model="selectedLocationId"
+                required
+                aria-hidden="true"
+                tabindex="-1"
+                class="absolute h-px w-px overflow-hidden opacity-0"
+            >
+                <option value="">Seleccionar caja</option>
+                <template x-for="location in locations" :key="location.id">
+                    <option :value="String(location.id)" x-text="location.path"></option>
+                </template>
+            </select>
 
-                                <div class="inline-flex h-11 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 px-4 text-sm font-semibold text-slate-100 shadow-sm transition group-hover:border-amber-400/40 group-hover:text-amber-200">
-                                    Seleccionar archivos
-                                </div>
-                            </div>
-                        </label>
-
-                        <input
-                            x-ref="filesInput"
-                            type="file"
-                            name="files[]"
-                            id="files"
-                            multiple
-                            required
-                            accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-                            class="sr-only"
-                            @change="handleFiles($event)"
-                        >
-
-                        @error('files')
-                            <p class="mt-2 text-sm text-rose-600 dark:text-rose-300">{{ $message }}</p>
-                        @enderror
-                        @error('files.*')
-                            <p class="mt-2 text-sm text-rose-600 dark:text-rose-300">{{ $message }}</p>
-                        @enderror
-
-                        <div x-show="selectedFiles.length > 0" x-cloak class="mt-4 space-y-3">
-                            <div class="flex items-center justify-between">
-                                <p class="text-sm font-semibold text-slate-200">
-                                    Lote seleccionado <span class="text-slate-400" x-text="`(${selectedFiles.length} archivo${selectedFiles.length === 1 ? '' : 's'})`"></span>
-                                </p>
-                                <button type="button" @click="clearFiles()" class="text-sm font-medium text-slate-400 transition hover:text-rose-300">
-                                    Limpiar
-                                </button>
-                            </div>
-
-                            <div class="grid gap-3 sm:grid-cols-2">
-                                <template x-for="file in selectedFiles" :key="file.name + file.size">
-                                    <div class="rounded-2xl border border-slate-800 bg-slate-950/40 px-4 py-3">
-                                        <div class="flex items-start gap-3">
-                                            <div class="inline-flex min-w-[52px] items-center justify-center rounded-xl bg-slate-900 px-2 py-1 text-xs font-semibold tracking-[0.14em] text-white dark:bg-slate-700" x-text="file.extension"></div>
-                                            <div class="min-w-0 flex-1">
-                                                <p class="truncate text-sm font-medium text-white" x-text="file.name"></p>
-                                                <p class="mt-1 text-xs text-slate-400" x-text="file.size"></p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </template>
-                            </div>
-                        </div>
-                    </div>
+            <div class="mt-5 grid gap-4 lg:grid-cols-3">
+                <div>
+                    <label class="mb-1.5 block text-sm font-medium text-slate-200">Estante</label>
+                    <select
+                        dusk="historical-shelf-select"
+                        x-model="selectedShelf"
+                        @change="selectShelf($event.target.value)"
+                        class="block h-11 w-full border border-slate-700 bg-slate-800 px-3 text-sm text-white outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
+                    >
+                        <option value="">Seleccionar estante</option>
+                        <template x-for="shelf in shelves()" :key="shelf">
+                            <option :value="shelf" x-text="`Estante ${shelf}`"></option>
+                        </template>
+                    </select>
                 </div>
 
-                <div class="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-sm">
-                    <h2 class="text-lg font-semibold text-white">2. Descripción archivística</h2>
-                    <p class="mt-1 text-sm text-slate-400">
-                        Describe el expediente para que cualquier oficina autorizada pueda encontrarlo por procedencia, asunto o clasificación.
-                    </p>
-
-                    <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <div>
-                            <label for="category_id" class="mb-1.5 block text-sm font-medium text-slate-200">Categoría temática <span class="text-rose-400">*</span></label>
-                            <select name="category_id" id="category_id" required class="block h-11 w-full rounded-xl border border-slate-700 bg-slate-800 px-3 text-sm text-white shadow-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
-                                <option value="">Seleccionar categoría</option>
-                                @foreach($categories as $category)
-                                    <option value="{{ $category->id }}" @selected((string) old('category_id') === (string) $category->id)>{{ $translateName($category, 'Categoría') }}</option>
-                                @endforeach
-                            </select>
-                            @error('category_id')
-                                <p class="mt-1.5 text-sm text-rose-600 dark:text-rose-300">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        <div>
-                            <label for="original_department_id" class="mb-1.5 block text-sm font-medium text-slate-200">Dependencia productora original <span class="text-rose-400">*</span></label>
-                            <select name="original_department_id" id="original_department_id" required class="block h-11 w-full rounded-xl border border-slate-700 bg-slate-800 px-3 text-sm text-white shadow-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
-                                <option value="">Seleccionar dependencia</option>
-                                @foreach($producerDepartments as $department)
-                                    <option value="{{ $department->id }}" @selected((string) old('original_department_id') === (string) $department->id)>{{ $translateName($department, 'Dependencia') }}</option>
-                                @endforeach
-                            </select>
-                            @error('original_department_id')
-                                <p class="mt-1.5 text-sm text-rose-600 dark:text-rose-300">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        <div class="md:col-span-2">
-                            <label for="description" class="mb-1.5 block text-sm font-medium text-slate-200">Descripción general</label>
-                            <textarea name="description" id="description" rows="4" class="block w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-3 text-sm text-white shadow-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">{{ old('description') }}</textarea>
-                            <p class="mt-1.5 text-xs text-slate-400">Úsala para resumir asunto, contenido o contexto del lote digitalizado.</p>
-                            @error('description')
-                                <p class="mt-1.5 text-sm text-rose-600 dark:text-rose-300">{{ $message }}</p>
-                            @enderror
-                        </div>
-                    </div>
+                <div>
+                    <label class="mb-1.5 block text-sm font-medium text-slate-200">Entrepano</label>
+                    <select
+                        dusk="historical-bay-select"
+                        x-model="selectedBay"
+                        @change="selectBay($event.target.value)"
+                        :disabled="!selectedShelf"
+                        class="block h-11 w-full border border-slate-700 bg-slate-800 px-3 text-sm text-white outline-none disabled:opacity-50 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
+                    >
+                        <option value="">Seleccionar entrepano</option>
+                        <template x-for="bay in bays()" :key="bay">
+                            <option :value="bay" x-text="`Entrepano ${bay}`"></option>
+                        </template>
+                    </select>
                 </div>
 
-                <div class="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-sm">
-                    <h2 class="text-lg font-semibold text-white">3. Contexto y referencia</h2>
-                    <p class="mt-1 text-sm text-slate-400">
-                        Estos datos fortalecen la búsqueda transversal y la trazabilidad frente al inventario físico.
-                    </p>
-
-                    <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <div>
-                            <label for="date_start" class="mb-1.5 block text-sm font-medium text-slate-200">Fecha inicial</label>
-                            <input type="date" name="date_start" id="date_start" value="{{ old('date_start') }}" class="block h-11 w-full rounded-xl border border-slate-700 bg-slate-800 px-3 text-sm text-white shadow-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
-                        </div>
-                        <div>
-                            <label for="date_end" class="mb-1.5 block text-sm font-medium text-slate-200">Fecha final</label>
-                            <input type="date" name="date_end" id="date_end" value="{{ old('date_end') }}" class="block h-11 w-full rounded-xl border border-slate-700 bg-slate-800 px-3 text-sm text-white shadow-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
-                        </div>
-                        <div>
-                            <label for="box" class="mb-1.5 block text-sm font-medium text-slate-200">Caja</label>
-                            <input type="text" name="box" id="box" value="{{ old('box') }}" class="block h-11 w-full rounded-xl border border-slate-700 bg-slate-800 px-3 text-sm text-white shadow-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
-                        </div>
-                        <div>
-                            <label for="folder" class="mb-1.5 block text-sm font-medium text-slate-200">Carpeta</label>
-                            <input type="text" name="folder" id="folder" value="{{ old('folder') }}" class="block h-11 w-full rounded-xl border border-slate-700 bg-slate-800 px-3 text-sm text-white shadow-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
-                        </div>
-                        <div>
-                            <label for="volume" class="mb-1.5 block text-sm font-medium text-slate-200">Tomo / volumen</label>
-                            <input type="text" name="volume" id="volume" value="{{ old('volume') }}" class="block h-11 w-full rounded-xl border border-slate-700 bg-slate-800 px-3 text-sm text-white shadow-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
-                        </div>
-                        <div>
-                            <label for="reference_code" class="mb-1.5 block text-sm font-medium text-slate-200">Código de referencia</label>
-                            <input type="text" name="reference_code" id="reference_code" value="{{ old('reference_code') }}" class="block h-11 w-full rounded-xl border border-slate-700 bg-slate-800 px-3 text-sm text-white shadow-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
-                        </div>
-                        <div class="md:col-span-2">
-                            <label for="keywords" class="mb-1.5 block text-sm font-medium text-slate-200">Palabras clave</label>
-                            <textarea name="keywords" id="keywords" rows="3" class="block w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-3 text-sm text-white shadow-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">{{ old('keywords') }}</textarea>
-                            <p class="mt-1.5 text-xs text-slate-400">Separa temas o nombres con coma para mejorar la consulta posterior.</p>
-                        </div>
-                    </div>
+                <div>
+                    <label class="mb-1.5 block text-sm font-medium text-slate-200">Caja</label>
+                    <select
+                        dusk="historical-box-select"
+                        x-model="selectedLocationId"
+                        :disabled="!selectedBay"
+                        required
+                        class="block h-11 w-full border border-slate-700 bg-slate-800 px-3 text-sm text-white outline-none disabled:opacity-50 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
+                    >
+                        <option value="">Seleccionar caja</option>
+                        <template x-for="box in boxes()" :key="box.id">
+                            <option :value="String(box.id)" x-text="`Caja ${box.box} (${box.capacity_total ? `${box.capacity_used}/${box.capacity_total}` : 'sin limite'})`"></option>
+                        </template>
+                    </select>
                 </div>
             </div>
 
-            <aside class="space-y-6 xl:sticky xl:top-24 xl:self-start">
-                <div class="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-sm">
-                    <h2 class="text-lg font-semibold text-white">4. Custodia y acceso</h2>
-                    <p class="mt-1 text-sm text-slate-400">
-                        Define dónde queda el físico y quién podrá consultar el documento digital dentro de la empresa.
-                    </p>
+            <div class="mt-5 border border-slate-800 bg-slate-950 p-4 text-sm text-slate-300" x-show="selectedLocation()" x-cloak>
+                <p class="font-semibold text-white" x-text="selectedLocation()?.code"></p>
+                <p class="mt-1" x-text="selectedLocation()?.path"></p>
+            </div>
 
-                    <div class="mt-5 space-y-5">
-                        <div>
-                            <label for="location_search" class="mb-1.5 block text-sm font-medium text-slate-200">Buscar ubicación física <span class="text-rose-400">*</span></label>
+            <div class="mt-5 border border-dashed border-slate-700 p-4 text-sm text-slate-400" x-show="locations.length === 0">
+                No hay cajas activas configuradas. El administrador de archivo debe crear ubicaciones con nivel Caja.
+            </div>
+        </section>
+
+        <section class="border border-slate-800 bg-slate-900 p-6 shadow-sm">
+            <h2 class="text-lg font-semibold text-white">2. Datos generales</h2>
+            <div class="mt-5 grid gap-4 md:grid-cols-2">
+                <div>
+                    <label class="mb-1.5 block text-sm font-medium text-slate-200">Categoria tematica</label>
+                    <div class="relative" x-data="{
+                        open: false,
+                        search: '',
+                        options: @js($categoryOptions),
+                        selectedCategoryId: @js((string) old('category_id', '')),
+                        get filteredOptions() {
+                            if (!this.search) return this.options;
+                            const q = this.search.toLowerCase();
+                            return this.options.filter(opt => opt.label.toLowerCase().includes(q));
+                        },
+                        selectedLabel() {
+                            const found = this.options.find(opt => String(opt.id) === String(this.selectedCategoryId));
+                            return found ? found.label : 'Seleccionar categoria';
+                        }
+                    }">
+                        <!-- Trigger Button -->
+                        <button
+                            type="button"
+                            @click="open = !open"
+                            @keydown.escape="open = false; search = '';"
+                            role="combobox"
+                            aria-controls="category-options"
+                            :aria-expanded="open.toString()"
+                            aria-haspopup="listbox"
+                            class="flex h-11 w-full items-center justify-between border border-slate-700 bg-slate-800 px-3 text-left text-sm text-white outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
+                        >
+                            <span x-text="selectedLabel()" class="truncate"></span>
+                            <svg class="h-4 w-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        <!-- Hidden Select for Form Submission & Browser Validation -->
+                        <select
+                            name="category_id"
+                            id="category_id"
+                            required
+                            x-model="selectedCategoryId"
+                            class="absolute opacity-0 w-px h-px overflow-hidden"
+                            tabindex="-1"
+                        >
+                            <option value="">Seleccionar categoria</option>
+                            @foreach ($categoryOptions as $opt)
+                                <option value="{{ $opt['id'] }}">{{ $opt['label'] }}</option>
+                            @endforeach
+                        </select>
+
+                        <!-- Dropdown Panel -->
+                        <div id="category-options" x-show="open" @click.away="open = false; search = '';" role="listbox" class="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto border border-slate-700 bg-slate-900 p-2 shadow-lg" x-cloak>
+                            <!-- Search Input -->
                             <input
-                                id="location_search"
                                 type="text"
-                                x-model="locationSearch"
-                                placeholder="Ej. Estante 14, ENT-03, Sótano"
-                                class="block h-11 w-full rounded-xl border border-slate-700 bg-slate-800 px-3 text-sm text-white shadow-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
+                                x-model="search"
+                                placeholder="Buscar categoría..."
+                                class="mb-2 h-9 w-full border border-slate-700 bg-slate-950 px-2 text-sm text-white outline-none focus:border-amber-400"
                             >
-                            <p class="mt-1.5 text-xs text-slate-400">
-                                Busca y elige una ubicación. Si te equivocas, puedes cambiarla o limpiarla antes de guardar.
-                            </p>
 
-                            <select name="physical_location_id" x-model="selectedLocationId" @change="syncSelectedLocation()" class="sr-only">
-                                <option value="">Seleccionar ubicación</option>
-                                @foreach($physicalLocations as $location)
-                                    <option value="{{ $location->id }}">{{ $location->code ? "{$location->code} - {$location->full_path}" : $location->full_path }}</option>
-                                @endforeach
-                            </select>
+                            <!-- Options List -->
+                            <div class="space-y-1">
+                                <button type="button" role="option" @click="selectedCategoryId = ''; open = false; search = '';" class="block w-full px-2 py-1.5 text-left text-sm text-slate-400 transition hover:bg-amber-500 hover:text-slate-950">
+                                    Seleccionar categoria
+                                </button>
+                                <template x-for="opt in filteredOptions" :key="opt.id">
+                                    <button type="button" role="option" @click="selectedCategoryId = String(opt.id); open = false; search = '';" class="block w-full px-2 py-1.5 text-left text-sm text-slate-200 transition hover:bg-amber-500 hover:text-slate-950">
+                                        <span x-text="opt.label"></span>
+                                    </button>
+                                </template>
+                                <div x-show="filteredOptions.length === 0" class="px-2 py-1.5 text-sm text-slate-500">
+                                    No se encontraron resultados
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-                            <div class="mt-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-2">
-                                <div class="max-h-64 space-y-2 overflow-y-auto">
-                                    <template x-for="location in filteredLocations()" :key="location.id">
-                                        <button
-                                            type="button"
-                                            @click="selectLocation(location.id)"
-                                            class="w-full rounded-xl border px-3 py-3 text-left transition"
-                                            :class="String(selectedLocationId) === String(location.id)
-                                                ? 'border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-400/40 dark:bg-amber-500/10 dark:text-amber-100'
-                                                        : 'border-slate-800 bg-slate-900 text-slate-200 hover:border-slate-700 hover:bg-slate-800'"
-                                        >
-                                            <div class="flex items-start justify-between gap-3">
-                                                <div class="min-w-0">
-                                                    <p class="text-sm font-semibold" x-text="location.code || 'Sin código'"></p>
-                                                    <p class="mt-1 text-xs leading-5 text-slate-400" x-text="location.path"></p>
-                                                </div>
-                                                <span
-                                                    class="inline-flex rounded-full px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]"
-                                                    :class="String(selectedLocationId) === String(location.id)
-                                                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200'
-                                                        : 'bg-slate-800 text-slate-300'"
-                                                    x-text="String(selectedLocationId) === String(location.id) ? 'Seleccionada' : 'Elegir'"
-                                                >
-                                                </span>
+                <div>
+                    <label for="original_department_id" class="mb-1.5 block text-sm font-medium text-slate-200">Dependencia productora</label>
+                    <select name="original_department_id" id="original_department_id" required class="block h-11 w-full border border-slate-700 bg-slate-800 px-3 text-sm text-white outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
+                        <option value="">Seleccionar dependencia</option>
+                        @foreach ($producerDepartments as $department)
+                            <option value="{{ $department->id }}" @selected((string) old('original_department_id') === (string) $department->id)>{{ $translateName($department, 'Dependencia') }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div>
+                    <label class="mb-1.5 block text-sm font-medium text-slate-200">Tipo documental por defecto</label>
+                    <div class="relative" x-data="{
+                        open: false,
+                        search: '',
+                        options: @js($documentaryTypeOptions),
+                        get filteredOptions() {
+                            if (!this.search) return this.options;
+                            const q = this.search.toLowerCase();
+                            return this.options.filter(opt => opt.label.toLowerCase().includes(q));
+                        },
+                        selectedLabel() {
+                            const found = this.options.find(opt => String(opt.id) === String(defaultDocumentaryTypeId));
+                            return found ? found.label : 'Seleccionar tipo documental';
+                        }
+                    }">
+                        <!-- Trigger Button -->
+                        <button
+                            type="button"
+                            @click="open = !open"
+                            @keydown.escape="open = false"
+                            role="combobox"
+                            aria-controls="default-documentary-type-options"
+                            :aria-expanded="open.toString()"
+                            aria-haspopup="listbox"
+                            class="flex h-11 w-full items-center justify-between border border-slate-700 bg-slate-800 px-3 text-left text-sm text-white outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
+                        >
+                            <span x-text="selectedLabel()" class="truncate"></span>
+                            <svg class="h-4 w-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        <!-- Hidden Select for Form Submission -->
+                        <select
+                            name="documentary_type_id"
+                            x-model="defaultDocumentaryTypeId"
+                            class="absolute opacity-0 w-px h-px overflow-hidden"
+                            tabindex="-1"
+                            @change="setDefaultDocumentaryType($event.target.value)"
+                        >
+                            <option value="">Seleccionar tipo documental</option>
+                            @foreach ($documentaryTypeOptions as $type)
+                                <option value="{{ $type['id'] }}">{{ $type['label'] }}</option>
+                            @endforeach
+                        </select>
+
+                        <!-- Dropdown Panel -->
+                        <div id="default-documentary-type-options" x-show="open" @click.away="open = false" role="listbox" class="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto border border-slate-700 bg-slate-900 p-2 shadow-lg" x-cloak>
+                            <!-- Search Input -->
+                            <input type="text" x-model="search" placeholder="Buscar por código, serie o tipo..." class="mb-2 h-9 w-full border border-slate-700 bg-slate-950 px-2 text-sm text-white outline-none focus:border-amber-400">
+
+                            <!-- Options List -->
+                            <div class="space-y-1">
+                                <button type="button" role="option" @click="setDefaultDocumentaryType(''); open = false; search = '';" class="block w-full px-2 py-1.5 text-left text-sm text-slate-400 transition hover:bg-amber-500 hover:text-slate-950">
+                                    Seleccionar tipo documental
+                                </button>
+                                <template x-for="opt in filteredOptions" :key="opt.id">
+                                    <button type="button" role="option" @click="setDefaultDocumentaryType(String(opt.id)); open = false; search = '';" class="block w-full px-2 py-1.5 text-left text-sm text-slate-200 transition hover:bg-amber-500 hover:text-slate-950">
+                                        <span x-text="opt.label"></span>
+                                    </button>
+                                </template>
+                                <div x-show="filteredOptions.length === 0" class="px-2 py-1.5 text-sm text-slate-500">
+                                    No se encontraron resultados
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="mt-1.5 text-xs text-slate-400">El sistema derivara automaticamente serie y subserie desde este tipo.</p>
+                </div>
+
+                <div>
+                    <label for="access_level" class="mb-1.5 block text-sm font-medium text-slate-200">Nivel de acceso opcional</label>
+                    <select name="access_level" id="access_level" class="block h-11 w-full border border-slate-700 bg-slate-800 px-3 text-sm text-white outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
+                        <option value="">Usar valor del tipo documental</option>
+                        @foreach (\App\Enums\DocumentAccessLevel::cases() as $accessLevel)
+                            <option value="{{ $accessLevel->value }}" @selected(old('access_level') === $accessLevel->value)>{{ $accessLevel->getLabel() }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-slate-200">Tipo digital</label>
+                    <div class="grid gap-2 sm:grid-cols-2">
+                        @foreach (['original' => 'Original digital', 'copia' => 'Copia digital'] as $value => $label)
+                            <label class="flex items-center gap-2 border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100">
+                                <input type="radio" name="digital_document_type" value="{{ $value }}" @checked(old('digital_document_type', 'copia') === $value) required>
+                                <span>{{ $label }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-slate-200">Soporte fisico</label>
+                    <div class="grid gap-2">
+                        @foreach (['original' => 'Fisico original', 'copia' => 'Fisico copia', 'no_aplica' => 'No aplica'] as $value => $label)
+                            <label class="flex items-center gap-2 border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100">
+                                <input type="radio" name="physical_document_type" value="{{ $value }}" @checked(old('physical_document_type', 'original') === $value) required>
+                                <span>{{ $label }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="border border-slate-800 bg-slate-900 p-6 shadow-sm">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-white">3. Carpetas y documentos de la caja</h2>
+                    <p class="mt-1 text-sm text-slate-400">Cada fila crea un documento independiente dentro de la caja seleccionada.</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button type="button" @click="$refs.bulkFiles.click()" class="inline-flex h-10 items-center justify-center border border-sky-400/40 bg-sky-500/10 px-4 text-sm font-semibold text-white">
+                        📄 Cargar varios archivos
+                    </button>
+                    <button type="button" @click="addRow()" class="inline-flex h-10 items-center justify-center border border-amber-400/40 bg-amber-500/10 px-4 text-sm font-semibold text-amber-100">
+                        Agregar fila
+                    </button>
+                </div>
+                <input type="file" x-ref="bulkFiles" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" class="hidden" @change="handleBulkFiles($event.target.files)">
+            </div>
+
+            <div class="mt-5 space-y-4">
+                <template x-for="(row, index) in rows" :key="row.uid">
+                    <div class="border border-slate-800 bg-slate-950 p-4">
+                        <div class="flex items-center justify-between gap-3">
+                            <p class="text-sm font-semibold text-white" x-text="`Documento ${index + 1}`"></p>
+                            <button type="button" @click="removeRow(index)" class="text-sm font-medium text-rose-300" x-show="rows.length > 1">
+                                Quitar
+                            </button>
+                        </div>
+
+                        <div class="mt-4 grid gap-4 lg:grid-cols-3">
+                            <div class="lg:col-span-3">
+                                <label class="mb-1.5 block text-sm font-medium text-slate-200">Archivo digitalizado</label>
+                                <input
+                                    dusk="historical-row-file"
+                                    type="file"
+                                    :name="`rows[${index}][file]`"
+                                    required
+                                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                                    @change="row.fileName = $event.target.files[0]?.name || ''"
+                                    class="block w-full border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white file:mr-4 file:border-0 file:bg-slate-700 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
+                                >
+                                <p class="mt-1 text-xs text-slate-400" x-show="row.fileName" x-text="row.fileName"></p>
+                            </div>
+
+                            <div class="lg:col-span-3">
+                                <label class="mb-1.5 block text-sm font-medium text-slate-200">Tipo documental</label>
+                                <div class="relative" x-data="{
+                                    open: false,
+                                    search: '',
+                                    options: @js($documentaryTypeOptions),
+                                    get filteredOptions() {
+                                        if (!this.search) return this.options;
+                                        const q = this.search.toLowerCase();
+                                        return this.options.filter(opt => opt.label.toLowerCase().includes(q));
+                                    },
+                                    selectedLabel() {
+                                        const found = this.options.find(opt => String(opt.id) === String(row.documentary_type_id));
+                                        return found ? found.label : 'Seleccionar tipo documental';
+                                    }
+                                }">
+                                    <!-- Trigger Button -->
+                                    <button
+                                        type="button"
+                                        @click="open = !open"
+                                        @keydown.escape="open = false"
+                                        role="combobox"
+                                        :aria-controls="`documentary-row-options-${row.uid}`"
+                                        :aria-expanded="open.toString()"
+                                        aria-haspopup="listbox"
+                                        class="flex h-11 w-full items-center justify-between border border-slate-700 bg-slate-800 px-3 text-left text-sm text-white outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
+                                    >
+                                        <span x-text="selectedLabel()" class="truncate"></span>
+                                        <svg class="h-4 w-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </button>
+
+                                    <!-- Hidden Select for Form Submission & Dusk Testing -->
+                                    <select
+                                        dusk="historical-row-type-select"
+                                        :name="`rows[${index}][documentary_type_id]`"
+                                        x-model="row.documentary_type_id"
+                                        @change="row.documentary_type_id = $event.target.value"
+                                        required
+                                        class="absolute opacity-0 w-px h-px overflow-hidden"
+                                        tabindex="-1"
+                                    >
+                                        <option value="">Seleccionar tipo documental</option>
+                                        @foreach ($documentaryTypeOptions as $type)
+                                            <option value="{{ $type['id'] }}">{{ $type['label'] }}</option>
+                                        @endforeach
+                                    </select>
+
+                                    <!-- Dropdown Panel -->
+                                    <div :id="`documentary-row-options-${row.uid}`" x-show="open" @click.away="open = false" role="listbox" class="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto border border-slate-700 bg-slate-900 p-2 shadow-lg" x-cloak>
+                                        <!-- Search Input -->
+                                        <input type="text" x-model="search" placeholder="Buscar por código, serie o tipo..." class="mb-2 h-9 w-full border border-slate-700 bg-slate-950 px-2 text-sm text-white outline-none focus:border-amber-400">
+
+                                        <!-- Options List -->
+                                        <div class="space-y-1">
+                                            <button type="button" role="option" @click="row.documentary_type_id = ''; open = false; search = '';" class="block w-full px-2 py-1.5 text-left text-sm text-slate-400 transition hover:bg-amber-500 hover:text-slate-950">
+                                                Seleccionar tipo documental
+                                            </button>
+                                            <template x-for="opt in filteredOptions" :key="opt.id">
+                                                <button type="button" role="option" @click="row.documentary_type_id = String(opt.id); open = false; search = '';" class="block w-full px-2 py-1.5 text-left text-sm text-slate-200 transition hover:bg-amber-500 hover:text-slate-950">
+                                                    <span x-text="opt.label"></span>
+                                                </button>
+                                            </template>
+                                            <div x-show="filteredOptions.length === 0" class="px-2 py-1.5 text-sm text-slate-500">
+                                                No se encontraron resultados
                                             </div>
-                                        </button>
-                                    </template>
-
-                                    <div x-show="filteredLocations().length === 0" x-cloak class="rounded-xl border border-dashed border-slate-700 px-4 py-5 text-sm text-slate-400">
-                                        No hay coincidencias con esa búsqueda.
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            @error('physical_location_id')
-                                <p class="mt-1.5 text-sm text-rose-600 dark:text-rose-300">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        <div class="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
-                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div>
-                                    <p class="text-sm font-semibold text-white">Ubicación seleccionada</p>
-                                    <p class="mt-1 text-xs text-slate-400">Se guardará como ubicación inicial del físico en archivo central.</p>
-                                </div>
-                                <div
-                                    class="inline-flex min-h-9 max-w-full items-center self-start rounded-xl bg-slate-800 px-3 py-2 text-xs font-semibold tracking-[0.14em] text-white sm:self-auto"
-                                    x-show="selectedLocation"
-                                    x-cloak
-                                    x-text="selectedLocation?.code"
-                                ></div>
+                            <div>
+                                <label class="mb-1.5 block text-sm font-medium text-slate-200">Carpeta</label>
+                                <input dusk="historical-row-folder" type="text" :name="`rows[${index}][folder]`" x-model="row.folder" class="block h-11 w-full border border-slate-700 bg-slate-800 px-3 text-sm text-white outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
                             </div>
 
-                            <div x-show="selectedLocation" x-cloak class="mt-4 space-y-3">
-                                <div class="flex flex-wrap gap-2">
-                                    <button
-                                        type="button"
-                                        @click="locationSearch = ''; $nextTick(() => document.getElementById('location_search')?.focus())"
-                                        class="inline-flex h-9 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 px-3 text-xs font-semibold text-slate-200 transition hover:bg-slate-700"
-                                    >
-                                        Cambiar selección
-                                    </button>
-                                    <button
-                                        type="button"
-                                        @click="clearSelectedLocation(); $nextTick(() => document.getElementById('location_search')?.focus())"
-                                        class="inline-flex h-9 items-center justify-center rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 text-xs font-semibold text-rose-200 transition hover:bg-rose-500/15"
-                                    >
-                                        Limpiar
-                                    </button>
-                                </div>
-                                <div class="rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-200" x-text="selectedLocation?.path"></div>
-                                <div class="flex flex-wrap gap-2">
-                                    <template x-for="segment in (selectedLocation?.segments || [])" :key="segment">
-                                        <span class="inline-flex items-center rounded-full border border-slate-700 bg-slate-800 px-3 py-1 text-xs font-medium text-slate-300" x-text="segment"></span>
-                                    </template>
-                                </div>
+                            <div>
+                                <label class="mb-1.5 block text-sm font-medium text-slate-200">Tomo / volumen</label>
+                                <input dusk="historical-row-volume" type="text" :name="`rows[${index}][volume]`" x-model="row.volume" class="block h-11 w-full border border-slate-700 bg-slate-800 px-3 text-sm text-white outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
                             </div>
 
-                            <div x-show="!selectedLocation" class="mt-4 rounded-xl border border-dashed border-slate-700 px-4 py-4 text-sm text-slate-400">
-                                Busca por código, estante, entrepaño o nivel y elige una ubicación para continuar.
+                            <div>
+                                <label class="mb-1.5 block text-sm font-medium text-slate-200">Año</label>
+                                <input dusk="historical-row-year" type="number" min="1800" max="2200" :name="`rows[${index}][year]`" x-model="row.year" class="block h-11 w-full border border-slate-700 bg-slate-800 px-3 text-sm text-white outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
                             </div>
-                        </div>
 
-                        <div>
-                            <label for="access_level" class="mb-1.5 block text-sm font-medium text-slate-200">Nivel de acceso <span class="text-rose-400">*</span></label>
-                            <select name="access_level" id="access_level" required class="block h-11 w-full rounded-xl border border-slate-700 bg-slate-800 px-3 text-sm text-white shadow-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
-                                @foreach(\App\Enums\DocumentAccessLevel::cases() as $accessLevel)
-                                    <option value="{{ $accessLevel->value }}" @selected(old('access_level', \App\Enums\DocumentAccessLevel::Interno->value) === $accessLevel->value)>{{ $accessLevel->getLabel() }}</option>
-                                @endforeach
-                            </select>
-                            @error('access_level')
-                                <p class="mt-1.5 text-sm text-rose-600 dark:text-rose-300">{{ $message }}</p>
-                            @enderror
+                            <div>
+                                <label class="mb-1.5 block text-sm font-medium text-slate-200">Codigo / referencia</label>
+                                <input dusk="historical-row-reference" type="text" :name="`rows[${index}][reference_code]`" x-model="row.reference_code" class="block h-11 w-full border border-slate-700 bg-slate-800 px-3 text-sm text-white outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
+                            </div>
+
+                            <div class="lg:col-span-2">
+                                <label class="mb-1.5 block text-sm font-medium text-slate-200">Descripcion / asunto</label>
+                                <input dusk="historical-row-description" type="text" :name="`rows[${index}][description]`" x-model="row.description" class="block h-11 w-full border border-slate-700 bg-slate-800 px-3 text-sm text-white outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
+                            </div>
                         </div>
                     </div>
-                </div>
-
-                <div class="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-6 shadow-sm">
-                    <h2 class="text-sm font-semibold uppercase tracking-[0.16em] text-amber-200">Resumen de incorporación</h2>
-
-                    <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                        <div class="rounded-2xl border border-amber-500/20 bg-slate-900/60 px-4 py-3">
-                            <p class="text-xs uppercase tracking-[0.14em] text-amber-200/80">Campos críticos</p>
-                            <p class="mt-2 text-sm font-medium text-slate-100">{{ count($requiredFields) }} datos obligatorios</p>
-                        </div>
-                        <div class="rounded-2xl border border-amber-500/20 bg-slate-900/60 px-4 py-3">
-                            <p class="text-xs uppercase tracking-[0.14em] text-amber-200/80">Ubicaciones disponibles</p>
-                            <p class="mt-2 text-sm font-medium text-slate-100">{{ $physicalLocations->count() }} espacios activos</p>
-                        </div>
-                    </div>
-
-                    <ul class="mt-4 space-y-2 text-sm text-amber-100">
-                        @foreach($requiredFields as $field)
-                            <li class="flex items-start gap-2">
-                                <span class="mt-0.5 text-amber-600 dark:text-amber-300">•</span>
-                                <span>{{ $field }}</span>
-                            </li>
-                        @endforeach
-                    </ul>
-                </div>
-
-                <div class="flex flex-col gap-3">
-                    <button type="submit" class="inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-5 text-sm font-semibold text-white shadow-lg shadow-orange-900/20 transition hover:from-amber-400 hover:to-orange-500">
-                        Incorporar al archivo central
-                    </button>
-                    <a href="{{ route('documents.index') }}" class="inline-flex h-11 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 px-4 text-sm font-semibold text-slate-200 shadow-sm transition hover:bg-slate-700">
-                        Volver al listado
-                    </a>
-                </div>
-            </aside>
+                </template>
+            </div>
         </section>
+
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+            <a href="{{ route('documents.index') }}" class="inline-flex h-11 items-center justify-center border border-slate-700 bg-slate-800 px-5 text-sm font-semibold text-slate-200">
+                Volver
+            </a>
+            <button
+                type="submit"
+                dusk="historical-submit"
+                :disabled="!selectedLocationId || hasMissingDocumentaryType()"
+                class="inline-flex h-11 items-center justify-center bg-amber-500 px-5 text-sm font-semibold text-slate-950 shadow-sm transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+                Incorporar al archivo central
+            </button>
+        </div>
     </form>
 </div>
 @endsection

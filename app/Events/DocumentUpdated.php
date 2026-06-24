@@ -4,15 +4,12 @@ namespace App\Events;
 
 use App\Models\Document;
 use App\Models\User;
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class DocumentUpdated implements ShouldBroadcast
+class DocumentUpdated
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -36,11 +33,11 @@ class DocumentUpdated implements ShouldBroadcast
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('document.' . $this->document->id),
-            new PrivateChannel('company.' . $this->document->company_id),
+            new PrivateChannel('document.'.$this->document->id),
+            new PrivateChannel('company.'.$this->document->company_id),
         ];
     }
-    
+
     /**
      * Get the data to broadcast.
      */
@@ -59,7 +56,7 @@ class DocumentUpdated implements ShouldBroadcast
             'timestamp' => now()->toISOString(),
         ];
     }
-    
+
     /**
      * The event's broadcast name.
      */
