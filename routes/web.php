@@ -36,6 +36,7 @@ Route::middleware(['auth', RedirectBasedOnRole::class])
     ->group(function () {
         Route::get('/', PortalDashboard::class)->name('dashboard');
         Route::get('/reports', PortalReports::class)->name('reports');
+        Route::get('/archive-map', \App\Livewire\Portal\PhysicalArchiveMap::class)->name('archive-map');
     });
 
 if (app()->environment('local', 'testing')) {

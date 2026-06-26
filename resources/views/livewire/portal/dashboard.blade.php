@@ -46,6 +46,12 @@
                         Ver archivo central
                     </a>
                 @endif
+                @if (Auth::user()?->hasAnyRole([\App\Enums\Role::ArchiveManager->value, \App\Enums\Role::ArchiveOperator->value, \App\Enums\Role::Admin->value, \App\Enums\Role::SuperAdmin->value]))
+                    <a href="{{ route('portal.archive-map') }}"
+                       class="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                        Mapa de Custodia
+                    </a>
+                @endif
             </div>
         </div>
     </div>

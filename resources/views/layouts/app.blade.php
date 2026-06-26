@@ -43,6 +43,11 @@
                                 <a href="{{ route('portal.reports') }}" class="inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium transition {{ request()->routeIs('portal.reports') ? 'bg-sky-50 text-sky-700 ring-1 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/20' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white' }}">
                                     Reportes
                                 </a>
+                                @if (Auth::user()?->hasAnyRole([\App\Enums\Role::ArchiveManager->value, \App\Enums\Role::ArchiveOperator->value, \App\Enums\Role::Admin->value, \App\Enums\Role::SuperAdmin->value, \App\Enums\Role::BranchAdmin->value]))
+                                    <a href="{{ route('portal.archive-map') }}" class="inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium transition {{ request()->routeIs('portal.archive-map') ? 'bg-sky-50 text-sky-700 ring-1 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/20' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white' }}">
+                                        Mapa de Archivo
+                                    </a>
+                                @endif
                             @endif
                             <a href="{{ route('documents.index') }}" class="inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium transition {{ request()->routeIs('documents.*') ? 'bg-sky-50 text-sky-700 ring-1 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/20' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white' }}">
                                 Mis Documentos
