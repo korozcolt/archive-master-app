@@ -364,6 +364,38 @@ it('rejects historical uploads into a full box', function () {
         ->assertSessionHasErrors('physical_location_id');
 });
 
+it('does not partially store historical batches when the box capacity is exceeded', function () {
+    Storage::fake('local');
+    $setup = historicalFlowSetup();
+    $setup['location']->forceFill([
+        'capacity_total' => 1,
+        'capacity_used' => 0,
+    ])->save();
+
+    $this->actingAs($setup['archiveOperator'])
+        ->post(route('documents.historical.store'), [
+            'rows' => [
+                [
+                    'file' => UploadedFile::fake()->create('Primer documento.pdf', 100, 'application/pdf'),
+                    'documentary_type_id' => $setup['documentaryType']->id,
+                ],
+                [
+                    'file' => UploadedFile::fake()->create('Segundo documento.pdf', 100, 'application/pdf'),
+                    'documentary_type_id' => $setup['documentaryType']->id,
+                ],
+            ],
+            'category_id' => $setup['category']->id,
+            'original_department_id' => $setup['producerDepartment']->id,
+            'physical_location_id' => $setup['location']->id,
+            'digital_document_type' => 'copia',
+            'physical_document_type' => 'original',
+        ])
+        ->assertSessionHasErrors('physical_location_id');
+
+    expect(Document::query()->whereIn('title', ['Primer documento', 'Segundo documento'])->count())->toBe(0)
+        ->and($setup['location']->refresh()->capacity_used)->toBe(0);
+});
+
 it('shows internal historical documents to office managers across the company and lets them search by producer', function () {
     $setup = historicalFlowSetup();
 

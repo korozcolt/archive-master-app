@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Scout\Searchable;
 use Spatie\Activitylog\LogOptions;
@@ -1076,17 +1077,28 @@ class Document extends Model
         ?User $movedBy = null,
         string $movementType = 'moved'
     ): bool {
-        $oldLocationId = $this->physical_location_id;
+        return DB::transaction(function () use ($newLocation, $notes, $movedBy, $movementType): bool {
+            $oldLocationId = $this->physical_location_id;
+            $newLocationId = $newLocation->getKey();
+            $isSameLocation = $oldLocationId && (int) $oldLocationId === (int) $newLocationId;
 
-        // Actualizar la ubicación del documento
-        $this->physical_location_id = $newLocation->id;
-        $success = $this->save();
+            if (! $isSameLocation && ! $newLocation->incrementCapacity()) {
+                return false;
+            }
 
-        if ($success) {
-            // Registrar en el historial
+            $this->physical_location_id = $newLocationId;
+
+            if (! $this->saveQuietly()) {
+                if (! $isSameLocation) {
+                    $newLocation->decrementCapacity();
+                }
+
+                return false;
+            }
+
             DocumentLocationHistory::create([
                 'document_id' => $this->id,
-                'physical_location_id' => $newLocation->id,
+                'physical_location_id' => $newLocationId,
                 'moved_from_location_id' => $oldLocationId,
                 'moved_by' => $movedBy?->id ?? Auth::id(),
                 'movement_type' => $movementType,
@@ -1094,16 +1106,13 @@ class Document extends Model
                 'moved_at' => now(),
             ]);
 
-            // Actualizar capacidades
-            if ($oldLocationId) {
+            if ($oldLocationId && ! $isSameLocation) {
                 $oldLocation = PhysicalLocation::find($oldLocationId);
                 $oldLocation?->decrementCapacity();
             }
 
-            $newLocation->incrementCapacity();
-        }
-
-        return $success;
+            return true;
+        });
     }
 
     /**

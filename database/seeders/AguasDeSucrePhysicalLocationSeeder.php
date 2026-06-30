@@ -10,6 +10,8 @@ use Illuminate\Database\Seeder;
 
 class AguasDeSucrePhysicalLocationSeeder extends Seeder
 {
+    private const DEFAULT_BOX_CAPACITY = 3000;
+
     public function run(): void
     {
         $company = Company::query()->findOrFail(1);
@@ -70,7 +72,10 @@ class AguasDeSucrePhysicalLocationSeeder extends Seeder
                                 'template_id' => $template->id,
                                 'structured_data' => $structuredData,
                                 'code' => $location->generateCode(),
-                                'capacity_total' => $existingLocation?->capacity_total ?? 25,
+                                'capacity_total' => max(
+                                    (int) ($existingLocation?->capacity_total ?? self::DEFAULT_BOX_CAPACITY),
+                                    self::DEFAULT_BOX_CAPACITY,
+                                ),
                                 'capacity_used' => $existingLocation?->capacity_used ?? 0,
                                 'is_active' => true,
                                 'notes' => sprintf(

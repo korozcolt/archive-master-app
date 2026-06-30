@@ -54,5 +54,6 @@ it('creates a basement archive template and shelf locations for aguas de sucre',
         ->and(PhysicalLocation::query()->where('company_id', $company->id)->count())->toBe(1920)
         ->and(PhysicalLocation::query()->where('company_id', $company->id)->where('full_path', 'Nivel Sótano / Archivo Principal / Estante 01 / Entrepaño 01 / Caja 001')->exists())->toBeTrue()
         ->and(PhysicalLocation::query()->where('company_id', $company->id)->where('full_path', 'Nivel Sótano / Archivo Principal / Estante 40 / Entrepaño 06 / Caja 008')->exists())->toBeTrue()
-        ->and(PhysicalLocation::query()->where('company_id', $company->id)->where('code', 'C1/NIV-Sótano/ARC-Principal/EST-01/ENT-01/CJ-001')->exists())->toBeTrue();
+        ->and(PhysicalLocation::query()->where('company_id', $company->id)->where('code', 'C1/NIV-Sótano/ARC-Principal/EST-01/ENT-01/CJ-001')->exists())->toBeTrue()
+        ->and(PhysicalLocation::query()->where('company_id', $company->id)->min('capacity_total'))->toBe(3000);
 });
