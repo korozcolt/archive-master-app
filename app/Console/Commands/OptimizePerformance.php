@@ -29,7 +29,7 @@ class OptimizePerformance extends Command
     /**
      * The console command description.
      */
-    protected $description = 'Optimizar el rendimiento del sistema (cache, base de datos, archivos)';
+    protected $description = 'Optimizar el rendimiento del sistema (cache, base de datos, archivos) v1.0.1';
 
     /**
      * Execute the console command.
