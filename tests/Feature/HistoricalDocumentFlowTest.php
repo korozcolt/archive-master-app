@@ -266,7 +266,7 @@ it('allows archive operator to upload historical documents into an active box', 
         ->and($setup['location']->refresh()->capacity_used)->toBe(1);
 });
 
-it('rejects duplicate historical uploads from the same operator into the same box', function () {
+it('allows historical documents with the same title in the same box', function () {
     Storage::fake('local');
     Queue::fake();
     $setup = historicalFlowSetup();
@@ -293,14 +293,27 @@ it('rejects duplicate historical uploads from the same operator into the same bo
         ->post(route('documents.historical.store'), $payload)
         ->assertRedirect(route('documents.index', ['archive_phase' => ArchivePhase::Central->value]));
 
-    $payload['rows'][0]['file'] = UploadedFile::fake()->create('Egreso 239 retry.pdf', 100, 'application/pdf');
+    $firstDocument = Document::query()
+        ->where('title', 'EGRESO 239')
+        ->firstOrFail();
+
+    $payload['rows'][0]['file'] = UploadedFile::fake()->create('Egreso 239 soporte.pdf', 100, 'application/pdf');
 
     $this->actingAs($setup['archiveOperator'])
         ->post(route('documents.historical.store'), $payload)
-        ->assertSessionHasErrors('rows');
+        ->assertRedirect(route('documents.index', ['archive_phase' => ArchivePhase::Central->value]));
 
-    expect(Document::query()->where('title', 'EGRESO 239')->count())->toBe(1)
-        ->and($setup['location']->refresh()->capacity_used)->toBe(1);
+    $documents = Document::query()
+        ->where('title', 'EGRESO 239')
+        ->orderBy('id')
+        ->get();
+
+    expect($documents)->toHaveCount(2)
+        ->and($documents->pluck('document_number')->unique())->toHaveCount(2)
+        ->and($documents->pluck('physical_location_id')->unique()->all())->toBe([$setup['location']->id])
+        ->and($documents->pluck('documentary_type_id')->unique()->all())->toBe([$setup['documentaryType']->id])
+        ->and($documents->first()->document_number)->toBe($firstDocument->document_number)
+        ->and($setup['location']->refresh()->capacity_used)->toBe(2);
 });
 
 it('prevents archive operator from correcting a document physical location after upload', function () {

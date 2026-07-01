@@ -53,7 +53,6 @@ class HistoricalDocumentIntakeService
 
             foreach ($rows as $row) {
                 $documentaryType = $this->resolveDocumentaryType($user, $producerDepartment, (int) $row['documentary_type_id']);
-                $this->ensureUniqueHistoricalRow($user, $producerDepartment, $location, $documentaryType, $row);
 
                 $filePath = $this->documentFileService->storeUploadedFile($row['file']);
                 $accessLevel = $row['access_level'] ?? $data['access_level'] ?? $documentaryType->access_level_default?->value ?? DocumentAccessLevel::Interno->value;
@@ -129,28 +128,6 @@ class HistoricalDocumentIntakeService
         }
 
         return $location;
-    }
-
-    /**
-     * @param  array<string, mixed>  $row
-     */
-    private function ensureUniqueHistoricalRow(User $user, Department $producerDepartment, PhysicalLocation $location, DocumentaryType $documentaryType, array $row): void
-    {
-        $title = $this->makeTitle($row);
-        $duplicateExists = Document::query()
-            ->where('company_id', $user->company_id)
-            ->where('created_by', $user->id)
-            ->where('title', $title)
-            ->where('documentary_type_id', $documentaryType->id)
-            ->where('physical_location_id', $location->id)
-            ->where('metadata->entry_mode', 'historical')
-            ->exists();
-
-        if ($duplicateExists) {
-            throw ValidationException::withMessages([
-                'rows' => "Ya existe un documento histórico con la misma referencia en esta caja: {$title}.",
-            ]);
-        }
     }
 
     private function resolveDocumentaryType(User $user, Department $producerDepartment, int $documentaryTypeId): DocumentaryType
