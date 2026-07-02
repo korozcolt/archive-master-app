@@ -311,9 +311,9 @@
                                 <td class="px-4 py-4 text-right">
                                     <div class="flex justify-end gap-2 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
                                         <a href="{{ route('documents.show', $document) }}" class="rounded-lg px-2 py-1 text-xs font-medium text-sky-700 hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-slate-800">Ver</a>
-                                        @if($document->created_by == Auth::id() || $document->assigned_to == Auth::id())
+                                        @can('update', $document)
                                             <a href="{{ route('documents.edit', $document) }}" class="rounded-lg px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-slate-800">Editar</a>
-                                        @endif
+                                        @endcan
                                     </div>
                                 </td>
                             </tr>

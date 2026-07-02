@@ -1687,20 +1687,7 @@ class UserDocumentController extends Controller
      */
     private function canEditDocument($user, $document): bool
     {
-        if ($document->company_id !== $user->company_id) {
-            return false;
-        }
-
-        if ($document->isHistoricalEntry()) {
-            return $user->hasAnyRole(['super_admin', 'admin', 'branch_admin', Role::ArchiveManager->value]);
-        }
-
-        return $document->created_by === $user->id
-            || $document->assigned_to === $user->id
-            || ($user->hasRole(Role::Receptionist->value) && $document->receipts()->exists())
-            || ($user->hasRole(Role::OfficeManager->value) && $user->department_id && $document->distributions()
-                ->whereHas('targets', fn ($q) => $q->where('department_id', $user->department_id))
-                ->exists());
+        return $user->can('update', $document);
     }
 
     private function createReceiptForPortalUser(
