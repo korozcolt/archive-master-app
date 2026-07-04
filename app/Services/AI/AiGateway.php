@@ -108,6 +108,18 @@ class AiGateway
 
     private function resolveEnabledSetting(Company $company): CompanyAiSetting
     {
+        if (config('ai.mock_mode')) {
+            $mockSetting = new CompanyAiSetting([
+                'company_id' => $company->id,
+                'provider' => 'gemini',
+                'api_key_encrypted' => 'mock-key',
+                'is_enabled' => true,
+            ]);
+            $mockSetting->exists = true;
+
+            return $mockSetting;
+        }
+
         $setting = $company->aiSetting()->first();
 
         if (! $setting || ! $setting->is_enabled || $setting->provider === 'none') {
