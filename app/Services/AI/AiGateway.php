@@ -65,6 +65,22 @@ class AiGateway
         ]);
     }
 
+    public function extractAccounting(DocumentVersion $version): array
+    {
+        $setting = $this->resolveEnabledSettingForVersion($version);
+        $provider = $this->providerByName($setting->provider)->withConfiguration([
+            'api_key' => $setting->api_key_encrypted,
+            'model' => $this->defaultModelForProvider($setting->provider),
+            'provider' => $setting->provider,
+        ]);
+        $inputText = $this->resolveInputText($version, (bool) $setting->redact_pii);
+
+        return $provider->extractAccounting($inputText, [
+            'document_version_id' => $version->id,
+            'document_id' => $version->document_id,
+        ]);
+    }
+
     public function testProvider(Company $company, string $sampleText): array
     {
         $setting = $this->resolveEnabledSetting($company);

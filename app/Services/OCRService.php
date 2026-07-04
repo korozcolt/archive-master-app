@@ -105,21 +105,18 @@ class OCRService
     {
         $fullPath = Storage::disk($disk)->path($filePath);
 
-        // Para PDFs, primero necesitamos convertir a imágenes usando Imagick o similar
-        // Por ahora, si el PDF tiene texto nativo, usamos pdftotext
-        // Si está escaneado, necesitaríamos convertir las páginas a imágenes primero
-
         // Intentar extraer texto nativo del PDF primero
         $textOutput = shell_exec('pdftotext '.escapeshellarg($fullPath).' - 2>/dev/null');
 
-        if (! empty(trim($textOutput))) {
+        // Limpiar form feeds y caracteres de control antes de validar si está vacío
+        $cleanOutput = preg_replace('/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F]/', '', $textOutput ?? '');
+
+        if (! empty(trim($cleanOutput))) {
             // PDF tiene texto nativo, no necesita OCR
             return trim($textOutput);
         }
 
         // Si no tiene texto nativo, aplicar OCR usando Tesseract
-        // Nota: esto requiere convertir el PDF a imágenes primero
-        // Para simplificar, procesaremos como imagen si es un archivo escaneado
         return $this->processPDFWithTesseract($fullPath, $language);
     }
 
@@ -170,14 +167,77 @@ class OCRService
      */
     private function processPDFWithTesseract(string $fullPath, string $language): string
     {
-        // Para PDFs escaneados, idealmente convertiríamos cada página a imagen
-        // Por simplicidad, informamos que se requiere preprocesamiento
-        // En producción, usaríamos Imagick o GhostScript para convertir PDF a imágenes
+        $tesseractLang = $this->mapLanguageToTesseract($language);
+        $tempDir = sys_get_temp_dir().DIRECTORY_SEPARATOR.'ocr_pdf_'.uniqid();
 
-        return "NOTA: Este PDF parece estar escaneado y no contiene texto nativo.\n".
-               "Para procesar PDFs escaneados, es necesario convertirlos a imágenes primero.\n".
-               "Considere usar herramientas como ImageMagick o subir imágenes directamente.\n\n".
-               'Archivo: '.basename($fullPath);
+        if (! mkdir($tempDir, 0755, true) && ! is_dir($tempDir)) {
+            throw new \RuntimeException(sprintf('Directory "%s" was not created', $tempDir));
+        }
+
+        try {
+            // Convertir páginas a imágenes PNG usando pdftoppm (150 DPI)
+            $command = sprintf(
+                'pdftoppm -png -r 150 %s %s',
+                escapeshellarg($fullPath),
+                escapeshellarg($tempDir.DIRECTORY_SEPARATOR.'page')
+            );
+            exec($command, $output, $returnCode);
+
+            if ($returnCode !== 0) {
+                throw new \Exception('Error al convertir PDF a imágenes con pdftoppm: '.implode("\n", $output));
+            }
+
+            // Buscar imágenes de páginas generadas
+            $images = glob($tempDir.DIRECTORY_SEPARATOR.'page-*.png');
+            sort($images);
+
+            if (empty($images)) {
+                return '';
+            }
+
+            $fullExtractedText = '';
+
+            foreach ($images as $imagePath) {
+                // Ejecutar Tesseract en cada página
+                $outputFile = tempnam(sys_get_temp_dir(), 'ocr_page');
+                $tessCommand = sprintf(
+                    'tesseract %s %s -l %s 2>&1',
+                    escapeshellarg($imagePath),
+                    escapeshellarg($outputFile),
+                    escapeshellarg($tesseractLang)
+                );
+                exec($tessCommand, $tessOutput, $tessReturnCode);
+
+                $textFile = $outputFile.'.txt';
+                if (file_exists($textFile)) {
+                    $pageText = file_get_contents($textFile);
+                    $fullExtractedText .= $pageText."\n\n";
+                    unlink($textFile);
+                }
+
+                if (file_exists($outputFile)) {
+                    unlink($outputFile);
+                }
+
+                unlink($imagePath);
+            }
+
+            return trim($fullExtractedText);
+        } catch (\Throwable $e) {
+            Log::error('OCR PDF with Tesseract failed', ['error' => $e->getMessage()]);
+            throw $e;
+        } finally {
+            if (is_dir($tempDir)) {
+                // Limpiar cualquier archivo restante
+                $remainingFiles = glob($tempDir.DIRECTORY_SEPARATOR.'*');
+                foreach ($remainingFiles as $file) {
+                    if (is_file($file)) {
+                        unlink($file);
+                    }
+                }
+                rmdir($tempDir);
+            }
+        }
     }
 
     /**
