@@ -5,34 +5,34 @@ namespace App\Filament\Widgets;
 use App\Models\Document;
 use App\Models\WorkflowHistory;
 use Filament\Widgets\Widget;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class NotificationsWidget extends Widget
 {
     protected static string $view = 'filament.widgets.notifications';
-    
+
     protected static ?string $heading = 'Notificaciones';
-    
+
     protected static ?int $sort = 3;
-    
-    protected int | string | array $columnSpan = 'full';
-    
+
+    protected int|string|array $columnSpan = 'full';
+
     public function getViewData(): array
     {
         $user = Auth::user();
-        
+
         return [
             'notifications' => $this->getRecentNotifications($user),
             'alerts' => $this->getSystemAlerts($user),
             'reminders' => $this->getReminders($user),
         ];
     }
-    
+
     private function getRecentNotifications($user)
     {
         $notifications = collect();
-        
+
         // Documentos asignados recientemente
         $recentAssignments = Document::where('assigned_to', $user->id)
             ->where('updated_at', '>=', Carbon::now()->subHours(24))
@@ -42,7 +42,7 @@ class NotificationsWidget extends Widget
             ->get()
             ->map(function ($document) {
                 return [
-                    'id' => 'assignment_' . $document->id,
+                    'id' => 'assignment_'.$document->id,
                     'type' => 'assignment',
                     'icon' => '📋',
                     'title' => 'Documento asignado',
@@ -54,12 +54,12 @@ class NotificationsWidget extends Widget
                     'read' => false,
                 ];
             });
-        
+
         // Cambios de estado en documentos del usuario
         $statusChanges = WorkflowHistory::whereHas('document', function ($query) use ($user) {
-                $query->where('assigned_to', $user->id)
-                    ->orWhere('created_by', $user->id);
-            })
+            $query->where('assigned_to', $user->id)
+                ->orWhere('created_by', $user->id);
+        })
             ->where('created_at', '>=', Carbon::now()->subHours(24))
             ->with(['document', 'fromStatus', 'toStatus', 'user'])
             ->orderBy('created_at', 'desc')
@@ -68,9 +68,9 @@ class NotificationsWidget extends Widget
             ->map(function ($history) {
                 $isOwner = $history->document->created_by === Auth::id();
                 $isAssignee = $history->document->assigned_to === Auth::id();
-                
+
                 return [
-                    'id' => 'status_' . $history->id,
+                    'id' => 'status_'.$history->id,
                     'type' => 'status_change',
                     'icon' => $this->getStatusChangeIcon($history->toStatus),
                     'title' => 'Cambio de estado',
@@ -83,18 +83,18 @@ class NotificationsWidget extends Widget
                     'actor' => $history->user->name,
                 ];
             });
-        
+
         return $notifications->merge($recentAssignments)
             ->merge($statusChanges)
             ->sortByDesc('time')
             ->take(10)
             ->values();
     }
-    
+
     private function getSystemAlerts($user)
     {
         $alerts = collect();
-        
+
         // Documentos vencidos
         $overdueCount = Document::where('assigned_to', $user->id)
             ->whereHas('status', function ($query) {
@@ -102,7 +102,7 @@ class NotificationsWidget extends Widget
             })
             ->where('created_at', '<=', Carbon::now()->subDays(7))
             ->count();
-        
+
         if ($overdueCount > 0) {
             $alerts->push([
                 'id' => 'overdue_documents',
@@ -115,7 +115,7 @@ class NotificationsWidget extends Widget
                 'action_url' => route('filament.admin.resources.documents.index', ['tableFilters[assigned_to][value]' => $user->id]),
             ]);
         }
-        
+
         // Documentos próximos a vencer
         $soonDueCount = Document::where('assigned_to', $user->id)
             ->whereHas('status', function ($query) {
@@ -123,7 +123,7 @@ class NotificationsWidget extends Widget
             })
             ->whereBetween('created_at', [Carbon::now()->subDays(7), Carbon::now()->subDays(5)])
             ->count();
-        
+
         if ($soonDueCount > 0) {
             $alerts->push([
                 'id' => 'soon_due_documents',
@@ -136,7 +136,7 @@ class NotificationsWidget extends Widget
                 'action_url' => route('filament.admin.resources.documents.index', ['tableFilters[assigned_to][value]' => $user->id]),
             ]);
         }
-        
+
         // Documentos sin asignar en la empresa
         if ($user->hasRole(['admin', 'manager'])) {
             $unassignedCount = Document::where('company_id', $user->company_id)
@@ -145,7 +145,7 @@ class NotificationsWidget extends Widget
                     $query->where('is_final', false);
                 })
                 ->count();
-            
+
             if ($unassignedCount > 0) {
                 $alerts->push([
                     'id' => 'unassigned_documents',
@@ -159,22 +159,21 @@ class NotificationsWidget extends Widget
                 ]);
             }
         }
-        
+
         return $alerts;
     }
-    
+
     private function getReminders($user)
     {
         $reminders = collect();
-        
+
         // Recordatorio de documentos pendientes de revisión
         $pendingReview = Document::where('assigned_to', $user->id)
             ->whereHas('status', function ($query) {
-                $query->where('name', 'like', '%revision%')
-                    ->orWhere('name', 'like', '%review%');
+                $query->whereIn('slug', ['under_review', 'in-corrections']);
             })
             ->count();
-        
+
         if ($pendingReview > 0) {
             $reminders->push([
                 'id' => 'pending_review',
@@ -187,7 +186,7 @@ class NotificationsWidget extends Widget
                 'action_url' => route('filament.admin.resources.documents.index'),
             ]);
         }
-        
+
         // Recordatorio de documentos creados por el usuario
         $myDocumentsPending = Document::where('created_by', $user->id)
             ->whereHas('status', function ($query) {
@@ -195,7 +194,7 @@ class NotificationsWidget extends Widget
             })
             ->where('updated_at', '<=', Carbon::now()->subDays(3))
             ->count();
-        
+
         if ($myDocumentsPending > 0) {
             $reminders->push([
                 'id' => 'my_documents_pending',
@@ -208,45 +207,45 @@ class NotificationsWidget extends Widget
                 'action_url' => route('filament.admin.resources.documents.index', ['tableFilters[created_by][value]' => $user->id]),
             ]);
         }
-        
+
         return $reminders;
     }
-    
+
     private function getStatusChangeIcon($status)
     {
         $statusName = strtolower($status->name);
-        
+
         if (str_contains($statusName, 'aprobado') || str_contains($statusName, 'approved')) {
             return '✅';
         }
-        
+
         if (str_contains($statusName, 'rechazado') || str_contains($statusName, 'rejected')) {
             return '❌';
         }
-        
+
         if (str_contains($statusName, 'proceso') || str_contains($statusName, 'progress')) {
             return '🔄';
         }
-        
+
         if (str_contains($statusName, 'revision') || str_contains($statusName, 'review')) {
             return '👀';
         }
-        
+
         return '📄';
     }
-    
+
     private function getStatusChangePriority($status)
     {
         $statusName = strtolower($status->name);
-        
+
         if (str_contains($statusName, 'rechazado') || str_contains($statusName, 'rejected')) {
             return 'high';
         }
-        
+
         if (str_contains($statusName, 'aprobado') || str_contains($statusName, 'approved')) {
             return 'medium';
         }
-        
+
         return 'low';
     }
 }
