@@ -247,11 +247,17 @@ class OCRService
     {
         $languageMap = [
             'es' => 'spa',      // Español
+            'spa' => 'spa',     // Español (Tesseract)
             'en' => 'eng',      // Inglés
+            'eng' => 'eng',     // Inglés (Tesseract)
             'fr' => 'fra',      // Francés
+            'fra' => 'fra',     // Francés (Tesseract)
             'de' => 'deu',      // Alemán
+            'deu' => 'deu',     // Alemán (Tesseract)
             'it' => 'ita',      // Italiano
+            'ita' => 'ita',     // Italiano (Tesseract)
             'pt' => 'por',      // Portugués
+            'por' => 'por',     // Portugués (Tesseract)
         ];
 
         return $languageMap[$language] ?? 'eng';

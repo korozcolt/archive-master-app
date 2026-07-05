@@ -67,7 +67,7 @@ Schedule::command('reports:process-scheduled')
     ->appendOutputTo(storage_path('logs/scheduled-reports.log'));
 
 // Procesar documentos con OCR de forma continua durante la jornada operativa
-Schedule::command('documents:process-ocr --limit=25 --language=spa')
+Schedule::command('documents:process-ocr --limit=50 --language=spa')
     ->everyFiveMinutes()
     ->withoutOverlapping()
     ->runInBackground()
