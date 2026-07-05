@@ -7,6 +7,7 @@ use App\Models\CompanyAiSetting;
 use App\Models\DocumentVersion;
 use App\Services\AI\Contracts\AiProviderContract;
 use App\Services\AI\Providers\GeminiProvider;
+use App\Services\AI\Providers\NvidiaProvider;
 use App\Services\AI\Providers\OpenAiProvider;
 use RuntimeException;
 
@@ -14,7 +15,8 @@ class AiGateway
 {
     public function __construct(
         private OpenAiProvider $openAiProvider,
-        private GeminiProvider $geminiProvider
+        private GeminiProvider $geminiProvider,
+        private NvidiaProvider $nvidiaProvider,
     ) {}
 
     public function summarize(DocumentVersion $version): array
@@ -108,18 +110,6 @@ class AiGateway
 
     private function resolveEnabledSetting(Company $company): CompanyAiSetting
     {
-        if (config('ai.mock_mode')) {
-            $mockSetting = new CompanyAiSetting([
-                'company_id' => $company->id,
-                'provider' => 'gemini',
-                'api_key_encrypted' => 'mock-key',
-                'is_enabled' => true,
-            ]);
-            $mockSetting->exists = true;
-
-            return $mockSetting;
-        }
-
         $setting = $company->aiSetting()->first();
 
         if (! $setting || ! $setting->is_enabled || $setting->provider === 'none') {
@@ -138,6 +128,7 @@ class AiGateway
         return match ($provider) {
             'openai' => $this->openAiProvider,
             'gemini' => $this->geminiProvider,
+            'nvidia' => $this->nvidiaProvider,
             default => throw new RuntimeException('Proveedor de IA no soportado: '.$provider),
         };
     }
@@ -147,6 +138,7 @@ class AiGateway
         return match ($provider) {
             'openai' => config('ai.providers.openai.default_model'),
             'gemini' => config('ai.providers.gemini.default_model'),
+            'nvidia' => config('ai.providers.nvidia.default_model'),
             default => 'unknown',
         };
     }

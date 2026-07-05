@@ -25,7 +25,7 @@ class DocumentAiRunFactory extends Factory
             'document_id' => Document::factory(),
             'document_version_id' => DocumentVersion::factory(),
             'triggered_by' => User::factory(),
-            'provider' => fake()->randomElement(['openai', 'gemini']),
+            'provider' => fake()->randomElement(['openai', 'gemini', 'nvidia']),
             'model' => fake()->randomElement(['gpt-4.1-mini', 'gemini-2.0-flash']),
             'status' => fake()->randomElement(['queued', 'running', 'success', 'failed', 'skipped']),
             'task' => fake()->randomElement(['summarize', 'extract', 'classify', 'embed']),

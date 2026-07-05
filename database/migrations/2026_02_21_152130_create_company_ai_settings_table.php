@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('company_ai_settings', function (Blueprint $table) {
             $table->id();
             $table->foreignId('company_id')->unique()->constrained()->cascadeOnDelete();
-            $table->enum('provider', ['none', 'openai', 'gemini'])->default('none');
+            $table->enum('provider', ['none', 'openai', 'gemini', 'nvidia'])->default('none');
             $table->text('api_key_encrypted')->nullable();
             $table->boolean('is_enabled')->default(false);
             $table->unsignedInteger('monthly_budget_cents')->nullable();

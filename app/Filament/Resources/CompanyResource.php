@@ -185,6 +185,7 @@ class CompanyResource extends Resource
                                 'none' => 'Ninguno',
                                 'openai' => 'OpenAI',
                                 'gemini' => 'Gemini',
+                                'nvidia' => 'NVIDIA',
                             ])
                             ->default('none')
                             ->native(false)
@@ -296,7 +297,7 @@ class CompanyResource extends Resource
                             ->label('Fallos proveedor (24h)')
                             ->content(function (?Company $record): string {
                                 if (! $record) {
-                                    return 'OpenAI: 0 | Gemini: 0';
+                                    return 'OpenAI: 0 | Gemini: 0 | NVIDIA: 0';
                                 }
 
                                 $runs = DocumentAiRun::query()
@@ -307,8 +308,9 @@ class CompanyResource extends Resource
 
                                 $openAi = $runs->where('provider', 'openai')->count();
                                 $gemini = $runs->where('provider', 'gemini')->count();
+                                $nvidia = $runs->where('provider', 'nvidia')->count();
 
-                                return "OpenAI: {$openAi} | Gemini: {$gemini}";
+                                return "OpenAI: {$openAi} | Gemini: {$gemini} | NVIDIA: {$nvidia}";
                             }),
                         Forms\Components\Placeholder::make('ai_observability_last_error')
                             ->label('Último error')
