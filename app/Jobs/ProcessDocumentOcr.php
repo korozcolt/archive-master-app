@@ -64,12 +64,20 @@ class ProcessDocumentOcr implements ShouldQueue
             return;
         }
 
+        $extractedText = trim((string) ($result['extracted_text'] ?? ''));
+
+        if ($extractedText === '') {
+            $this->storeOcrError($document, 'OCR no extrajo texto útil del archivo.', $fingerprint);
+
+            return;
+        }
+
         $metadata['ocr_processed'] = true;
         $metadata['ocr_error'] = null;
         $metadata['ocr_source_path'] = $filePath;
         $metadata['ocr_source_fingerprint'] = $fingerprint;
         $metadata['ocr_result'] = [
-            'extracted_text' => $result['extracted_text'],
+            'extracted_text' => $extractedText,
             'confidence' => $result['confidence'] ?? null,
             'language' => $result['language'] ?? $this->language,
             'word_count' => data_get($result, 'metadata.word_count'),
@@ -80,7 +88,7 @@ class ProcessDocumentOcr implements ShouldQueue
         ];
 
         $document->forceFill([
-            'content' => (string) ($result['extracted_text'] ?? ''),
+            'content' => $extractedText,
             'metadata' => $metadata,
         ])->save();
 

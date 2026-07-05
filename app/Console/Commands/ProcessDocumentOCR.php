@@ -107,13 +107,22 @@ class ProcessDocumentOCR extends Command
         if (! $this->option('force')) {
             $query->where(function ($builder): void {
                 $builder->whereNull('metadata->ocr_processed')
-                    ->orWhere('metadata->ocr_processed', false);
+                    ->orWhere('metadata->ocr_processed', false)
+                    ->orWhere(function ($builder): void {
+                        $builder->whereNull('metadata->ocr_error')
+                            ->where(function ($builder): void {
+                                $builder->whereNull('content')
+                                    ->orWhereRaw("LENGTH(TRIM(COALESCE(content, ''))) <= 100");
+                            });
+                    });
             });
         }
 
         // Aplicar límite
         $limit = (int) $this->option('limit');
         $query->limit($limit);
+
+        $query->oldest('id');
 
         return $query->with(['company', 'category', 'creator'])->get();
     }
@@ -146,11 +155,20 @@ class ProcessDocumentOCR extends Command
         $result = $ocrService->processFile($filePath, $language);
 
         if ($result['success']) {
+            $extractedText = trim((string) ($result['extracted_text'] ?? ''));
+
+            if ($extractedText === '') {
+                $this->storeOcrError($document, 'OCR no extrajo texto útil del archivo.');
+                $this->warn('⚠️  OCR finalizó sin texto útil.');
+
+                return;
+            }
+
             // Actualizar documento con texto extraído
             $metadata = $document->metadata ?? [];
             $metadata['ocr_processed'] = true;
             $metadata['ocr_result'] = [
-                'extracted_text' => $result['extracted_text'],
+                'extracted_text' => $extractedText,
                 'confidence' => $result['confidence'],
                 'language' => $result['language'],
                 'word_count' => $result['metadata']['word_count'],
@@ -162,7 +180,7 @@ class ProcessDocumentOCR extends Command
             $metadata['ocr_error'] = null;
             $metadata['ocr_source_path'] = $filePath;
 
-            $document->content = $result['extracted_text'];
+            $document->content = $extractedText;
 
             $document->metadata = $metadata;
             $document->save();
@@ -185,5 +203,16 @@ class ProcessDocumentOCR extends Command
             $document->metadata = $metadata;
             $document->save();
         }
+    }
+
+    private function storeOcrError(Document $document, string $error): void
+    {
+        $metadata = $document->metadata ?? [];
+        $metadata['ocr_processed'] = true;
+        $metadata['ocr_error'] = $error;
+        $metadata['processed_at'] = now()->toISOString();
+
+        $document->metadata = $metadata;
+        $document->save();
     }
 }
