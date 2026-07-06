@@ -138,7 +138,7 @@ class UserDocumentController extends Controller
                 ->orderByDesc('id')
                 ->limit(1),
         ])
-            ->paginate(15)
+            ->simplePaginate(15)
             ->withQueryString(); // Mantener parámetros de búsqueda en paginación
 
         // Obtener listas para filtros

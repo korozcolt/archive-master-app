@@ -70,8 +70,8 @@
                 </h1>
                 <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
                     {{ $isArchivePortal
-                        ? "Consulta y controla la carga histórica del archivo central. Total visible: {$documents->total()} documento(s)."
-                        : "Administra, filtra y consulta tus documentos. Total: {$documents->total()} documento(s)." }}
+                        ? "Consulta y controla la carga histórica del archivo central. Mostrando hasta {$documents->perPage()} documento(s) por página."
+                        : "Administra, filtra y consulta tus documentos. Mostrando hasta {$documents->perPage()} documento(s) por página." }}
                 </p>
             </div>
             <div class="flex flex-wrap items-center gap-3">
@@ -87,7 +87,7 @@
                         <span>Subir / Crear</span>
                     </a>
                 @endunless
-                @if($documents->total() > 0)
+                @if($documents->count() > 0)
                     <a href="{{ route('documents.export', request()->all()) }}"
                        class="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
                         Exportar CSV
