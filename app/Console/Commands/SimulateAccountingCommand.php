@@ -57,7 +57,10 @@ class SimulateAccountingCommand extends Command
 
         $this->info('Buscando documentos...');
         $query = Document::where('company_id', $company->id)
-            ->whereYear('created_at', $year)
+            ->where(function ($q) use ($year) {
+                $q->whereYear('created_at', $year)
+                  ->orWhere('title', 'like', "%{$year}%");
+            })
             ->whereIn('category_id', $categoryIds);
 
         $totalDocs = $query->count();
