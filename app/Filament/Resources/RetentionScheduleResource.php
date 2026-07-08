@@ -77,8 +77,14 @@ class RetentionScheduleResource extends Resource
                             ->label('Subserie')
                             ->options(fn (Forms\Get $get): array => DocumentarySubseries::query()
                                 ->where('company_id', $get('company_id') ?: Auth::user()?->company_id)
-                                ->when($get('department_id'), fn (Builder $query, $departmentId) => $query->where('department_id', $departmentId))
-                                ->when(blank($get('department_id')), fn (Builder $query) => $query->whereNull('department_id'))
+                                ->where(function (Builder $query) use ($get): void {
+                                    if ($get('department_id')) {
+                                        $query->where('department_id', $get('department_id'))
+                                            ->orWhereNull('department_id');
+                                    } else {
+                                        $query->whereNull('department_id');
+                                    }
+                                })
                                 ->orderBy('code')
                                 ->pluck('name', 'id')
                                 ->all())
@@ -90,8 +96,14 @@ class RetentionScheduleResource extends Resource
                             ->label('Tipo documental')
                             ->options(fn (Forms\Get $get): array => DocumentaryType::query()
                                 ->where('company_id', $get('company_id') ?: Auth::user()?->company_id)
-                                ->when($get('department_id'), fn (Builder $query, $departmentId) => $query->where('department_id', $departmentId))
-                                ->when(blank($get('department_id')), fn (Builder $query) => $query->whereNull('department_id'))
+                                ->where(function (Builder $query) use ($get): void {
+                                    if ($get('department_id')) {
+                                        $query->where('department_id', $get('department_id'))
+                                            ->orWhereNull('department_id');
+                                    } else {
+                                        $query->whereNull('department_id');
+                                    }
+                                })
                                 ->when($get('documentary_subseries_id'), fn (Builder $query, $subseriesId) => $query->where('documentary_subseries_id', $subseriesId))
                                 ->orderBy('code')
                                 ->pluck('name', 'id')
