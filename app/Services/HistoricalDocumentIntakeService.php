@@ -52,7 +52,7 @@ class HistoricalDocumentIntakeService
             $createdDocuments = collect();
 
             foreach ($rows as $row) {
-                $documentaryType = $this->resolveDocumentaryType($user, $producerDepartment, (int) $row['documentary_type_id']);
+                $documentaryType = $this->resolveDocumentaryType($user, (int) $row['documentary_type_id']);
 
                 $filePath = $this->documentFileService->storeUploadedFile($row['file']);
                 $accessLevel = $row['access_level'] ?? $data['access_level'] ?? $documentaryType->access_level_default?->value ?? DocumentAccessLevel::Interno->value;
@@ -130,19 +130,21 @@ class HistoricalDocumentIntakeService
         return $location;
     }
 
-    private function resolveDocumentaryType(User $user, Department $producerDepartment, int $documentaryTypeId): DocumentaryType
+    private function resolveDocumentaryType(User $user, int $documentaryTypeId): DocumentaryType
     {
         $documentaryType = DocumentaryType::query()
             ->with('subseries.series')
             ->where('company_id', $user->company_id)
             ->where('is_active', true)
-            ->where(function ($query) use ($producerDepartment): void {
-                $query->whereNull('department_id')
-                    ->orWhere('department_id', $producerDepartment->id);
-            })
             ->find($documentaryTypeId);
 
-        if (! $documentaryType || ! $documentaryType->subseries || ! $documentaryType->subseries->series) {
+        if (! $documentaryType) {
+            throw ValidationException::withMessages([
+                'documentary_type_id' => 'El tipo documental seleccionado no existe o no esta activo.',
+            ]);
+        }
+
+        if (! $documentaryType->subseries || ! $documentaryType->subseries->series) {
             throw ValidationException::withMessages([
                 'documentary_type_id' => 'El tipo documental seleccionado no tiene serie y subserie validas.',
             ]);
