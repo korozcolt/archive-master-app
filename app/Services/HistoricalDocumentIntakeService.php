@@ -51,50 +51,52 @@ class HistoricalDocumentIntakeService
             $rows = $this->normalizeRows($data, $legacyFiles);
             $createdDocuments = collect();
 
-            foreach ($rows as $row) {
-                $documentaryType = $this->resolveDocumentaryType($user, (int) $row['documentary_type_id']);
+            Document::withoutEvents(function () use (
+                $rows, $user, $category, $producerDepartment, $location,
+                $centralArchiveDepartment, $archivedStatus, $data, &$createdDocuments
+            ): void {
+                foreach ($rows as $row) {
+                    $documentaryType = $this->resolveDocumentaryType($user, (int) $row['documentary_type_id']);
 
-                $filePath = $this->documentFileService->storeUploadedFile($row['file']);
-                $accessLevel = $row['access_level'] ?? $data['access_level'] ?? $documentaryType->access_level_default?->value ?? DocumentAccessLevel::Interno->value;
+                    $filePath = $this->documentFileService->storeUploadedFile($row['file']);
+                    $accessLevel = $row['access_level'] ?? $data['access_level'] ?? $documentaryType->access_level_default?->value ?? DocumentAccessLevel::Interno->value;
 
-                $document = Document::create([
-                    'company_id' => $user->company_id,
-                    'branch_id' => $user->branch_id,
-                    'department_id' => $centralArchiveDepartment->id,
-                    'created_by' => $user->id,
-                    'assigned_to' => null,
-                    'title' => $this->makeTitle($row),
-                    'description' => $row['description'] ?? $data['description'] ?? null,
-                    'category_id' => $category->id,
-                    'status_id' => $archivedStatus?->id,
-                    'is_confidential' => $accessLevel !== DocumentAccessLevel::Publico->value,
-                    'priority' => Priority::Medium->value,
-                    'file_path' => $filePath,
-                    'digital_document_type' => $data['digital_document_type'] ?? 'copia',
-                    'physical_document_type' => $data['physical_document_type'] ?? 'original',
-                    'is_archived' => true,
-                    'archived_at' => now(),
-                    'archive_phase' => ArchivePhase::Central->value,
-                    'access_level' => $accessLevel,
-                    'trd_series_id' => $documentaryType->subseries?->series?->id,
-                    'trd_subseries_id' => $documentaryType->documentary_subseries_id,
-                    'documentary_type_id' => $documentaryType->id,
-                    'metadata' => $this->metadata($user, $centralArchiveDepartment, $producerDepartment, $location, $row, $data),
-                ]);
-
-                $this->archiveClassificationService->applyToDocument($document);
-                $document->save();
-
-                if (! $document->moveToLocation($location, $row['archive_note'] ?? 'Carga historica por caja.', $user, 'stored')) {
-                    throw ValidationException::withMessages([
-                        'physical_location_id' => 'La caja seleccionada no tiene capacidad disponible.',
+                    $document = Document::create([
+                        'company_id' => $user->company_id,
+                        'branch_id' => $user->branch_id,
+                        'department_id' => $centralArchiveDepartment->id,
+                        'created_by' => $user->id,
+                        'assigned_to' => null,
+                        'title' => $this->makeTitle($row),
+                        'description' => $row['description'] ?? $data['description'] ?? null,
+                        'category_id' => $category->id,
+                        'status_id' => $archivedStatus?->id,
+                        'is_confidential' => $accessLevel !== DocumentAccessLevel::Publico->value,
+                        'priority' => Priority::Medium->value,
+                        'file_path' => $filePath,
+                        'digital_document_type' => $data['digital_document_type'] ?? 'copia',
+                        'physical_document_type' => $data['physical_document_type'] ?? 'original',
+                        'is_archived' => true,
+                        'archived_at' => now(),
+                        'archive_phase' => ArchivePhase::Central->value,
+                        'access_level' => $accessLevel,
+                        'trd_series_id' => $documentaryType->subseries?->series?->id,
+                        'trd_subseries_id' => $documentaryType->documentary_subseries_id,
+                        'documentary_type_id' => $documentaryType->id,
+                        'metadata' => $this->metadata($user, $centralArchiveDepartment, $producerDepartment, $location, $row, $data),
                     ]);
-                }
 
-                $this->slaCalculatorService->freeze($document, 'historical_upload');
-                $document->saveQuietly();
-                $createdDocuments->push($document->refresh());
-            }
+                    if (! $document->moveToLocation($location, $row['archive_note'] ?? 'Carga historica por caja.', $user, 'stored')) {
+                        throw ValidationException::withMessages([
+                            'physical_location_id' => 'La caja seleccionada no tiene capacidad disponible.',
+                        ]);
+                    }
+
+                    $this->slaCalculatorService->freeze($document, 'historical_upload');
+                    $document->saveQuietly();
+                    $createdDocuments->push($document->refresh());
+                }
+            });
 
             $this->rememberHistoricalBox($user, $location);
 
