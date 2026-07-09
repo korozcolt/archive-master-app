@@ -88,6 +88,8 @@
 <div
     class="space-y-6"
     x-data="{
+        isLoadingFiles: false,
+        isSubmitting: false,
         locations: @js($locationOptions),
         selectedShelf: '',
         selectedBay: '',
@@ -168,35 +170,40 @@
                 return;
             }
 
-            if (this.rows.length === 1 && !this.rows[0].fileName) {
-                this.rows = [];
-            }
+            this.isLoadingFiles = true;
 
-            const startIndex = this.rows.length;
+            setTimeout(() => {
+                if (this.rows.length === 1 && !this.rows[0].fileName) {
+                    this.rows = [];
+                }
 
-            files.forEach((file, i) => {
-                const uid = 'row-' + Date.now() + '-' + Math.random().toString(36).slice(2, 11) + '-' + i;
-                this.rows.push({
-                    uid: uid,
-                    fileName: file.name,
-                    folder: '',
-                    volume: '',
-                    reference_code: '',
-                    year: '',
-                    description: '',
-                    documentary_type_id: this.defaultDocumentaryTypeId,
+                files.forEach((file, i) => {
+                    const uid = 'row-' + Date.now() + '-' + Math.random().toString(36).slice(2, 11) + '-' + i;
+                    this.rows.push({
+                        uid: uid,
+                        fileName: file.name,
+                        folder: '',
+                        volume: '',
+                        reference_code: '',
+                        year: '',
+                        description: '',
+                        documentary_type_id: this.defaultDocumentaryTypeId,
+                    });
+
+                    this.$nextTick(() => {
+                        const input = document.getElementById('file-input-' + uid);
+                        if (input) {
+                            const dt = new DataTransfer();
+                            dt.items.add(file);
+                            input.files = dt.files;
+                        }
+
+                        if (i === files.length - 1) {
+                            this.isLoadingFiles = false;
+                        }
+                    });
                 });
-
-                this.$nextTick(() => {
-                    const index = startIndex + i;
-                    const inputs = document.getElementsByName(`rows[${index}][file]`);
-                    if (inputs && inputs[0]) {
-                        const dt = new DataTransfer();
-                        dt.items.add(file);
-                        inputs[0].files = dt.files;
-                    }
-                });
-            });
+            }, 50);
         },
         copyToAllRows() {
             if (this.rows.length === 0) {
@@ -226,6 +233,36 @@
         },
     }"
 >
+    <!-- Loading Overlay for File Processing -->
+    <div x-show="isLoadingFiles" 
+         x-cloak 
+         class="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-slate-950/85 backdrop-blur-sm transition-all duration-300">
+        <div class="flex flex-col items-center p-8 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl max-w-sm text-center">
+            <!-- Spinner -->
+            <svg class="animate-spin h-12 w-12 text-amber-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <h3 class="text-lg font-semibold text-white mb-2">Preparando archivos</h3>
+            <p class="text-sm text-slate-400">Cargando y renderizando los documentos en el navegador. Por favor espere un momento.</p>
+        </div>
+    </div>
+
+    <!-- Loading Overlay for Submission -->
+    <div x-show="isSubmitting" 
+         x-cloak 
+         class="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-slate-950/85 backdrop-blur-sm transition-all duration-300">
+        <div class="flex flex-col items-center p-8 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl max-w-sm text-center">
+            <!-- Spinner -->
+            <svg class="animate-spin h-12 w-12 text-emerald-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <h3 class="text-lg font-semibold text-white mb-2">Guardando en el Servidor</h3>
+            <p class="text-sm text-slate-400">Subiendo archivos e indexando información histórica. Por favor no cierres ni actualices la página.</p>
+        </div>
+    </div>
+
     <section class="border border-slate-800 bg-slate-900 p-6 shadow-sm">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -261,7 +298,7 @@
         </div>
     @endif
 
-    <form action="{{ route('documents.historical.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+    <form action="{{ route('documents.historical.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6" @submit="isSubmitting = true">
         @csrf
 
         <section class="border border-slate-800 bg-slate-900 p-6 shadow-sm">
@@ -573,6 +610,7 @@
                                 <label class="mb-1.5 block text-sm font-medium text-slate-200">Archivo digitalizado</label>
                                 <input
                                     dusk="historical-row-file"
+                                    :id="'file-input-' + row.uid"
                                     type="file"
                                     :name="`rows[${index}][file]`"
                                     required
