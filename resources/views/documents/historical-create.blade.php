@@ -198,6 +198,29 @@
                 });
             });
         },
+        copyToAllRows() {
+            if (this.rows.length === 0) {
+                return;
+            }
+
+            const source = this.rows[0];
+            const sharedFields = ['documentary_type_id', 'folder', 'volume', 'year'];
+
+            this.rows = this.rows.map((row, index) => {
+                if (index === 0) {
+                    return row;
+                }
+
+                const updated = { ...row };
+
+                sharedFields.forEach((field) => {
+                    updated[field] = source[field];
+                });
+
+                return updated;
+            });
+        },
+
         hasMissingDocumentaryType() {
             return this.rows.some((row) => !row.documentary_type_id);
         },
@@ -527,6 +550,9 @@
                     </button>
                     <button type="button" @click="addRow()" class="inline-flex h-10 items-center justify-center border border-amber-400/40 bg-amber-500/10 px-4 text-sm font-semibold text-amber-100">
                         Agregar fila
+                    </button>
+                    <button type="button" @click="copyToAllRows()" x-show="rows.length > 1" class="inline-flex h-10 items-center justify-center border border-emerald-400/40 bg-emerald-500/10 px-4 text-sm font-semibold text-emerald-100">
+                        Copiar datos comunes a todas las filas
                     </button>
                 </div>
                 <input type="file" x-ref="bulkFiles" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" class="hidden" @change="handleBulkFiles($event.target.files)">

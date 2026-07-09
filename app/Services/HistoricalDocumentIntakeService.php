@@ -34,6 +34,7 @@ class HistoricalDocumentIntakeService
     {
         return DB::transaction(function () use ($user, $data, $legacyFiles): Collection {
             $category = Category::query()
+                ->with('company')
                 ->where('company_id', $user->company_id)
                 ->findOrFail((int) $data['category_id']);
 
@@ -61,7 +62,7 @@ class HistoricalDocumentIntakeService
                     $filePath = $this->documentFileService->storeUploadedFile($row['file']);
                     $accessLevel = $row['access_level'] ?? $data['access_level'] ?? $documentaryType->access_level_default?->value ?? DocumentAccessLevel::Interno->value;
 
-                    $document = Document::create([
+                    $document = new Document([
                         'company_id' => $user->company_id,
                         'branch_id' => $user->branch_id,
                         'department_id' => $centralArchiveDepartment->id,
@@ -85,6 +86,13 @@ class HistoricalDocumentIntakeService
                         'documentary_type_id' => $documentaryType->id,
                         'metadata' => $this->metadata($user, $centralArchiveDepartment, $producerDepartment, $location, $row, $data),
                     ]);
+
+                    $document->setRelation('company', $category->company);
+                    $document->document_number = $document->generateDocumentNumber();
+                    $document->barcode = $document->generateBarcode();
+                    $document->qrcode = $document->generateQRCode();
+                    $document->received_at = now();
+                    $document->save();
 
                     if (! $document->moveToLocation($location, $row['archive_note'] ?? 'Carga historica por caja.', $user, 'stored')) {
                         throw ValidationException::withMessages([
