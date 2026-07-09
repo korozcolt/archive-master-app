@@ -1344,9 +1344,26 @@ class DocumentResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()
+        $query = parent::getEloquentQuery()
+            ->with([
+                'company',
+                'branch',
+                'department',
+                'category',
+                'status',
+                'assignee',
+                'creator',
+                'physicalLocation',
+            ])
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
+
+        $user = Auth::user();
+        if ($user && ! $user->hasRole('super_admin') && $user->company_id) {
+            $query->where('company_id', $user->company_id);
+        }
+
+        return $query;
     }
 }
