@@ -107,14 +107,7 @@ class ProcessDocumentOCR extends Command
         if (! $this->option('force')) {
             $query->where(function ($builder): void {
                 $builder->whereNull('metadata->ocr_processed')
-                    ->orWhere('metadata->ocr_processed', false)
-                    ->orWhere(function ($builder): void {
-                        $builder->whereNull('metadata->ocr_error')
-                            ->where(function ($builder): void {
-                                $builder->whereNull('content')
-                                    ->orWhereRaw("LENGTH(TRIM(COALESCE(content, ''))) <= 100");
-                            });
-                    });
+                    ->orWhere('metadata->ocr_processed', false);
             });
         }
 
