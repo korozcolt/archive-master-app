@@ -588,7 +588,7 @@
                     <button type="button" @click="addRow()" class="inline-flex h-10 items-center justify-center border border-amber-400/40 bg-amber-500/10 px-4 text-sm font-semibold text-amber-100">
                         Agregar fila
                     </button>
-                    <button type="button" @click="copyToAllRows()" x-show="rows.length > 1" class="inline-flex h-10 items-center justify-center border border-emerald-400/40 bg-emerald-500/10 px-4 text-sm font-semibold text-emerald-100">
+                    <button type="button" @click="copyToAllRows()" x-show="rows.length > 1" class="inline-flex h-10 items-center justify-center bg-emerald-600 hover:bg-emerald-500 px-4 text-sm font-semibold text-white transition duration-150">
                         Copiar datos comunes a todas las filas
                     </button>
                 </div>
