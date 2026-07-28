@@ -11,6 +11,7 @@ use App\Listeners\QueueDocumentVersionAiPipeline;
 use App\Models\Category;
 use App\Models\Department;
 use App\Models\Document;
+use App\Models\DocumentAccessRequest;
 use App\Models\DocumentAiOutput;
 use App\Models\DocumentAiRun;
 use App\Models\DocumentaryType;
@@ -61,7 +62,13 @@ class UserDocumentController extends Controller
     {
         $user = Auth::user();
 
-        $query = Document::query()->visibleToPortalUser($user);
+        $query = Document::query()
+            ->where('company_id', $user->company_id)
+            ->withExists(['accessRequests as has_active_grant' => function ($grantQuery) use ($user): void {
+                $grantQuery->where('requested_by', $user->id)
+                    ->where('status', 'approved')
+                    ->where('expires_at', '>', now());
+            }]);
 
         // Búsqueda por texto (título, descripción, número de documento)
         if ($request->filled('search')) {
@@ -1084,11 +1091,30 @@ class UserDocumentController extends Controller
 
         // Verificar que el usuario tenga acceso al documento
         if (! $this->canAccessDocument($user, $document)) {
-            abort(403, 'No tienes permiso para ver este documento.');
+            if ($document->company_id !== $user->company_id) {
+                abort(403, 'No tienes permiso para ver este documento.');
+            }
+
+            $lastAccessRequest = DocumentAccessRequest::where('document_id', $document->id)
+                ->where('requested_by', $user->id)
+                ->latest('id')
+                ->first();
+
+            return view('documents.show-restricted', compact('document', 'lastAccessRequest'));
         }
 
         if (function_exists('logDocumentAccess')) {
             logDocumentAccess($document, 'view');
+        }
+
+        $activeGrant = null;
+        if (! $this->hasImplicitDocumentAccess($user, $document)) {
+            $activeGrant = DocumentAccessRequest::where('document_id', $document->id)
+                ->where('requested_by', $user->id)
+                ->where('status', 'approved')
+                ->where('expires_at', '>', now())
+                ->latest('id')
+                ->first();
         }
 
         $document->load(['status', 'category', 'creator', 'assignee', 'tags', 'versions', 'receipts', 'company', 'aiRuns.output', 'physicalLocation']);
@@ -1250,6 +1276,7 @@ class UserDocumentController extends Controller
             'distributionResponseDocumentOptions',
             'archiveLocationOptions',
             'documentLocationHistory',
+            'activeGrant',
         ));
     }
 
@@ -1648,6 +1675,11 @@ class UserDocumentController extends Controller
             return false;
         }
 
+        return $this->hasImplicitDocumentAccess($user, $document) || $document->hasActiveAccessGrant($user);
+    }
+
+    private function hasImplicitDocumentAccess($user, $document): bool
+    {
         if ($document->created_by === $user->id) {
             return true;
         }

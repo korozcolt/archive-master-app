@@ -289,6 +289,20 @@ class Document extends Model
         return $this->hasMany(DocumentAiRun::class);
     }
 
+    public function accessRequests(): HasMany
+    {
+        return $this->hasMany(DocumentAccessRequest::class);
+    }
+
+    public function hasActiveAccessGrant(User $user): bool
+    {
+        return $this->accessRequests()
+            ->where('requested_by', $user->id)
+            ->where('status', 'approved')
+            ->where('expires_at', '>', now())
+            ->exists();
+    }
+
     // Scopes
     public function scopeInCompany($query, $companyId)
     {
@@ -378,6 +392,13 @@ class Document extends Model
                 ])) {
                     $builder->orWhereIn('archive_phase', [ArchivePhase::Central->value, ArchivePhase::Historico->value]);
                 }
+
+                $builder->orWhereHas('accessRequests', function (Builder $accessRequestQuery) use ($user): void {
+                    $accessRequestQuery
+                        ->where('requested_by', $user->id)
+                        ->where('status', 'approved')
+                        ->where('expires_at', '>', now());
+                });
             });
     }
 
@@ -387,6 +408,11 @@ class Document extends Model
             return false;
         }
 
+        return $this->hasImplicitPortalAccess($user) || $this->hasActiveAccessGrant($user);
+    }
+
+    public function hasImplicitPortalAccess(User $user): bool
+    {
         if ($this->isHistoricalEntry()) {
             return $this->canBeAccessedAsHistoricalBy($user);
         }

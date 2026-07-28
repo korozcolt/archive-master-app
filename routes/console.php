@@ -30,6 +30,13 @@ Schedule::command('documents:notify-overdue')
     ->withoutOverlapping()
     ->runInBackground();
 
+// Expirar solicitudes de acceso a documentos aprobadas cuyo plazo venció
+Schedule::command('access-requests:expire')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/access-requests-expire.log'));
+
 // Indexar documentos en Scout diariamente a las 2:00 AM
 Schedule::command('search:index')
     ->dailyAt('02:00')

@@ -172,6 +172,12 @@ class CompanyResource extends Resource
                         Forms\Components\Toggle::make('settings.document_governance.send_archive_incomplete_alerts')
                             ->label('Alertar archivo incompleto')
                             ->default(true),
+                        Forms\Components\TextInput::make('settings.document_governance.access_request_hours')
+                            ->label('Duración acceso temporal a documentos (horas)')
+                            ->numeric()
+                            ->default(24)
+                            ->minValue(1)
+                            ->helperText('Horas que dura el acceso una vez aprobada una solicitud de acceso a un documento.'),
                     ])
                     ->columns(2)
                     ->collapsible(),

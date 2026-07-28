@@ -499,8 +499,16 @@ it('does not expose reserved historical documents to regular office users', func
         ],
     ]);
 
+    // Sin acceso implícito ni una solicitud de acceso aprobada, ve la vista
+    // restringida (metadatos básicos) en vez de un 403 puro, ya que sigue siendo
+    // de su misma empresa.
     $this->actingAs($setup['officeManager'])
         ->get(route('documents.show', $document))
+        ->assertOk()
+        ->assertViewIs('documents.show-restricted');
+
+    $this->actingAs($setup['officeManager'])
+        ->get(route('documents.download', $document))
         ->assertForbidden();
 
     expect(Document::query()

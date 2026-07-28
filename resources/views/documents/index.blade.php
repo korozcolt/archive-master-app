@@ -260,6 +260,7 @@
                                 $documentFileExtension = \App\Support\FileExtensionIcon::extensionFromPath($document->file_path)
                                     ?: \App\Support\FileExtensionIcon::extensionFromPath($latestVersionForIcon?->file_path)
                                     ?: \App\Support\FileExtensionIcon::normalizeExtension($latestVersionForIcon?->file_extension);
+                                $hasDocumentAccess = $document->has_active_grant || $document->hasImplicitPortalAccess(Auth::user());
                             @endphp
                             <tr class="group hover:bg-slate-50/80 motion-safe:animate-fade-in-up motion-safe:animate-duration-300 dark:hover:bg-slate-800/40 am-motion-safe">
                                 <td class="px-6 py-4">
@@ -277,6 +278,9 @@
                                                 @if($document->is_confidential)
                                                     <span class="inline-flex items-center rounded-md border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700">Confidencial</span>
                                                 @endif
+                                                @unless($hasDocumentAccess)
+                                                    <span class="inline-flex items-center rounded-md border border-slate-300 bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300">Acceso restringido</span>
+                                                @endunless
                                             </div>
                                             @if($historicalProducer)
                                                 <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">

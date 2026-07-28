@@ -76,11 +76,15 @@ it('shows receipt-linked documents to regular users across portal flows', functi
         ->assertSee('Documento visible por recibido')
         ->assertDontSee('Documento no visible');
 
+    // El listado del portal ahora muestra metadatos de todos los documentos de la
+    // empresa (custodia documental), marcando como restringidos los que el usuario
+    // no puede abrir en detalle todavía.
     $this->actingAs($recipient)
         ->get('/documents')
         ->assertSuccessful()
         ->assertSee('Documento visible por recibido')
-        ->assertDontSee('Documento no visible');
+        ->assertSee('Documento no visible')
+        ->assertSee('Acceso restringido');
 
     $this->actingAs($recipient)
         ->get('/portal/reports')
@@ -91,10 +95,18 @@ it('shows receipt-linked documents to regular users across portal flows', functi
     $this->actingAs($recipient)
         ->get("/documents/{$visibleDocument->id}")
         ->assertSuccessful()
+        ->assertViewIs('documents.show')
         ->assertSee('Documento visible por recibido');
 
+    // Sin acceso implícito ni grant aprobado, ve la vista restringida (no un 403 puro)
+    // porque sigue siendo de su misma empresa.
     $this->actingAs($recipient)
         ->get("/documents/{$hiddenDocument->id}")
+        ->assertSuccessful()
+        ->assertViewIs('documents.show-restricted');
+
+    $this->actingAs($recipient)
+        ->get(route('documents.download', $hiddenDocument))
         ->assertForbidden();
 });
 

@@ -50,6 +50,12 @@
 @endphp
 
 <div class="space-y-6">
+    @if($activeGrant)
+        <x-ui.alert type="info" title="Acceso temporal activo">
+            Tu acceso a este documento expira el {{ $activeGrant->expires_at->format('d/m/Y H:i') }}.
+        </x-ui.alert>
+    @endif
+
     <section class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-duration-300 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
         <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
             <div class="min-w-0">
