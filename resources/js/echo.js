@@ -3,13 +3,15 @@ import Pusher from 'pusher-js';
 
 window.Pusher = Pusher;
 
-const reverbKey = import.meta.env.VITE_REVERB_APP_KEY;
-const reverbScheme = import.meta.env.VITE_REVERB_SCHEME ?? 'https';
-const reverbHost = import.meta.env.VITE_REVERB_HOST ?? window.location.hostname;
-const wsPort = Number(import.meta.env.VITE_REVERB_PORT ?? 80);
-const wssPort = Number(import.meta.env.VITE_REVERB_PORT ?? 443);
+const reverbKey = document.querySelector('meta[name="reverb-key"]')?.getAttribute('content') || import.meta.env.VITE_REVERB_APP_KEY;
+const reverbHost = document.querySelector('meta[name="reverb-host"]')?.getAttribute('content') || import.meta.env.VITE_REVERB_HOST || window.location.hostname;
+const reverbScheme = document.querySelector('meta[name="reverb-scheme"]')?.getAttribute('content') || import.meta.env.VITE_REVERB_SCHEME || 'https';
+const reverbPort = document.querySelector('meta[name="reverb-port"]')?.getAttribute('content') || import.meta.env.VITE_REVERB_PORT || '443';
 
-if (reverbKey) {
+const wsPort = Number(reverbPort);
+const wssPort = Number(reverbPort);
+
+if (reverbKey && reverbKey !== '${REVERB_APP_KEY}' && reverbKey !== 'undefined') {
     window.Echo = new Echo({
         broadcaster: 'reverb',
         key: reverbKey,

@@ -303,8 +303,7 @@ class AdvancedSearchResource extends Resource
 
         if ($searchQuery) {
             // Usar Scout para búsqueda full-text si hay términos de búsqueda
-            $searchResults = Document::search($searchQuery)->get();
-            $documentIds = $searchResults->pluck('id')->toArray();
+            $documentIds = Document::search($searchQuery)->take(1000)->keys()->toArray();
 
             if (! empty($documentIds)) {
                 $query->whereIn('id', $documentIds);

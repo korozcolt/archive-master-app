@@ -46,12 +46,6 @@ Schedule::command('notifications:clean --days=30')
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/notifications-clean.log'));
 
-// Limpiar logs antiguos semanalmente
-Schedule::command('log:clear')
-    ->weekly()
-    ->sundays()
-    ->at('02:00');
-
 // Limpiar actividades antiguas mensualmente
 Schedule::command('activitylog:clean')
     ->monthly()

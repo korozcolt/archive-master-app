@@ -63,20 +63,14 @@ class UserDocumentController extends Controller
 
         $query = Document::query()->visibleToPortalUser($user);
 
-        // Búsqueda por texto (título, descripción, número de documento)
+        // Búsqueda por texto vía Meilisearch (título, descripción, número, metadatos históricos, contenido OCR)
         if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%")
-                    ->orWhere('document_number', 'like', "%{$search}%")
-                    ->orWhere('metadata->historical.original_department_name', 'like', "%{$search}%")
-                    ->orWhere('metadata->historical.reference_code', 'like', "%{$search}%")
-                    ->orWhere('metadata->historical.box', 'like', "%{$search}%")
-                    ->orWhere('metadata->historical.folder', 'like', "%{$search}%")
-                    ->orWhere('metadata->historical.volume', 'like', "%{$search}%")
-                    ->orWhere('metadata->historical.keywords_text', 'like', "%{$search}%");
-            });
+            $matchingIds = Document::search($request->string('search')->toString())
+                ->where('company_id', $user->company_id)
+                ->take(1000)
+                ->keys();
+
+            $query->whereIn('id', $matchingIds);
         }
 
         // Filtro por categoría
