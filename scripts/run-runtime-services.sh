@@ -130,10 +130,10 @@ while [ "$stopping" = "0" ]; do
     break
   fi
 
-  if [ "$wait_status" -gt 128 ]; then
-    # Interrupted by signal; continue monitoring loop.
-    continue
-  fi
+  # A child that exits (including being killed by a signal, e.g. OOM) should
+  # always fall through to the checks below so it gets restarted. Do not
+  # special-case wait_status here: the `stopping` guard above already covers
+  # the real shutdown path (trap sets stopping=1 before this check runs).
 
   if should_run_web && ! is_running "$php_fpm_pid"; then
     echo "[runtime] php-fpm exited. Restarting..."
