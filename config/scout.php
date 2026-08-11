@@ -69,8 +69,8 @@ return [
     */
 
     'chunk' => [
-        'searchable' => 500,
-        'unsearchable' => 500,
+        'searchable' => 200,
+        'unsearchable' => 200,
     ],
 
     /*
@@ -140,9 +140,50 @@ return [
         'host' => env('MEILISEARCH_HOST', 'http://localhost:7700'),
         'key' => env('MEILISEARCH_KEY'),
         'index-settings' => [
-            // 'users' => [
-            //     'filterableAttributes'=> ['id', 'name', 'email'],
-            // ],
+            'documents' => [
+                'displayedAttributes' => ['id'],
+                'searchableAttributes' => [
+                    'title',
+                    'document_number',
+                    'description',
+                    'historical_reference_code',
+                    'historical_box',
+                    'historical_folder',
+                    'historical_volume',
+                    'historical_keywords_text',
+                    'historical_department_name',
+                    'tags',
+                    'category_name',
+                    'status_name',
+                    'company_name',
+                    'branch_name',
+                    'department_name',
+                    'creator_name',
+                    'assignee_name',
+                    'content',
+                ],
+                'filterableAttributes' => [
+                    'company_id',
+                    'category_id',
+                    'status_id',
+                    'created_by',
+                    'assigned_to',
+                    'archive_phase',
+                    'priority',
+                    'is_confidential',
+                    'is_archived',
+                ],
+                'sortableAttributes' => [
+                    'created_at',
+                    'updated_at',
+                    'received_at',
+                    'due_date',
+                ],
+                'typoTolerance' => [
+                    'disableOnAttributes' => ['content'],
+                ],
+                'searchCutoffMs' => 1000,
+            ],
         ],
     ],
 

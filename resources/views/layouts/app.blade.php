@@ -4,6 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="reverb-key" content="{{ config('broadcasting.connections.reverb.key') }}">
+    <meta name="reverb-host" content="{{ config('reverb.servers.reverb.hostname') ?? request()->getHost() }}">
+    <meta name="reverb-port" content="{{ config('reverb.apps.apps.0.options.port') ?? config('broadcasting.connections.reverb.options.port') ?? 443 }}">
+    <meta name="reverb-scheme" content="{{ config('reverb.apps.apps.0.options.scheme') ?? config('broadcasting.connections.reverb.options.scheme') ?? 'https' }}">
 
     <title>{{ config('app.name', 'Laravel') }} - @yield('title', 'Dashboard')</title>
 

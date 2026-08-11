@@ -173,14 +173,14 @@
             this.isLoadingFiles = true;
 
             setTimeout(() => {
-                if (this.rows.length === 1 && !this.rows[0].fileName) {
-                    this.rows = [];
-                }
+                const initialLength = this.rows.length;
+                const wasDefaultEmpty = initialLength === 1 && !this.rows[0].fileName;
 
-                files.forEach((file, i) => {
+                const newRows = files.map((file, i) => {
                     const uid = 'row-' + Date.now() + '-' + Math.random().toString(36).slice(2, 11) + '-' + i;
-                    this.rows.push({
+                    return {
                         uid: uid,
+                        file: file,
                         fileName: file.name,
                         folder: '',
                         volume: '',
@@ -188,20 +188,49 @@
                         year: '',
                         description: '',
                         documentary_type_id: this.defaultDocumentaryTypeId,
+                    };
+                });
+
+                if (wasDefaultEmpty) {
+                    this.rows = newRows;
+                } else {
+                    this.rows.push(...newRows);
+                }
+
+                let attempts = 0;
+                const assignFiles = () => {
+                    let allFound = true;
+                    newRows.forEach((newRow) => {
+                        const input = document.getElementById('file-input-' + newRow.uid);
+                        if (!input) {
+                            allFound = false;
+                        }
                     });
 
-                    this.$nextTick(() => {
-                        const input = document.getElementById('file-input-' + uid);
-                        if (input) {
-                            const dt = new DataTransfer();
-                            dt.items.add(file);
-                            input.files = dt.files;
-                        }
+                    if (!allFound && attempts < 30) {
+                        attempts++;
+                        setTimeout(assignFiles, 50);
+                        return;
+                    }
 
-                        if (i === files.length - 1) {
-                            this.isLoadingFiles = false;
+                    newRows.forEach((newRow) => {
+                        const input = document.getElementById('file-input-' + newRow.uid);
+                        if (input && input.files.length === 0) {
+                            try {
+                                const dt = new DataTransfer();
+                                dt.items.add(newRow.file);
+                                input.files = dt.files;
+                            } catch (e) {
+                                console.error('Error al asignar archivo en el DOM:', e);
+                            }
                         }
                     });
+
+                    this.isLoadingFiles = false;
+                };
+
+                this.$nextTick(() => {
+                    assignFiles();
                 });
             }, 50);
         },
@@ -211,7 +240,7 @@
             }
 
             const source = this.rows[0];
-            const sharedFields = ['documentary_type_id', 'folder', 'volume', 'year'];
+            const sharedFields = ['documentary_type_id', 'folder', 'volume', 'year', 'description'];
 
             this.rows = this.rows.map((row, index) => {
                 if (index === 0) {

@@ -910,16 +910,33 @@ class Document extends Model
     /**
      * Get the indexable data array for the model.
      */
+    public function makeAllSearchableUsing($query)
+    {
+        return $query->with(['company', 'branch', 'department', 'category', 'status', 'creator', 'assignee', 'tags']);
+    }
+
     public function toSearchableArray(): array
     {
         return [
             'id' => $this->id,
+            'company_id' => $this->company_id,
+            'category_id' => $this->category_id,
+            'status_id' => $this->status_id,
+            'created_by' => $this->created_by,
+            'assigned_to' => $this->assigned_to,
+            'archive_phase' => $this->archive_phase?->value,
             'document_number' => $this->document_number,
             'barcode' => $this->barcode,
             'qrcode' => $this->qrcode,
             'title' => $this->title,
             'description' => $this->description,
             'content' => $this->content,
+            'historical_department_name' => $this->metadata['historical']['original_department_name'] ?? null,
+            'historical_reference_code' => $this->metadata['historical']['reference_code'] ?? null,
+            'historical_box' => $this->metadata['historical']['box'] ?? null,
+            'historical_folder' => $this->metadata['historical']['folder'] ?? null,
+            'historical_volume' => $this->metadata['historical']['volume'] ?? null,
+            'historical_keywords_text' => $this->metadata['historical']['keywords_text'] ?? null,
             'physical_location' => $this->physical_location,
             'priority' => $this->priority?->value,
             'is_confidential' => $this->is_confidential,

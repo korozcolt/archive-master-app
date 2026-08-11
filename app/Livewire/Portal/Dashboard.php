@@ -37,34 +37,36 @@ class Dashboard extends Component
             ->limit(5)
             ->get();
 
-        $summary = [
-            'total' => (clone $baseQuery)->count(),
-            'sent' => (clone $baseQuery)->where('created_by', $user->id)->count(),
-            'received' => $this->receivedDocumentsQuery($user)->count(),
-            'pending' => (clone $baseQuery)
-                ->whereHas('status', function ($query) {
-                    $query->whereIn('name', ['En Proceso', 'Pendiente']);
-                })
-                ->count(),
-            'warning' => (clone $baseQuery)->where('sla_status', SlaStatus::Warning->value)->count(),
-            'overdue' => (clone $baseQuery)->where('sla_status', SlaStatus::Overdue->value)->count(),
-            'ready_for_archive' => (clone $baseQuery)
-                ->where('is_archived', false)
-                ->where(function (Builder $query): void {
-                    $query->whereNotNull('completed_at')
-                        ->orWhereNotNull('closed_at');
-                })
-                ->count(),
-            'archive_pending_classification' => (clone $baseQuery)
-                ->where('is_archived', true)
-                ->where(function (Builder $query): void {
-                    $query->whereNull('trd_series_id')
-                        ->orWhereNull('trd_subseries_id')
-                        ->orWhereNull('documentary_type_id')
-                        ->orWhereNull('access_level');
-                })
-                ->count(),
-        ];
+        $summary = cache()->remember("portal_summary_{$user->id}", 60, function () use ($baseQuery, $user) {
+            return [
+                'total' => (clone $baseQuery)->count(),
+                'sent' => (clone $baseQuery)->where('created_by', $user->id)->count(),
+                'received' => $this->receivedDocumentsQuery($user)->count(),
+                'pending' => (clone $baseQuery)
+                    ->whereHas('status', function ($query) {
+                        $query->whereIn('name', ['En Proceso', 'Pendiente']);
+                    })
+                    ->count(),
+                'warning' => (clone $baseQuery)->where('sla_status', \App\Enums\SlaStatus::Warning->value)->count(),
+                'overdue' => (clone $baseQuery)->where('sla_status', \App\Enums\SlaStatus::Overdue->value)->count(),
+                'ready_for_archive' => (clone $baseQuery)
+                    ->where('is_archived', false)
+                    ->where(function (Builder $query): void {
+                        $query->whereNotNull('completed_at')
+                            ->orWhereNotNull('closed_at');
+                    })
+                    ->count(),
+                'archive_pending_classification' => (clone $baseQuery)
+                    ->where('is_archived', true)
+                    ->where(function (Builder $query): void {
+                        $query->whereNull('trd_series_id')
+                            ->orWhereNull('trd_subseries_id')
+                            ->orWhereNull('documentary_type_id')
+                            ->orWhereNull('access_level');
+                    })
+                    ->count(),
+            ];
+        });
 
         $slaAttentionDocuments = (clone $baseQuery)
             ->with(['status', 'assignee'])
@@ -112,22 +114,24 @@ class Dashboard extends Component
     {
         $baseQuery = $this->archiveDocumentsQuery($user);
 
-        $archiveSummary = [
-            'historical_total' => (clone $baseQuery)->count(),
-            'historical_without_location' => (clone $baseQuery)
-                ->whereNull('physical_location_id')
-                ->count(),
-            'historical_restricted' => (clone $baseQuery)
-                ->whereIn('access_level', [
-                    DocumentAccessLevel::Reservado->value,
-                    DocumentAccessLevel::ClasificadoConfidencial->value,
-                ])
-                ->count(),
-            'historical_recent' => (clone $baseQuery)
-                ->latest()
-                ->limit(5)
-                ->get(),
-        ];
+        $archiveSummary = cache()->remember("archive_portal_summary_{$user->id}", 60, function () use ($baseQuery) {
+            return [
+                'historical_total' => (clone $baseQuery)->count(),
+                'historical_without_location' => (clone $baseQuery)
+                    ->whereNull('physical_location_id')
+                    ->count(),
+                'historical_restricted' => (clone $baseQuery)
+                    ->whereIn('access_level', [
+                        DocumentAccessLevel::Reservado->value,
+                        DocumentAccessLevel::ClasificadoConfidencial->value,
+                    ])
+                    ->count(),
+                'historical_recent' => (clone $baseQuery)
+                    ->latest()
+                    ->limit(5)
+                    ->get(),
+            ];
+        });
 
         return view('livewire.portal.dashboard', [
             'user' => $user,
