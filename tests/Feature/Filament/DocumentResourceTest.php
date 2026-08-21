@@ -154,24 +154,27 @@ class DocumentResourceTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        Document::factory()->create([
+        $matching = Document::factory()->create([
             'company_id' => $this->company->id,
             'status_id' => $this->status->id,
             'title' => 'Documento Búsqueda XYZ',
             'created_by' => $this->admin->id,
         ]);
 
-        Document::factory()->count(5)->create([
+        $others = Document::factory()->count(5)->create([
             'company_id' => $this->company->id,
             'status_id' => $this->status->id,
+            'title' => 'Otro documento sin relación',
             'created_by' => $this->admin->id,
         ]);
 
         $component = Livewire::test(DocumentResource\Pages\ListDocuments::class)
             ->searchTable('Búsqueda');
 
-        // Verify search functionality works
         $this->assertEquals('Búsqueda', $component->instance()->getTableSearch());
+        $component
+            ->assertCanSeeTableRecords([$matching])
+            ->assertCanNotSeeTableRecords($others);
     }
 
     /** @test */

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-08-21
+
+- Incidente de rendimiento en producción (Aguas de Sucre): el servidor (disco mecánico laptop 5400rpm + 6.9GB RAM) entró en ciclo de crash-restart de MySQL/Meilisearch/app bajo saturación de I/O, y consultas sin índice adecuado causaban timeouts de 60-140s en `/admin` y `/portal`.
+- Nuevos índices en `documents` (migración `2026_08_21_165646_add_performance_indexes_to_documents_table.php`):
+  - `idx_documents_deleted_at` — eliminaba un full table scan en el conteo global de documentos activos (70s+ → <200ms).
+  - `idx_documents_company_deleted_created (company_id, deleted_at, created_at)` — acelera listados, badges y filtros por empresa.
+- Migrada la búsqueda de la tabla de documentos (`DocumentResource`) de `LIKE '%termino%'` directo en SQL a Meilisearch/Scout (`Document::search()->keys()` + `whereKey()`), escopeada por `company_id`. Reducción de ~131s a ~2.3s para búsquedas específicas (~57x). Cubre los mismos campos que antes (número, título, empresa, sucursal, departamento, categoría, asignado, ubicación física) más contenido OCR, ya indexados en Meilisearch.
+- Runtime del contenedor de la app (`RUN_QUEUE_WORKER`, `RUN_SCHEDULER` en `scripts/run-runtime-services.sh`) puesto en `0` en producción para detener cola OCR/notificaciones y el scheduler mientras se estabiliza el I/O del servidor.
+- Nota operativa: en Docker Swarm, `docker restart <contenedor>` sobre un servicio gestionado por Swarm genera una carrera con el propio reconciliador de Swarm (se observó un ciclo de "Unable to lock ./ibdata1" en MySQL). Usar `docker service update --force <servicio>` en su lugar.
+- Plan de seguimiento: persistir la sintonía de MySQL (`innodb_buffer_pool_size`, `innodb_flush_log_at_trx_commit`, `sync_binlog`) en configuración real (hoy solo aplicada en caliente vía `SET GLOBAL`, se pierde al reiniciar), configurar rotación de logs de Docker, y evaluar upgrade de disco a SSD/NVMe — la clase de disco actual es la causa raíz de fondo.
+
 ### Added - 2026-03-08
 
 - OCR automático al guardar documentos con archivo:
