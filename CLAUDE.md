@@ -328,6 +328,10 @@ Documents stored via Laravel's Storage facade:
 
 6. **Scheduled Tasks**: Run `php artisan schedule:work` in development or set up cron in production.
 
+7. **No leading-wildcard `LIKE` on `documents`**: Queries like `LIKE '%term%'` on `document_number`/`title` cannot use a B-tree index and force a full table scan, which is catastrophic on I/O-constrained production hardware. Free-text search must go through Scout/Meilisearch, not raw SQL `LIKE`.
+
+8. **Docker Swarm restarts**: Production runs as Docker Swarm services (via Dokploy). Never run `docker restart <container>` directly on a Swarm-managed container — Swarm's own reconciler races against it and can produce a failed-startup loop (observed as `Unable to lock ./ibdata1` on MySQL). Use `docker service update --force <service>` instead.
+
 ## React/Vite Frontend
 
 React components live in `/resources/js/`:
