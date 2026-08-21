@@ -595,31 +595,25 @@ class DocumentResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('document_number')
                     ->label('Número')
-                    ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('title')
                     ->label('Título')
-                    ->searchable()
                     ->sortable()
                     ->limit(30),
                 Tables\Columns\TextColumn::make('company.name')
                     ->label('Empresa')
-                    ->searchable()
                     ->sortable()
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('branch.name')
                     ->label('Sucursal')
-                    ->searchable()
                     ->sortable()
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('department.name')
                     ->label('Departamento')
-                    ->searchable()
                     ->sortable()
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('category.name')
                     ->label('Categoría')
-                    ->searchable()
                     ->sortable()
                     ->badge()
                     ->color(fn (?Document $record): string => static::categoryBadgeColor($record))
@@ -659,7 +653,6 @@ class DocumentResource extends Resource
                     ->badge(),
                 Tables\Columns\TextColumn::make('assignee.name')
                     ->label('Asignado a')
-                    ->searchable()
                     ->sortable()
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('due_at')
@@ -719,13 +712,28 @@ class DocumentResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('physicalLocation.code')
                     ->label('Ubicación Física')
-                    ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('tracking_enabled')
                     ->label('Tracking')
                     ->boolean()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->searchable()
+            ->modifyQueryUsing(function (Builder $query, Table $table): Builder {
+                $search = trim((string) $table->getLivewire()->getTableSearch());
+
+                if ($search === '') {
+                    return $query;
+                }
+
+                $companyId = Auth::user()?->company_id;
+
+                $ids = Document::search($search)
+                    ->when($companyId, fn ($search) => $search->where('company_id', $companyId))
+                    ->keys();
+
+                return $query->whereKey($ids);
+            })
             ->filters([
                 Tables\Filters\TrashedFilter::make(),
                 Tables\Filters\SelectFilter::make('company')
