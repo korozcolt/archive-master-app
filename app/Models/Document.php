@@ -965,6 +965,30 @@ class Document extends Model
     }
 
     /**
+     * Buscar documentos aplicando la estrategia de coincidencia por frecuencia.
+     *
+     * Se sobrescribe aqui, y no en cada punto de llamada, porque hay siete
+     * repartidos entre el portal, la API, la busqueda avanzada y el panel:
+     * poniendolo en el modelo, cualquier busqueda futura lo hereda sin que
+     * nadie tenga que acordarse.
+     *
+     * Meilisearch descarta terminos cuando no hay resultados para todos. Su
+     * estrategia por defecto ("last") descarta el ultimo que escribio el
+     * usuario, que suele ser justo el que anadio para afinar: buscar
+     * "factura aguas 2026" devolveria todas las facturas de aguas de
+     * cualquier ano. Con "frequency" descarta el termino mas comun -"aguas"-
+     * y conserva el mas especifico.
+     *
+     * @param  string  $query
+     * @param  callable|null  $callback
+     */
+    public static function search($query = '', $callback = null): \Laravel\Scout\Builder
+    {
+        return parent::search($query, $callback)
+            ->options(['matchingStrategy' => 'frequency']);
+    }
+
+    /**
      * Determine if the model should be searchable.
      */
     public function shouldBeSearchable(): bool
