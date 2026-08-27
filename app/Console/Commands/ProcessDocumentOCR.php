@@ -107,7 +107,20 @@ class ProcessDocumentOCR extends Command
         if (! $this->option('force')) {
             $query->where(function ($builder): void {
                 $builder->whereNull('metadata->ocr_processed')
-                    ->orWhere('metadata->ocr_processed', false);
+                    ->orWhere('metadata->ocr_processed', false)
+                    // Un documento marcado como procesado pero que quedo sin
+                    // texto no volveria a intentarse jamas: el filtro por la
+                    // marca lo excluye para siempre, aunque el OCR fallara.
+                    // Se rescatan aqui, que es lo que hasta ahora habia que
+                    // hacer a mano.
+                    ->orWhere(function ($sinTexto): void {
+                        $sinTexto->where('metadata->ocr_processed', true)
+                            ->where(function ($vacio): void {
+                                $vacio->whereNull('content')
+                                    ->orWhere('content', '')
+                                    ->orWhere('content', ' ');
+                            });
+                    });
             });
         }
 
