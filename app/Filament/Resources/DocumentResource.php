@@ -35,6 +35,15 @@ use Illuminate\Support\Facades\Auth;
 
 class DocumentResource extends Resource
 {
+    /**
+     * Tope de resultados que la busqueda de la tabla pide a Meilisearch.
+     *
+     * Coincide con el maxTotalHits por defecto de un indice de Meilisearch:
+     * subirlo aqui sin subirlo tambien en la configuracion del indice no
+     * devolveria mas resultados.
+     */
+    public const SEARCH_RESULT_LIMIT = 1000;
+
     protected static ?string $model = Document::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
@@ -728,8 +737,13 @@ class DocumentResource extends Resource
 
                 $companyId = Auth::user()?->company_id;
 
+                // El take() es obligatorio: sin el, Scout no envia hitsPerPage y
+                // Meilisearch aplica su limite por defecto de 20 resultados, asi
+                // que la tabla truncaria la busqueda en silencio. El tope de 1000
+                // coincide con el maxTotalHits por defecto del indice.
                 $ids = Document::search($search)
                     ->when($companyId, fn ($search) => $search->where('company_id', $companyId))
+                    ->take(self::SEARCH_RESULT_LIMIT)
                     ->keys();
 
                 return $query->whereKey($ids);
