@@ -35,7 +35,17 @@ use Spatie\Activitylog\Traits\LogsActivity;
  */
 class Document extends Model
 {
-    use HasFactory, LogsActivity, Searchable, SoftDeletes;
+    use HasFactory, LogsActivity, SoftDeletes;
+
+    /*
+     * search() se renombra al importar el trait para poder envolverlo mas
+     * abajo. Los metodos de un trait se aplanan dentro de la clase: sin este
+     * alias, declarar search() lo reemplazaria por completo y parent::search()
+     * apuntaria a Model, que no tiene ese metodo.
+     */
+    use Searchable {
+        search as protected buscarConScout;
+    }
 
     protected $fillable = [
         'company_id',
@@ -984,7 +994,7 @@ class Document extends Model
      */
     public static function search($query = '', $callback = null): \Laravel\Scout\Builder
     {
-        return parent::search($query, $callback)
+        return static::buscarConScout($query, $callback)
             ->options(['matchingStrategy' => 'frequency']);
     }
 
