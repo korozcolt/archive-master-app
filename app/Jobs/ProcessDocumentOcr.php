@@ -21,7 +21,18 @@ class ProcessDocumentOcr implements ShouldQueue
 
     public int $tries = 2;
 
-    public int $timeout = 180;
+    /**
+     * Los escaneos del archivo superan con frecuencia las 100 páginas, y cada
+     * una exige renderizado a imagen más OCR. Con 180 segundos esos documentos
+     * morían por SIGKILL antes de terminar: su texto nunca se extraía, fallaban
+     * de forma indefinida, y dejaban atrás su directorio temporal —un SIGKILL
+     * no permite ejecutar el bloque finally de OCRService que lo limpia.
+     *
+     * Debe mantenerse por debajo de REDIS_QUEUE_RETRY_AFTER (1200 s en
+     * producción), o la cola reencolaría el trabajo mientras aún se ejecuta y
+     * el mismo documento se procesaría por duplicado.
+     */
+    public int $timeout = 900;
 
     public function __construct(
         public int $documentId,
