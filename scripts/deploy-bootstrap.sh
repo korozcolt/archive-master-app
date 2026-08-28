@@ -84,4 +84,18 @@ else
   echo "[deploy-bootstrap] storage:link returned non-zero. Continuing."
 fi
 
+# Los ajustes del indice viven en config/scout.php, pero Meilisearch no se
+# entera solo de que cambiaron: hay que empujarlos. Sin esto, anadir un
+# atributo filtrable o reordenar los campos de busqueda queda en el repositorio
+# sin efecto en produccion, y una consulta que dependa del ajuste nuevo falla
+# con "Attribute X is not filterable" en lugar de funcionar.
+#
+# No aborta el arranque si falla: es preferible la aplicacion en pie con los
+# ajustes viejos que un despliegue caido porque el buscador tardo en responder.
+if php artisan scout:sync-index-settings --no-interaction; then
+  echo "[deploy-bootstrap] scout:sync-index-settings completed."
+else
+  echo "[deploy-bootstrap] scout:sync-index-settings returned non-zero. Continuing."
+fi
+
 echo "[deploy-bootstrap] Bootstrap finished."

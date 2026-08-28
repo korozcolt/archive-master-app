@@ -35,7 +35,20 @@ use Spatie\Activitylog\Traits\LogsActivity;
  */
 class Document extends Model
 {
-    use HasFactory, LogsActivity, Searchable, SoftDeletes;
+    use HasFactory, LogsActivity, SoftDeletes;
+
+    /**
+     * El alias es obligatorio, no cosmetico.
+     *
+     * search() se sobrescribe mas abajo, y los traits se aplanan dentro de la
+     * clase: sin alias la version del trait queda sustituida y no queda forma
+     * de alcanzarla -parent:: resuelve a Model, que no tiene ese metodo-. Toda
+     * busqueda de documentos moriria con un error fatal, y ademas silencioso:
+     * PHP no escribe nada en stdout, stderr ni en el log.
+     */
+    use Searchable {
+        search as protected buscarConScout;
+    }
 
     protected $fillable = [
         'company_id',
@@ -936,6 +949,204 @@ class Document extends Model
     public function searchableAs(): string
     {
         return 'documents';
+    }
+
+    /**
+     * Tope de documentos que se recuperan del indice para acotar por titulo.
+     *
+     * Coincide con el maxTotalHits por defecto de Meilisearch: pedir mas no
+     * traeria nada adicional.
+     */
+    private const TOPE_EXPEDIENTE = 1000;
+
+    /**
+     * Cualquier termino unido por guiones se trata como una unidad.
+     *
+     * Cubre las formas del archivo -LP-ADS-001-2024, G100-1395-2024, R-2464,
+     * DOC-AGU-20260713094648-5265- y tambien palabras compuestas como
+     * "pre-contractual". No se exige que lleve digitos a proposito: quien
+     * escribe un guion esta escribiendo una sola cosa, y partirla en pedazos
+     * es justamente el defecto que se corrige aqui.
+     */
+    private const PATRON_IDENTIFICADOR = '/^[\p{L}\d]+(?:-[\p{L}\d]+)+$/u';
+
+    /**
+     * Buscar documentos.
+     *
+     * Se sobrescribe aqui, y no en cada punto de llamada, porque hay siete
+     * repartidos entre el portal, la API, la busqueda avanzada y el panel:
+     * poniendolo en el modelo, cualquier busqueda futura lo hereda sin que
+     * nadie tenga que acordarse.
+     *
+     * Hay dos comportamientos, y cual se aplica depende de si el usuario
+     * escribio un identificador:
+     *
+     * 1. Sin identificador se mantiene la estrategia "frequency". Meilisearch
+     *    descarta terminos cuando no hay resultados para todos, y su estrategia
+     *    por defecto ("last") descarta el ultimo que escribio el usuario, que
+     *    suele ser justo el que anadio para afinar: "factura aguas 2026"
+     *    devolveria todas las facturas de aguas de cualquier ano. Con
+     *    "frequency" descarta el mas comun -"aguas"- y conserva el especifico.
+     *
+     * 2. Con identificador se busca como frase exacta. Sin comillas Meilisearch
+     *    parte LP-ADS-001-2024 en LP + ADS + 001 + 2024, y como esas piezas
+     *    salen en miles de documentos, cualquier numero arrastraba medio
+     *    archivo: se midio que devolvia mas de 1000 resultados donde solo habia
+     *    186 documentos con ese numero. Entre comillas la busqueda es exacta;
+     *    se verificaron 250 resultados de tres licitaciones sin un solo falso
+     *    positivo.
+     *
+     *    Las palabras sueltas que acompanen al identificador se aplican **solo
+     *    contra el titulo**. Buscarlas en el texto completo no distingue nada:
+     *    todos los documentos de un expediente de contratacion mencionan la
+     *    palabra "contrato" en su contenido, asi que exigirla no filtraba. En
+     *    el titulo si: de los 186 documentos de LP-ADS-001-2024, dos lo llevan
+     *    en el titulo y uno de ellos es el contrato.
+     *
+     * @param  string  $query
+     * @param  callable|null  $callback
+     */
+    public static function search($query = '', $callback = null): \Laravel\Scout\Builder
+    {
+        $consulta = trim((string) $query);
+
+        [$anclaje, $exigenciasDeTitulo] = static::analizarConsulta($consulta);
+
+        if ($anclaje === '') {
+            return static::buscarConScout($consulta, $callback)
+                ->options(['matchingStrategy' => 'frequency']);
+        }
+
+        $busqueda = static::buscarConScout($anclaje, $callback)
+            ->options(['matchingStrategy' => 'all']);
+
+        if ($exigenciasDeTitulo === []) {
+            return $busqueda;
+        }
+
+        return $busqueda->whereIn('id', static::idsConTitulosQueCumplen($anclaje, $exigenciasDeTitulo));
+    }
+
+    /**
+     * Descomponer lo que escribio el usuario en dos partes.
+     *
+     * Devuelve la consulta que se manda al indice -el "anclaje"- y la lista de
+     * exigencias que ademas debe cumplir el titulo. Cadena vacia como anclaje
+     * significa que no hay nada especial que hacer y se sigue el camino de
+     * siempre.
+     *
+     * La coma separa unidades, y todas deben cumplirse. Es la unica sintaxis
+     * que se ofrece, a proposito: se eligio frente a comillas u operadores
+     * porque no hay nada que aprender, se escribe igual que una lista y en un
+     * teclado espanol sale sin combinaciones raras. Quien no ponga comas no
+     * nota ningun cambio.
+     *
+     *   LP-2105-2024, ACTA DE INICIO
+     *     -> anclaje "LP-2105-2024", el titulo debe contener "ACTA DE INICIO"
+     *        completo y en ese orden.
+     *
+     *   LP-2105-2024 ACTA DE INICIO
+     *     -> anclaje "LP-2105-2024", el titulo debe contener ACTA, DE e INICIO
+     *        sueltas, en cualquier orden. Menos preciso, pero se conserva
+     *        porque nadie deberia verse obligado a aprender la coma.
+     *
+     *   ACTA DE INICIO, 2024
+     *     -> sin identificador, el primer segmento va al indice y el resto
+     *        exige al titulo. La coma sigue significando lo mismo.
+     *
+     * @return array{0: string, 1: list<string>}
+     */
+    private static function analizarConsulta(string $consulta): array
+    {
+        if (str_contains($consulta, ',')) {
+            $segmentos = collect(explode(',', $consulta))
+                // El usuario que ya entrecomilla pide exactitud a mano: se
+                // respeta su intencion quitando solo las comillas sobrantes.
+                ->map(fn (string $segmento): string => trim($segmento, " \t\n\r\0\x0B\"'"))
+                ->filter(fn (string $segmento): bool => $segmento !== '')
+                ->values();
+
+            if ($segmentos->isEmpty()) {
+                return ['', []];
+            }
+
+            $identificadores = $segmentos->filter(
+                fn (string $s): bool => preg_match(self::PATRON_IDENTIFICADOR, $s) === 1
+            );
+
+            // Ancla el identificador si lo hay; si no, el primer segmento.
+            // Lo demas queda como exigencia sobre el titulo.
+            $anclajes = $identificadores->isNotEmpty() ? $identificadores : $segmentos->take(1);
+
+            return [
+                $anclajes->map(fn (string $s): string => '"'.$s.'"')->implode(' '),
+                $segmentos->reject(fn (string $s): bool => $anclajes->contains($s))->values()->all(),
+            ];
+        }
+
+        $identificadores = [];
+        $palabras = [];
+
+        foreach (preg_split('/\s+/u', $consulta, -1, PREG_SPLIT_NO_EMPTY) ?: [] as $termino) {
+            $limpio = trim($termino, '"\'');
+
+            if ($limpio === '') {
+                continue;
+            }
+
+            if (preg_match(self::PATRON_IDENTIFICADOR, $limpio) === 1) {
+                $identificadores[] = $limpio;
+
+                continue;
+            }
+
+            $palabras[] = $limpio;
+        }
+
+        if ($identificadores === []) {
+            return ['', []];
+        }
+
+        return [
+            collect($identificadores)->map(fn (string $id): string => '"'.$id.'"')->implode(' '),
+            $palabras,
+        ];
+    }
+
+    /**
+     * De los documentos que devolvio el anclaje, cuales cumplen en el titulo.
+     *
+     * Cada exigencia se comprueba entera: una palabra suelta busca esa palabra,
+     * y un segmento separado por comas busca la frase completa y en su orden.
+     * Todas deben cumplirse.
+     *
+     * El LIKE con comodin inicial esta acotado por whereKey a los documentos que
+     * el indice ya devolvio -cientos, no las 45.000 filas de la tabla-, asi que
+     * no incurre en el escaneo completo que hay que evitar sobre `documents`.
+     *
+     * @param  list<string>  $exigencias
+     * @return list<int>
+     */
+    private static function idsConTitulosQueCumplen(string $anclaje, array $exigencias): array
+    {
+        $candidatos = static::buscarConScout($anclaje)
+            ->options(['matchingStrategy' => 'all'])
+            ->take(self::TOPE_EXPEDIENTE)
+            ->keys();
+
+        if ($candidatos->isEmpty()) {
+            return [];
+        }
+
+        return static::query()
+            ->whereKey($candidatos)
+            ->where(function (Builder $consulta) use ($exigencias): void {
+                foreach ($exigencias as $exigencia) {
+                    $consulta->where('title', 'like', '%'.$exigencia.'%');
+                }
+            })
+            ->pluck('id')
+            ->all();
     }
 
     /**

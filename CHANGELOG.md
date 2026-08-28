@@ -7,6 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-08-28
+
+- **Un número de licitación devolvía medio archivo.** Meilisearch partía `LP-ADS-001-2024` en `LP` + `ADS` + `001` + `2024`, y como esas piezas aparecen en miles de documentos, cualquier identificador arrastraba resultados sin relación. Medido sobre `UO-PSPR-ADS-001-2022`: **más de 400 resultados de los cuales solo 22 contenían realmente el número**.
+  - Ahora **cualquier término unido por guiones se busca como frase exacta**. La misma consulta baja a 35 resultados. Se verificaron tres licitaciones documento por documento contra su texto almacenado: **250 coincidencias, ningún falso positivo**.
+  - La regla no exige que lleve dígitos a propósito: quien escribe un guion está escribiendo una sola cosa, así que `pre-contractual` también se conserva entero en lugar de partirse en `pre` y `contractual`.
+- **Nueva sintaxis de coma, a petición del cliente.** `LP-2105-2024, ACTA DE INICIO` exige el identificador **y** que el título contenga esa frase completa y en ese orden. Se eligió la coma frente a comillas u operadores porque no hay nada que aprender, se escribe igual que una lista y en un teclado español sale sin combinaciones raras — en los registros hay un usuario intentando agrupar términos a base de comillas y un signo de más, peleando con el buscador.
+  - Quien no use comas no nota ningún cambio: `LP-2105-2024 ACTA DE INICIO` sigue funcionando, exigiendo las palabras sueltas en el título en vez de la frase completa. La coma afina, no obliga.
+- **Las palabras que acompañan a un identificador se aplican solo contra el título, nunca contra el cuerpo.** Exigirlas en el texto no filtraba nada: todos los documentos de un expediente de contratación mencionan la palabra «contrato» en su contenido. Contra el título sí: de los 186 documentos de `LP-ADS-001-2024`, exactamente dos la llevan en el título y uno es el contrato. Con `UO-PSPR-ADS-001-2022, CONTRATO` el resultado es **un único documento**.
+  - Se apoya en el título y no en el tipo documental porque en esta instancia el tipo no es fiable: hay documentos que no son contratos clasificados como «Contrato» por compartir carpeta con uno.
+- **Aparece el «sin resultados».** Antes el buscador siempre devolvía algo aunque no cumpliera la consulta. Ahora `LP-ADS-001-2024, ACTA DE INAUGURACION` devuelve cero. Es el comportamiento correcto, pero los usuarios lo van a notar y conviene avisarles antes de que lo reporten como fallo.
+- **El despliegue no sincronizaba los ajustes de Scout.** Cualquier cambio en `config/scout.php` —orden de campos, atributos filtrables— se quedaba en el repositorio sin llegar nunca a Meilisearch, y una consulta que dependiera del ajuste nuevo fallaba con `Attribute X is not filterable`. `deploy-bootstrap.sh` ahora ejecuta `scout:sync-index-settings`, sin abortar el arranque si falla.
+- Verificación: **21 pruebas nuevas** que fijan la sintaxis, y las pruebas de búsqueda existentes pasan de 35 a 56 en verde con el mismo único fallo preexistente en ambas. Cero regresiones. Latencias contra producción entre 25 y 121 ms.
+- La sintaxis queda documentada en `CLAUDE.md` como comportamiento de producto: vive en `Document::search()`, la heredan los siete puntos de llamada y aplica a cualquier instancia, no solo a Aguas de Sucre.
+
+### Investigated - 2026-08-28
+
+- **La aplicación se construye con PHP 8.2.27 aunque el proyecto apunta a 8.4, y de momento no puede subir.** Dos causas encadenadas:
+  1. `nixpacks.toml` declaraba `NIXPACKS_PHP_VERSION = "8.4"`, pero Nixpacks no lee esa variable para elegir la versión: la deduce de `require.php` en `composer.json`, que sigue en `^8.2`. Verificado con `nixpacks plan`: con `^8.2` resuelve el paquete Nix `php` (8.2.27) y con `^8.4` resuelve `php84` (8.4.2). La variable de Node sí funciona, lo que hace la trampa más creíble.
+  2. **Pero corregir eso rompe la aplicación.** El `php84` del pin de nixpkgs que usa Nixpacks 1.41 (`e24b4c09…`, del 2025-01-15) está compilado **sin los plugins sha2 de mysqlnd**:
+     - 8.2 carga `auth_plugin_caching_sha2_password` y `auth_plugin_sha256_password`
+     - 8.4 no carga ninguno de los dos
+
+     MySQL 8 autentica con `caching_sha2_password` por defecto, así que la imagen 8.4 arranca, nginx y php-fpm levantan y sirve páginas estáticas, **pero no conecta con la base de datos**: `SQLSTATE[HY000] [2054] The server requested authentication method unknown to the client`. Un despliegue así habría dejado el archivo inaccesible.
+- **Cómo se comprobó:** se construyeron las dos imágenes con Nixpacks sobre el mismo código y se conectó desde cada una contra el MySQL real de producción, con el mismo host, usuario y red. 8.2 conecta; 8.4 falla de forma reproducible. La suite completa da cifras idénticas en ambas (5 fallos, 505 en verde, 2.091 aserciones), es decir, **el código es compatible con 8.4; lo que no lo es, es el empaquetado de PHP**.
+- El cambio de `composer.json` queda **revertido**. La trampa está documentada en `nixpacks.toml` para que nadie la repita.
+- Caminos posibles para subir de verdad, ninguno aplicado todavía: fijar un pin de nixpkgs más reciente cuyo `php84` traiga los plugins, sustituir Nixpacks por un `Dockerfile` propio con una imagen oficial de PHP, o —descartable— cambiar el usuario de MySQL a `mysql_native_password`, que debilita la autenticación y desaparece en MySQL 9.
+### Changed - 2026-08-28
+
+- **La rama de despliegue del cliente pasa a ser `integration/aguas-de-sucre-into-main`,** y queda documentada en `CLAUDE.md` la arquitectura multicliente que lo justifica: `main` es el núcleo común del producto y cada cliente vive en su propia rama de integración, diferenciándose por seeds y no por código. Hasta ahora esa estructura no estaba escrita en ninguna parte, y la divergencia entre ramas parecía desorden histórico cuando en realidad respondía a un modelo deliberado.
+  - La rama de integración **no contenía lo que corría en producción**: el flujo de acceso temporal al portal, la carga histórica y los arreglos de búsqueda y OCR vivían en la línea de `codex`. Se fusionaron los 25 archivos en conflicto resolviendo el código de aplicación hacia el lado probado en producción, y conservando las ~1.500 líneas de pruebas más recientes de la rama de integración como árbitro.
+  - **Verificación:** suite completa contra las dos líneas base. Frente a la rama en producción, **0 regresiones** (85 fallos contra 86, todos preexistentes) y una prueba corregida. Frente a la rama de integración, **0 regresiones** y dos pruebas más en verde. Los seis archivos críticos de ejecución quedaron byte a byte idénticos a lo desplegado.
+  - Dos conflictos eran contradicciones reales de comportamiento, no deriva:
+    - *OCR de documentos históricos.* La guarda del observador que evita encolarlos al crearse es idéntica en ambas ramas y sí los omite, así que la prueba de la rama de integración era la acertada y la otra llevaba tiempo fallando. Los históricos los recoge el programador cada 5 minutos, que es lo que evita inundar la cola en una carga masiva.
+    - *Duplicados en carga histórica.* Se conserva el comportamiento de producción, que **permite** dos documentos con el mismo título en la misma caja: en un archivo físico esa duplicación es legítima —una caja contiene muchos «Egreso»— y rechazarla frenaría la carga de los 45.000 registros en curso.
+- **Despliegue automático por consulta, sin exponer el servidor.** El `autoDeploy` de Dokploy nunca funcionó porque el panel se publica bajo un nombre privado (`panel.archivo.ads.local`) que GitHub no puede alcanzar; el último despliegue automático databa del 2026-07-28. En lugar de abrir el panel a internet, se invierte la dirección: un temporizador en el servidor consulta el repositorio y dispara el despliegue contra la API local de Dokploy. Cero superficie pública.
+
+### Fixed - 2026-08-27
+
+- **Fuga de disco por temporales de OCR sin limpiar.** El contenedor de la aplicación acumulaba PNGs de páginas renderizadas en `/tmp` (21GB en 14h, hasta 1.1GB por documento), llevando el disco del sistema de 43GB a 65GB usados.
+  - Causa: `OCRService::extractFromPdfWithTesseract()` limpia correctamente en su bloque `finally`, pero el worker mata con **SIGKILL** los jobs que exceden el timeout, y un SIGKILL no se puede interceptar desde PHP. Los PDFs de 100+ páginas —los que más temporales generan— son justo los que exceden el límite. Correlación que lo confirma: **93 menciones de timeout en el log del contenedor vs 94 directorios `ocr_pdf_*` huérfanos**.
+  - Mitigación: barredor en el host (`archive-ocr-sweep` + timer horario) que elimina `/tmp/ocr_*` con más de 120 minutos. El umbral es seguro porque el timeout del job es de 180s. Primera ejecución: 213 temporales, **19.483 MB liberados**, sin interrumpir el OCR en curso.
+  - **Pendiente (requiere despliegue):** subir `ProcessDocumentOcr::$timeout` (hoy 180s). Esos documentos no solo dejan basura — su OCR nunca se completa y fallan de forma indefinida.
+- **`innodb_buffer_pool_size` de 512MB a 2.5GB.** La base ocupa 1.98GB, así que solo cabía una cuarta parte y el resto se releía del disco constantemente. Tasa de acierto de la caché medida bajo carga real de OCR: **80.77% → 93.87%** (aún calentando; 1929MB de datos en caché con 631MB libres).
+- **Durabilidad de MySQL restaurada:** `innodb_flush_log_at_trx_commit` 2 → 1 y `sync_binlog` 100 → 1. Se habían relajado durante el incidente del 2026-08-21 para ganar I/O a costa de poder perder hasta 1s de transacciones confirmadas ante un corte de luz. Con el NVMe (0.19ms de latencia) ese ahorro ya no compensa, y la sede tiene cortes de energía reales.
+- Nota de configuración: estos parámetros **no se persisten con `SET PERSIST`** (el usuario de la aplicación no tiene `SYSTEM_VARIABLES_ADMIN`, y root del contenedor no coincide con los datos migrados). Viven en los `Args` del servicio de Swarm; `docker service update --args` los reemplaza **por completo**, así que hay que reenviar la lista entera.
+
+### Changed - 2026-08-26
+
+- **Migración del servidor de producción (`archive-ads`) de disco mecánico a NVMe.** Cierra la causa raíz identificada el 2026-08-21: la clase de disco. El servidor arrancaba desde un Seagate ST500LT012 de 5400rpm; se instaló un NVMe Samsung de 256GB y se migró el sistema completo.
+  - Medición del patrón de I/O que usan MySQL y Meilisearch (lectura aleatoria 16K): **HDD 172 IOPS / 92,71ms → NVMe 84.016 IOPS / 0,19ms (488x)**. Con un solo disco, el OCR, la indexación y las búsquedas de usuarios competían por esas 172 operaciones por segundo.
+  - **Reparto híbrido:** sistema, Docker, containerd, MySQL, Meilisearch y Redis en el NVMe (~43GB); los 115GB de PDFs escaneados permanecen en el HDD, montado como disco de datos. Deja ~180GB libres en NVMe y ~297GB en el HDD para crecimiento del archivo.
+  - Los bind mounts de los servicios no cambiaron: el directorio de documentos del HDD se monta sobre `/mnt/archive-data/app` y se recreó el enlace `/archive-data -> /mnt/archive-data`, así que las definiciones de Swarm revivieron sin editar una sola línea.
+  - Verificado con reinicio real. Dos problemas históricos desaparecieron: Traefik ya no pierde el provider de Swarm al arrancar el daemon en frío, y Dokploy levanta sano en 18 segundos en lugar de morir tres veces durante ~8 minutos.
+- **Worker de colas y scheduler reactivados** (`RUN_QUEUE_WORKER=1`, `RUN_SCHEDULER=1`), revirtiendo la desactivación de emergencia del 2026-08-21. Medido con el OCR a plena carga: las búsquedas responden en 5-15ms y ambos discos quedan bajo el 5% de utilización. El cuello de botella pasó a ser CPU (`tesseract` 109%, `pdftoppm` 99%) y memoria, no I/O.
+  - Pendiente: reflejar ambas variables en el panel de Dokploy, o un redespliegue las devolverá a `0`.
+- **Respaldos automáticos** (`archive-backup.service` + timer diario 02:30, prioridad de I/O `idle`): volcado verificado de `aguas_de_sucre` (~319MB), Postgres de Dokploy y `/etc/dokploy`, al HDD con retención de 14 días. **Los 115GB de PDFs siguen sin copia externa** — respaldarlos en el mismo disco donde viven no protegería de nada.
+- **Panel de estado en la consola física** (`archive-panel.service` sobre `tty1`, con `getty@tty1` enmascarado): hardware, temperatura, ambos discos, contenedores, métricas del archivo y estado del último respaldo, visible desde el arranque sin login y sin ser una vía de acceso al sistema.
+- Sistema actualizado a kernel 7.0.0-30 (0 actualizaciones de seguridad pendientes). Docker fijado con `apt-mark hold` en 29.7.2. `vm.swappiness` bajado a 10.
+- **Integridad de datos verificada:** cero documentos activos sin archivo. Los 856 registros sin PDF corresponden exactamente a los 856 borrados lógicamente. Se detectaron 243 archivos huérfanos en disco (219MB) sin registro en la base, agrupados en días concretos de junio y julio — cargas por lotes que fallaron a medias; no borrarlos, son recuperables.
+- Nota: el `archive-data` anidado en la ruta de documentos (`/archive-data/app/archive-data/documents`) **no es un error** — `ARCHIVE_STORAGE_ROOT` apunta ahí deliberadamente.
+
 ### Fixed - 2026-08-21
 
 - Incidente de rendimiento en producción (Aguas de Sucre): el servidor (disco mecánico laptop 5400rpm + 6.9GB RAM) entró en ciclo de crash-restart de MySQL/Meilisearch/app bajo saturación de I/O, y consultas sin índice adecuado causaban timeouts de 60-140s en `/admin` y `/portal`.
