@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - 2026-08-28
+
+- **La rama de despliegue del cliente pasa a ser `integration/aguas-de-sucre-into-main`,** y queda documentada en `CLAUDE.md` la arquitectura multicliente que lo justifica: `main` es el núcleo común del producto y cada cliente vive en su propia rama de integración, diferenciándose por seeds y no por código. Hasta ahora esa estructura no estaba escrita en ninguna parte, y la divergencia entre ramas parecía desorden histórico cuando en realidad respondía a un modelo deliberado.
+  - La rama de integración **no contenía lo que corría en producción**: el flujo de acceso temporal al portal, la carga histórica y los arreglos de búsqueda y OCR vivían en la línea de `codex`. Se fusionaron los 25 archivos en conflicto resolviendo el código de aplicación hacia el lado probado en producción, y conservando las ~1.500 líneas de pruebas más recientes de la rama de integración como árbitro.
+  - **Verificación:** suite completa contra las dos líneas base. Frente a la rama en producción, **0 regresiones** (85 fallos contra 86, todos preexistentes) y una prueba corregida. Frente a la rama de integración, **0 regresiones** y dos pruebas más en verde. Los seis archivos críticos de ejecución quedaron byte a byte idénticos a lo desplegado.
+  - Dos conflictos eran contradicciones reales de comportamiento, no deriva:
+    - *OCR de documentos históricos.* La guarda del observador que evita encolarlos al crearse es idéntica en ambas ramas y sí los omite, así que la prueba de la rama de integración era la acertada y la otra llevaba tiempo fallando. Los históricos los recoge el programador cada 5 minutos, que es lo que evita inundar la cola en una carga masiva.
+    - *Duplicados en carga histórica.* Se conserva el comportamiento de producción, que **permite** dos documentos con el mismo título en la misma caja: en un archivo físico esa duplicación es legítima —una caja contiene muchos «Egreso»— y rechazarla frenaría la carga de los 45.000 registros en curso.
+- **Despliegue automático por consulta, sin exponer el servidor.** El `autoDeploy` de Dokploy nunca funcionó porque el panel se publica bajo un nombre privado (`panel.archivo.ads.local`) que GitHub no puede alcanzar; el último despliegue automático databa del 2026-07-28. En lugar de abrir el panel a internet, se invierte la dirección: un temporizador en el servidor consulta el repositorio y dispara el despliegue contra la API local de Dokploy. Cero superficie pública.
+
+### Fixed - 2026-08-27
+
+- **Fuga de disco por temporales de OCR sin limpiar.** El contenedor de la aplicación acumulaba PNGs de páginas renderizadas en `/tmp` (21GB en 14h, hasta 1.1GB por documento), llevando el disco del sistema de 43GB a 65GB usados.
+  - Causa: `OCRService::extractFromPdfWithTesseract()` limpia correctamente en su bloque `finally`, pero el worker mata con **SIGKILL** los jobs que exceden el timeout, y un SIGKILL no se puede interceptar desde PHP. Los PDFs de 100+ páginas —los que más temporales generan— son justo los que exceden el límite. Correlación que lo confirma: **93 menciones de timeout en el log del contenedor vs 94 directorios `ocr_pdf_*` huérfanos**.
+  - Mitigación: barredor en el host (`archive-ocr-sweep` + timer horario) que elimina `/tmp/ocr_*` con más de 120 minutos. El umbral es seguro porque el timeout del job es de 180s. Primera ejecución: 213 temporales, **19.483 MB liberados**, sin interrumpir el OCR en curso.
+  - **Pendiente (requiere despliegue):** subir `ProcessDocumentOcr::$timeout` (hoy 180s). Esos documentos no solo dejan basura — su OCR nunca se completa y fallan de forma indefinida.
+- **`innodb_buffer_pool_size` de 512MB a 2.5GB.** La base ocupa 1.98GB, así que solo cabía una cuarta parte y el resto se releía del disco constantemente. Tasa de acierto de la caché medida bajo carga real de OCR: **80.77% → 93.87%** (aún calentando; 1929MB de datos en caché con 631MB libres).
+- **Durabilidad de MySQL restaurada:** `innodb_flush_log_at_trx_commit` 2 → 1 y `sync_binlog` 100 → 1. Se habían relajado durante el incidente del 2026-08-21 para ganar I/O a costa de poder perder hasta 1s de transacciones confirmadas ante un corte de luz. Con el NVMe (0.19ms de latencia) ese ahorro ya no compensa, y la sede tiene cortes de energía reales.
+- Nota de configuración: estos parámetros **no se persisten con `SET PERSIST`** (el usuario de la aplicación no tiene `SYSTEM_VARIABLES_ADMIN`, y root del contenedor no coincide con los datos migrados). Viven en los `Args` del servicio de Swarm; `docker service update --args` los reemplaza **por completo**, así que hay que reenviar la lista entera.
+
+### Changed - 2026-08-26
+
+- **Migración del servidor de producción (`archive-ads`) de disco mecánico a NVMe.** Cierra la causa raíz identificada el 2026-08-21: la clase de disco. El servidor arrancaba desde un Seagate ST500LT012 de 5400rpm; se instaló un NVMe Samsung de 256GB y se migró el sistema completo.
+  - Medición del patrón de I/O que usan MySQL y Meilisearch (lectura aleatoria 16K): **HDD 172 IOPS / 92,71ms → NVMe 84.016 IOPS / 0,19ms (488x)**. Con un solo disco, el OCR, la indexación y las búsquedas de usuarios competían por esas 172 operaciones por segundo.
+  - **Reparto híbrido:** sistema, Docker, containerd, MySQL, Meilisearch y Redis en el NVMe (~43GB); los 115GB de PDFs escaneados permanecen en el HDD, montado como disco de datos. Deja ~180GB libres en NVMe y ~297GB en el HDD para crecimiento del archivo.
+  - Los bind mounts de los servicios no cambiaron: el directorio de documentos del HDD se monta sobre `/mnt/archive-data/app` y se recreó el enlace `/archive-data -> /mnt/archive-data`, así que las definiciones de Swarm revivieron sin editar una sola línea.
+  - Verificado con reinicio real. Dos problemas históricos desaparecieron: Traefik ya no pierde el provider de Swarm al arrancar el daemon en frío, y Dokploy levanta sano en 18 segundos en lugar de morir tres veces durante ~8 minutos.
+- **Worker de colas y scheduler reactivados** (`RUN_QUEUE_WORKER=1`, `RUN_SCHEDULER=1`), revirtiendo la desactivación de emergencia del 2026-08-21. Medido con el OCR a plena carga: las búsquedas responden en 5-15ms y ambos discos quedan bajo el 5% de utilización. El cuello de botella pasó a ser CPU (`tesseract` 109%, `pdftoppm` 99%) y memoria, no I/O.
+  - Pendiente: reflejar ambas variables en el panel de Dokploy, o un redespliegue las devolverá a `0`.
+- **Respaldos automáticos** (`archive-backup.service` + timer diario 02:30, prioridad de I/O `idle`): volcado verificado de `aguas_de_sucre` (~319MB), Postgres de Dokploy y `/etc/dokploy`, al HDD con retención de 14 días. **Los 115GB de PDFs siguen sin copia externa** — respaldarlos en el mismo disco donde viven no protegería de nada.
+- **Panel de estado en la consola física** (`archive-panel.service` sobre `tty1`, con `getty@tty1` enmascarado): hardware, temperatura, ambos discos, contenedores, métricas del archivo y estado del último respaldo, visible desde el arranque sin login y sin ser una vía de acceso al sistema.
+- Sistema actualizado a kernel 7.0.0-30 (0 actualizaciones de seguridad pendientes). Docker fijado con `apt-mark hold` en 29.7.2. `vm.swappiness` bajado a 10.
+- **Integridad de datos verificada:** cero documentos activos sin archivo. Los 856 registros sin PDF corresponden exactamente a los 856 borrados lógicamente. Se detectaron 243 archivos huérfanos en disco (219MB) sin registro en la base, agrupados en días concretos de junio y julio — cargas por lotes que fallaron a medias; no borrarlos, son recuperables.
+- Nota: el `archive-data` anidado en la ruta de documentos (`/archive-data/app/archive-data/documents`) **no es un error** — `ARCHIVE_STORAGE_ROOT` apunta ahí deliberadamente.
+
 ### Fixed - 2026-08-21
 
 - Incidente de rendimiento en producción (Aguas de Sucre): el servidor (disco mecánico laptop 5400rpm + 6.9GB RAM) entró en ciclo de crash-restart de MySQL/Meilisearch/app bajo saturación de I/O, y consultas sin índice adecuado causaban timeouts de 60-140s en `/admin` y `/portal`.
