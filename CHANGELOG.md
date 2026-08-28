@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-08-28
+
+- **La aplicación se construía con PHP 8.2.27 pese a apuntar a 8.4.** `nixpacks.toml` declaraba `NIXPACKS_PHP_VERSION = "8.4"`, pero Nixpacks no lee esa variable para elegir la versión: la deduce de la restricción `require.php` de `composer.json`, que seguía en `^8.2`. El plan de construcción resolvía el paquete Nix genérico `php` en lugar de `php84`.
+  - Corregido en `composer.json` (`^8.2` → `^8.4`) y anotado en `nixpacks.toml` para que no se vuelva a intentar arreglar ahí.
+  - **Verificado construyendo las dos imágenes** con Nixpacks sobre el mismo código y comparándolas: la suite completa da **5 fallos y 505 pruebas en verde con 2.091 aserciones, cifras idénticas bajo 8.2 y bajo 8.4**. PHP 8.4 no cambia el comportamiento de esta base de código.
+  - Única diferencia entre las imágenes: PHP 8.4 saca `imap` del núcleo. La aplicación no lo usa en ninguna parte ni ninguna dependencia lo declara, así que no afecta.
+  - `composer.lock` se deja intacto a propósito: `composer update --lock` intenta reresolver el árbol completo y choca con conflictos entre `nette/utils`, `laravel-lang` y `league/config`, lo que cambiaría versiones sin necesidad. El desfase del hash solo produce un aviso, y la construcción con 8.4 se verificó funcionando con el bloqueo tal cual.
+
 ### Changed - 2026-08-28
 
 - **La rama de despliegue del cliente pasa a ser `integration/aguas-de-sucre-into-main`,** y queda documentada en `CLAUDE.md` la arquitectura multicliente que lo justifica: `main` es el núcleo común del producto y cada cliente vive en su propia rama de integración, diferenciándose por seeds y no por código. Hasta ahora esa estructura no estaba escrita en ninguna parte, y la divergencia entre ramas parecía desorden histórico cuando en realidad respondía a un modelo deliberado.

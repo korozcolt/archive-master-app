@@ -1,5 +1,10 @@
 [variables]
 NIXPACKS_NODE_VERSION = "22"
+# Nixpacks NO lee esta variable para elegir la version de PHP: la toma de
+# la restriccion "require.php" de composer.json. Se mantiene aqui solo como
+# declaracion de intencion. Si necesitas cambiar la version, cambiala en
+# composer.json; tocar esto no hace nada. (Verificado con `nixpacks plan`:
+# con ^8.2 resuelve el paquete `php` (8.2.27) y con ^8.4 resuelve `php84`.)
 NIXPACKS_PHP_VERSION = "8.4"
 NODE_ENV = "production"
 COMPOSER_ALLOW_SUPERUSER = "1"
