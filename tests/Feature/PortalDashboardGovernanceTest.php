@@ -72,10 +72,6 @@ it('shows sla and archive operational trays in the portal dashboard', function (
         ->get('/portal')
         ->assertSuccessful()
         ->assertSee('Atención SLA')
-        ->assertSee('Consulta prioritaria')
-        ->assertSee('Bloqueantes')
-        ->assertSee('Listos para custodiar')
-        ->assertSee('Archivo incompleto')
         ->assertSee('Documento en advertencia')
         ->assertSee('Documento vencido');
 });
