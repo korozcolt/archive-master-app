@@ -1,0 +1,82 @@
+- generic [ref=e1]:
+  - main [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e7]:
+          - generic [ref=e8]: AGUAS DE SUCRE S.A. E.S.P.
+          - heading "Entre a su cuenta" [level=1] [ref=e9]
+        - generic [ref=e10]:
+          - generic [ref=e11]:
+            - generic [ref=e14]:
+              - generic [ref=e17]:
+                - text: Correo electrónico
+                - superscript [ref=e18]: "*"
+              - textbox "Correo electrónico*" [active] [ref=e22]
+            - generic [ref=e25]:
+              - generic [ref=e28]:
+                - text: Contraseña
+                - superscript [ref=e29]: "*"
+              - generic [ref=e31]:
+                - textbox "Contraseña*" [ref=e33]
+                - button "Mostrar contraseña" [ref=e36] [cursor=pointer]:
+                  - generic [ref=e37]: Mostrar contraseña
+                  - img [ref=e38]
+            - generic [ref=e45]:
+              - checkbox "Recordarme" [ref=e46]
+              - generic [ref=e47]: Recordarme
+          - button "Entrar" [ref=e50] [cursor=pointer]:
+            - generic [ref=e51]: Entrar
+        - link "Ir a Portal" [ref=e53] [cursor=pointer]:
+          - /url: https://archive-master-app.test/login
+      - generic:
+        - dialog
+      - generic:
+        - dialog
+      - generic:
+        - dialog
+  - generic:
+    - status
+  - generic [ref=e54]:
+    - generic [ref=e56]:
+      - generic [ref=e58]:
+        - generic [ref=e59] [cursor=pointer]:
+          - text: 
+          - generic: Request
+        - text: 
+        - generic [ref=e60] [cursor=pointer]:
+          - text: 
+          - generic: Timeline
+        - text: 
+        - generic [ref=e61] [cursor=pointer]:
+          - text: 
+          - generic: Views
+          - generic [ref=e62]: "10"
+        - generic [ref=e63] [cursor=pointer]:
+          - text: 
+          - generic: Queries
+          - generic [ref=e64]: "3"
+        - text: 
+        - generic [ref=e65] [cursor=pointer]:
+          - text: 
+          - generic: Livewire
+          - generic [ref=e66]: "2"
+        - text:  
+      - generic [ref=e67]:
+        - generic [ref=e70] [cursor=pointer]:
+          - generic: 
+        - generic [ref=e72] [cursor=pointer]:
+          - generic: 
+        - generic [ref=e73] [cursor=pointer]:
+          - generic: 
+          - generic: 677ms
+        - generic [ref=e74]:
+          - generic: 
+          - generic: 15MB
+        - generic [ref=e75]:
+          - generic: 
+          - generic: 12.x
+        - generic [ref=e76] [cursor=pointer]:
+          - generic: 
+          - generic: GET admin/login
+    - text:                                                          
+  - text: 

@@ -3,40 +3,75 @@
 namespace Database\Seeders;
 
 use App\Enums\Role;
+use App\Models\Branch;
+use App\Models\Company;
+use App\Models\Department;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role as SpatieRole;
 
 class ClientDefaultSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        $this->call([
-            UserSeeder::class,
-            CategorySeeder::class,
-            StatusSeeder::class,
-            TagSeeder::class,
-            WorkflowDefinitionSeeder::class,
-            DocumentTemplateSeeder::class,
-            PhysicalLocationBootstrapSeeder::class,
-            ColombiaDocumentGovernanceSeeder::class,
-        ]);
+        $this->createPermissions();
 
-        $this->leaveOnlyConfiguredSuperAdmin();
-    }
+        $company = Company::query()->firstOrCreate(
+            ['name' => 'AGUAS DE SUCRE S.A. E.S.P.'],
+            [
+                'legal_name' => 'AGUAS DE SUCRE S.A. E.S.P.',
+                'active' => true,
+            ]
+        );
 
-    private function leaveOnlyConfiguredSuperAdmin(): void
-    {
-        $superAdmin = User::query()->firstWhere('email', 'ing.korozco@gmail.com');
+        $branch = Branch::query()->firstOrCreate(
+            [
+                'company_id' => $company->id,
+                'code' => 'PRINCIPAL',
+            ],
+            [
+                'name' => 'Sede Principal',
+                'city' => 'Sincelejo',
+                'country' => 'Colombia',
+                'active' => true,
+            ]
+        );
 
-        if (! $superAdmin) {
-            throw new \RuntimeException('No se encontró el usuario base super_admin después de ejecutar UserSeeder.');
-        }
+        $department = Department::query()->firstOrCreate(
+            [
+                'company_id' => $company->id,
+                'code' => 'SYSADMIN',
+            ],
+            [
+                'branch_id' => $branch->id,
+                'name' => 'Administración del sistema',
+                'active' => true,
+            ]
+        );
+
+        $superAdmin = User::query()->firstOrCreate(
+            ['email' => 'ing.korozco@gmail.com'],
+            [
+                'name' => 'Kristian Orozco',
+                'password' => Hash::make('Admin123'),
+                'company_id' => $company->id,
+                'branch_id' => $branch->id,
+                'department_id' => $department->id,
+                'position' => 'Administrador del sistema',
+                'phone' => '3016859339',
+                'language' => 'es',
+                'timezone' => 'America/Bogota',
+                'is_active' => true,
+                'email_verified_at' => now(),
+            ]
+        );
 
         $superAdmin->forceFill([
+            'company_id' => $company->id,
+            'branch_id' => $branch->id,
+            'department_id' => $department->id,
             'name' => 'Kristian Orozco',
             'password' => Hash::make('Admin123'),
             'phone' => '3016859339',
@@ -54,6 +89,36 @@ class ClientDefaultSeeder extends Seeder
                 $user->delete();
             });
 
-        $this->command?->info('Seeder cliente: datos por defecto cargados y solo super_admin conservado.');
+        $this->command?->info('Seeder cliente: instancia base creada solo con super_admin.');
+    }
+
+    private function createPermissions(): void
+    {
+        foreach (Role::cases() as $role) {
+            SpatieRole::query()->firstOrCreate([
+                'name' => $role->value,
+                'guard_name' => 'web',
+            ]);
+        }
+
+        foreach (Role::getAllPermissions() as $permissionName) {
+            Permission::query()->firstOrCreate([
+                'name' => $permissionName,
+                'guard_name' => 'web',
+            ]);
+        }
+
+        foreach (Role::cases() as $role) {
+            $roleModel = SpatieRole::query()->where('name', $role->value)->where('guard_name', 'web')->firstOrFail();
+            $permissions = $role->getPermissions();
+
+            if (in_array('*', $permissions, true)) {
+                $roleModel->syncPermissions(Permission::all());
+
+                continue;
+            }
+
+            $roleModel->syncPermissions($permissions);
+        }
     }
 }

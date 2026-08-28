@@ -41,6 +41,8 @@ class NotificationPresenter
         return match ($base['type']) {
             'document_distributed_to_office' => self::presentDistributedToOffice($base, $data),
             'document_distribution_target_updated' => self::presentDistributionUpdated($base, $data),
+            'document_access_requested' => self::presentAccessRequested($base, $data),
+            'document_access_request_resolved' => self::presentAccessRequestResolved($base, $data),
             default => $base,
         };
     }
@@ -118,6 +120,57 @@ class NotificationPresenter
             'Estado' => $statusLabel,
             'Actor' => $actor,
             'Respuesta' => $responseDocumentTitle !== '' ? $responseDocumentTitle : null,
+        ]);
+
+        return $base;
+    }
+
+    /**
+     * @param  array<string,mixed>  $base
+     * @param  array<string,mixed>  $data
+     * @return array<string,mixed>
+     */
+    private static function presentAccessRequested(array $base, array $data): array
+    {
+        $documentTitle = (string) ($data['document_title'] ?? 'Documento');
+        $requesterName = (string) ($data['requester_name'] ?? 'Un usuario');
+        $reason = self::singleLine($data['reason'] ?? null);
+
+        $message = "{$requesterName} solicitó acceso a \"{$documentTitle}\".";
+        if ($reason !== null) {
+            $message .= ' Motivo: '.$reason;
+        }
+
+        $base['title'] = 'Nueva solicitud de acceso';
+        $base['message'] = $message;
+        $base['icon'] = 'bell';
+        $base['color'] = 'yellow';
+        $base['meta'] = array_filter([
+            'Documento' => $documentTitle,
+            'Solicitado por' => $requesterName,
+        ]);
+
+        return $base;
+    }
+
+    /**
+     * @param  array<string,mixed>  $base
+     * @param  array<string,mixed>  $data
+     * @return array<string,mixed>
+     */
+    private static function presentAccessRequestResolved(array $base, array $data): array
+    {
+        $documentTitle = (string) ($data['document_title'] ?? 'Documento');
+        $approved = (string) ($data['status'] ?? '') === 'approved';
+
+        $base['title'] = $approved ? 'Acceso a documento aprobado' : 'Acceso a documento rechazado';
+        $base['message'] = $approved
+            ? "Tu solicitud de acceso a \"{$documentTitle}\" fue aprobada."
+            : "Tu solicitud de acceso a \"{$documentTitle}\" fue rechazada.";
+        $base['icon'] = $approved ? 'document' : 'warning';
+        $base['color'] = $approved ? 'green' : 'red';
+        $base['meta'] = array_filter([
+            'Documento' => $documentTitle,
         ]);
 
         return $base;

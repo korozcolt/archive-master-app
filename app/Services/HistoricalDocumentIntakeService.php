@@ -34,6 +34,7 @@ class HistoricalDocumentIntakeService
     {
         return DB::transaction(function () use ($user, $data, $legacyFiles): Collection {
             $category = Category::query()
+                ->with('company')
                 ->where('company_id', $user->company_id)
                 ->findOrFail((int) $data['category_id']);
 
@@ -51,51 +52,59 @@ class HistoricalDocumentIntakeService
             $rows = $this->normalizeRows($data, $legacyFiles);
             $createdDocuments = collect();
 
-            foreach ($rows as $row) {
-                $documentaryType = $this->resolveDocumentaryType($user, $producerDepartment, (int) $row['documentary_type_id']);
-                $this->ensureUniqueHistoricalRow($user, $producerDepartment, $location, $documentaryType, $row);
+            Document::withoutEvents(function () use (
+                $rows, $user, $category, $producerDepartment, $location,
+                $centralArchiveDepartment, $archivedStatus, $data, &$createdDocuments
+            ): void {
+                foreach ($rows as $row) {
+                    $documentaryType = $this->resolveDocumentaryType($user, (int) $row['documentary_type_id']);
 
-                $filePath = $this->documentFileService->storeUploadedFile($row['file']);
-                $accessLevel = $row['access_level'] ?? $data['access_level'] ?? $documentaryType->access_level_default?->value ?? DocumentAccessLevel::Interno->value;
+                    $filePath = $this->documentFileService->storeUploadedFile($row['file']);
+                    $accessLevel = $row['access_level'] ?? $data['access_level'] ?? $documentaryType->access_level_default?->value ?? DocumentAccessLevel::Interno->value;
 
-                $document = Document::create([
-                    'company_id' => $user->company_id,
-                    'branch_id' => $user->branch_id,
-                    'department_id' => $centralArchiveDepartment->id,
-                    'created_by' => $user->id,
-                    'assigned_to' => null,
-                    'title' => $this->makeTitle($row),
-                    'description' => $row['description'] ?? $data['description'] ?? null,
-                    'category_id' => $category->id,
-                    'status_id' => $archivedStatus?->id,
-                    'is_confidential' => $accessLevel !== DocumentAccessLevel::Publico->value,
-                    'priority' => Priority::Medium->value,
-                    'file_path' => $filePath,
-                    'digital_document_type' => $data['digital_document_type'] ?? 'copia',
-                    'physical_document_type' => $data['physical_document_type'] ?? 'original',
-                    'is_archived' => true,
-                    'archived_at' => now(),
-                    'archive_phase' => ArchivePhase::Central->value,
-                    'access_level' => $accessLevel,
-                    'trd_series_id' => $documentaryType->subseries?->series?->id,
-                    'trd_subseries_id' => $documentaryType->documentary_subseries_id,
-                    'documentary_type_id' => $documentaryType->id,
-                    'metadata' => $this->metadata($user, $centralArchiveDepartment, $producerDepartment, $location, $row, $data),
-                ]);
-
-                $this->archiveClassificationService->applyToDocument($document);
-                $document->save();
-
-                if (! $document->moveToLocation($location, $row['archive_note'] ?? 'Carga historica por caja.', $user, 'stored')) {
-                    throw ValidationException::withMessages([
-                        'physical_location_id' => 'La caja seleccionada no tiene capacidad disponible.',
+                    $document = new Document([
+                        'company_id' => $user->company_id,
+                        'branch_id' => $user->branch_id,
+                        'department_id' => $centralArchiveDepartment->id,
+                        'created_by' => $user->id,
+                        'assigned_to' => null,
+                        'title' => $this->makeTitle($row),
+                        'description' => $row['description'] ?? $data['description'] ?? null,
+                        'category_id' => $category->id,
+                        'status_id' => $archivedStatus?->id,
+                        'is_confidential' => $accessLevel !== DocumentAccessLevel::Publico->value,
+                        'priority' => Priority::Medium->value,
+                        'file_path' => $filePath,
+                        'digital_document_type' => $data['digital_document_type'] ?? 'copia',
+                        'physical_document_type' => $data['physical_document_type'] ?? 'original',
+                        'is_archived' => true,
+                        'archived_at' => now(),
+                        'archive_phase' => ArchivePhase::Central->value,
+                        'access_level' => $accessLevel,
+                        'trd_series_id' => $documentaryType->subseries?->series?->id,
+                        'trd_subseries_id' => $documentaryType->documentary_subseries_id,
+                        'documentary_type_id' => $documentaryType->id,
+                        'metadata' => $this->metadata($user, $centralArchiveDepartment, $producerDepartment, $location, $row, $data),
                     ]);
-                }
 
-                $this->slaCalculatorService->freeze($document, 'historical_upload');
-                $document->saveQuietly();
-                $createdDocuments->push($document->refresh());
-            }
+                    $document->setRelation('company', $category->company);
+                    $document->document_number = $document->generateDocumentNumber();
+                    $document->barcode = $document->generateBarcode();
+                    $document->qrcode = $document->generateQRCode();
+                    $document->received_at = now();
+                    $document->save();
+
+                    if (! $document->moveToLocation($location, $row['archive_note'] ?? 'Carga historica por caja.', $user, 'stored')) {
+                        throw ValidationException::withMessages([
+                            'physical_location_id' => 'La caja seleccionada no tiene capacidad disponible.',
+                        ]);
+                    }
+
+                    $this->slaCalculatorService->freeze($document, 'historical_upload');
+                    $document->saveQuietly();
+                    $createdDocuments->push($document->refresh());
+                }
+            });
 
             $this->rememberHistoricalBox($user, $location);
 
@@ -131,41 +140,21 @@ class HistoricalDocumentIntakeService
         return $location;
     }
 
-    /**
-     * @param  array<string, mixed>  $row
-     */
-    private function ensureUniqueHistoricalRow(User $user, Department $producerDepartment, PhysicalLocation $location, DocumentaryType $documentaryType, array $row): void
-    {
-        $title = $this->makeTitle($row);
-        $duplicateExists = Document::query()
-            ->where('company_id', $user->company_id)
-            ->where('created_by', $user->id)
-            ->where('title', $title)
-            ->where('documentary_type_id', $documentaryType->id)
-            ->where('physical_location_id', $location->id)
-            ->where('metadata->entry_mode', 'historical')
-            ->exists();
-
-        if ($duplicateExists) {
-            throw ValidationException::withMessages([
-                'rows' => "Ya existe un documento histórico con la misma referencia en esta caja: {$title}.",
-            ]);
-        }
-    }
-
-    private function resolveDocumentaryType(User $user, Department $producerDepartment, int $documentaryTypeId): DocumentaryType
+    private function resolveDocumentaryType(User $user, int $documentaryTypeId): DocumentaryType
     {
         $documentaryType = DocumentaryType::query()
             ->with('subseries.series')
             ->where('company_id', $user->company_id)
             ->where('is_active', true)
-            ->where(function ($query) use ($producerDepartment): void {
-                $query->whereNull('department_id')
-                    ->orWhere('department_id', $producerDepartment->id);
-            })
             ->find($documentaryTypeId);
 
-        if (! $documentaryType || ! $documentaryType->subseries || ! $documentaryType->subseries->series) {
+        if (! $documentaryType) {
+            throw ValidationException::withMessages([
+                'documentary_type_id' => 'El tipo documental seleccionado no existe o no esta activo.',
+            ]);
+        }
+
+        if (! $documentaryType->subseries || ! $documentaryType->subseries->series) {
             throw ValidationException::withMessages([
                 'documentary_type_id' => 'El tipo documental seleccionado no tiene serie y subserie validas.',
             ]);

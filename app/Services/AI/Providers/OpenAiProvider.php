@@ -48,6 +48,26 @@ class OpenAiProvider implements AiProviderContract
         ];
     }
 
+    public function extractAccounting(string $text, array $context = []): array
+    {
+        return [
+            'provider' => 'openai',
+            'fecha' => now()->toDateString(),
+            'numero_documento' => 'MOCK-123',
+            'beneficiario' => 'MOCK BENEFICIARIO',
+            'concepto' => 'MOCK CONCEPTO',
+            'cuentas_contables' => [
+                [
+                    'codigo' => '110505',
+                    'descripcion' => 'Caja general',
+                    'debito' => 100000,
+                    'credito' => 0,
+                ],
+            ],
+            'total' => 100000,
+        ];
+    }
+
     public function testConnection(): array
     {
         return [

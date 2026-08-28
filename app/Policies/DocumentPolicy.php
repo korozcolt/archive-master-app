@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\ArchivePhase;
 use App\Enums\DocumentAccessLevel;
 use App\Enums\Role;
 use App\Models\Document;
@@ -79,6 +80,29 @@ class DocumentPolicy
             || $document->assigned_to === $user->id
             || ($user->hasRole(Role::RegularUser->value) && $document->receipts()
                 ->where('recipient_user_id', $user->id)
+                ->exists());
+    }
+
+    public function update(User $user, Document $document): bool
+    {
+        if ($user->company_id !== $document->company_id) {
+            return false;
+        }
+
+        if ($document->isHistoricalEntry()) {
+            if ($user->hasAnyRole(['super_admin', 'admin', 'branch_admin', Role::ArchiveManager->value])) {
+                return true;
+            }
+
+            return $user->hasRole(Role::ArchiveOperator->value)
+                && (int) $document->created_by === (int) $user->id;
+        }
+
+        return $document->created_by === $user->id
+            || $document->assigned_to === $user->id
+            || ($user->hasRole(Role::Receptionist->value) && $document->receipts()->exists())
+            || ($user->hasRole(Role::OfficeManager->value) && $user->department_id && $document->distributions()
+                ->whereHas('targets', fn ($query) => $query->where('department_id', $user->department_id))
                 ->exists());
     }
 }

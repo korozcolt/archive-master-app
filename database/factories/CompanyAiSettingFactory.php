@@ -19,7 +19,7 @@ class CompanyAiSettingFactory extends Factory
     {
         return [
             'company_id' => Company::factory(),
-            'provider' => fake()->randomElement(['none', 'openai', 'gemini']),
+            'provider' => fake()->randomElement(['none', 'openai', 'gemini', 'nvidia']),
             'api_key_encrypted' => null,
             'is_enabled' => false,
             'monthly_budget_cents' => 100000,

@@ -128,7 +128,7 @@ it('shows ai observability metrics in company edit form', function () {
     Livewire::test(EditCompany::class, ['record' => $company->id])
         ->assertSee('Observabilidad IA')
         ->assertSee('Costo mensual acumulado')
-        ->assertSee('OpenAI: 0 | Gemini: 1')
+        ->assertSee('OpenAI: 0 | Gemini: 1 | NVIDIA: 0')
         ->assertSee('Provider timeout while summarizing.');
 });
 

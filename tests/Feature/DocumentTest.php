@@ -927,7 +927,7 @@ class DocumentTest extends TestCase
         $response->assertHeader('Content-Type', 'application/pdf');
     }
 
-    public function test_archive_manager_only_sees_related_documents_in_documents_index()
+    public function test_archive_manager_sees_all_company_documents_with_restricted_badge_on_unrelated_ones()
     {
         $archiveRole = SpatieRole::firstOrCreate(['name' => 'archive_manager', 'guard_name' => 'web']);
         $receptionRole = SpatieRole::firstOrCreate(['name' => 'receptionist', 'guard_name' => 'web']);
@@ -974,20 +974,26 @@ class DocumentTest extends TestCase
             'last_updated_by' => $receptionist->id,
         ]);
 
-        Document::factory()->create([
+        $notDistributedToArchive = Document::factory()->create([
             'company_id' => $this->company->id,
             'status_id' => $this->status->id,
             'category_id' => $this->category->id,
             'created_by' => $receptionist->id,
             'assigned_to' => $receptionist->id,
-            'title' => 'No visible para archivo',
+            'title' => 'No distribuido a archivo',
         ]);
 
+        // El portal ahora muestra los metadatos de todos los documentos de la empresa;
+        // el rol archive_manager ya tenía acceso implícito total (canBeAccessedByPortalUser),
+        // así que ninguno de los dos documentos debería aparecer marcado como restringido.
         $response = $this->actingAs($archiveManager)->get('/documents');
 
         $response->assertOk()
             ->assertSee('Visible para archivo')
-            ->assertDontSee('No visible para archivo');
+            ->assertSee('No distribuido a archivo')
+            ->assertDontSee('Acceso restringido');
+
+        expect($notDistributedToArchive->canBeAccessedByPortalUser($archiveManager))->toBeTrue();
     }
 
     public function test_non_archive_manager_cannot_assign_physical_location_from_portal()

@@ -36,6 +36,7 @@ Route::middleware(['auth', RedirectBasedOnRole::class])
     ->group(function () {
         Route::get('/', PortalDashboard::class)->name('dashboard');
         Route::get('/reports', PortalReports::class)->name('reports');
+        Route::get('/archive-map', \App\Livewire\Portal\PhysicalArchiveMap::class)->name('archive-map');
     });
 
 if (app()->environment('local', 'testing')) {
@@ -81,6 +82,13 @@ Route::middleware(['auth'])->prefix('approvals')->name('approvals.')->group(func
     Route::post('/{approval}/reject', [App\Http\Controllers\ApprovalController::class, 'reject'])->name('reject');
 });
 
+// Rutas de solicitudes de acceso a documentos
+Route::middleware(['auth'])->prefix('access-requests')->name('access-requests.')->group(function () {
+    Route::get('/', [App\Http\Controllers\DocumentAccessRequestController::class, 'index'])->name('index');
+    Route::post('/{accessRequest}/approve', [App\Http\Controllers\DocumentAccessRequestController::class, 'approve'])->name('approve');
+    Route::post('/{accessRequest}/reject', [App\Http\Controllers\DocumentAccessRequestController::class, 'reject'])->name('reject');
+});
+
 // Grupo de rutas para documentos de usuarios
 Route::middleware(['auth'])->group(function () {
     // Ruta de exportación (debe estar antes del resource)
@@ -103,6 +111,8 @@ Route::middleware(['auth'])->group(function () {
         ->name('documents.historical.store');
     Route::post('/documents/{document}/distributions', [App\Http\Controllers\UserDocumentController::class, 'sendToDepartments'])
         ->name('documents.distributions.store');
+    Route::post('/documents/{document}/access-requests', [App\Http\Controllers\DocumentAccessRequestController::class, 'store'])
+        ->name('documents.access-requests.store');
     Route::post('/documents/{document}/distribution-targets/{target}', [App\Http\Controllers\UserDocumentController::class, 'updateDistributionTarget'])
         ->name('documents.distribution-targets.update');
     Route::post('/documents/{document}/archive-location', [App\Http\Controllers\UserDocumentController::class, 'updateArchiveLocation'])

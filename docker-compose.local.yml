@@ -4,7 +4,7 @@
     container_name: archive-master-local-mysql
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: archive_master
+      MYSQL_DATABASE: aguas_de_sucre
       MYSQL_USER: archivemaster
       MYSQL_PASSWORD: archivemaster_local
       MYSQL_ROOT_PASSWORD: root_local
@@ -63,3 +63,4 @@ volumes:
   archive-master-local-mysql:
   archive-master-local-redis:
   archive-master-local-meilisearch:
+

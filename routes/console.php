@@ -30,6 +30,13 @@ Schedule::command('documents:notify-overdue')
     ->withoutOverlapping()
     ->runInBackground();
 
+// Expirar solicitudes de acceso a documentos aprobadas cuyo plazo venció
+Schedule::command('access-requests:expire')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/access-requests-expire.log'));
+
 // Indexar documentos en Scout diariamente a las 2:00 AM
 Schedule::command('search:index')
     ->dailyAt('02:00')
@@ -61,11 +68,13 @@ Schedule::command('reports:process-scheduled')
     ->appendOutputTo(storage_path('logs/scheduled-reports.log'));
 
 // Procesar documentos con OCR de forma continua durante la jornada operativa
-Schedule::command('documents:process-ocr --limit=25 --language=spa')
-    ->everyFiveMinutes()
-    ->withoutOverlapping()
-    ->runInBackground()
-    ->appendOutputTo(storage_path('logs/ocr-processing.log'));
+if (config('documents.ocr.schedule_enabled')) {
+    Schedule::command('documents:process-ocr --limit=50 --language=spa')
+        ->everyFiveMinutes()
+        ->withoutOverlapping()
+        ->runInBackground()
+        ->appendOutputTo(storage_path('logs/ocr-processing.log'));
+}
 
 // Optimizar rendimiento del sistema semanalmente
 Schedule::command('system:optimize-performance --all --force')

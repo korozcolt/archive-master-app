@@ -184,3 +184,95 @@ it('reprocesses documents with existing ocr when force is enabled', function () 
         ->and(data_get($document->metadata, 'ocr_result.extracted_text'))->toBe('Contenido OCR actualizado')
         ->and(data_get($document->metadata, 'ocr_error'))->toBeNull();
 });
+
+it('reprocesses stale processed documents when they do not have useful content', function () {
+    Storage::fake('local');
+    Queue::fake();
+
+    $document = makeOcrDocument([
+        'title' => 'OCR Marcado Sin Texto',
+        'file_path' => 'documents/company-a/stale.pdf',
+        'content' => null,
+        'metadata' => [
+            'ocr_processed' => true,
+            'ocr_error' => null,
+            'ocr_result' => [
+                'word_count' => 0,
+            ],
+        ],
+    ]);
+
+    Storage::disk('local')->put($document->file_path, 'pdf-stale');
+
+    mock(OCRService::class, function (MockInterface $mock) use ($document): void {
+        $mock->shouldReceive('isTesseractAvailable')->once()->andReturnFalse();
+        $mock->shouldReceive('processFile')->once()->with($document->file_path, 'spa')->andReturn([
+            'success' => true,
+            'extracted_text' => 'Texto OCR recuperado desde backlog',
+            'confidence' => 90.0,
+            'language' => 'spa',
+            'metadata' => [
+                'word_count' => 5,
+                'document_type' => 'documento',
+                'entities' => [],
+                'keywords' => ['texto', 'ocr'],
+            ],
+        ]);
+    });
+
+    $exitCode = Artisan::call('documents:process-ocr', [
+        '--limit' => 10,
+        '--language' => 'spa',
+    ]);
+
+    expect($exitCode)->toBe(0);
+
+    $document->refresh();
+
+    expect($document->content)->toBe('Texto OCR recuperado desde backlog')
+        ->and(data_get($document->metadata, 'ocr_processed'))->toBeTrue()
+        ->and(data_get($document->metadata, 'ocr_error'))->toBeNull()
+        ->and(data_get($document->metadata, 'ocr_result.word_count'))->toBe(5);
+});
+
+it('records an ocr error when extraction succeeds without useful text', function () {
+    Storage::fake('local');
+    Queue::fake();
+
+    $document = makeOcrDocument([
+        'title' => 'OCR Vacio',
+        'file_path' => 'documents/company-a/empty.pdf',
+        'content' => null,
+    ]);
+
+    Storage::disk('local')->put($document->file_path, 'pdf-empty');
+
+    mock(OCRService::class, function (MockInterface $mock) use ($document): void {
+        $mock->shouldReceive('isTesseractAvailable')->once()->andReturnFalse();
+        $mock->shouldReceive('processFile')->once()->with($document->file_path, 'spa')->andReturn([
+            'success' => true,
+            'extracted_text' => '   ',
+            'confidence' => 0,
+            'language' => 'spa',
+            'metadata' => [
+                'word_count' => 0,
+                'document_type' => 'documento',
+                'entities' => [],
+                'keywords' => [],
+            ],
+        ]);
+    });
+
+    $exitCode = Artisan::call('documents:process-ocr', [
+        '--document-id' => $document->id,
+        '--language' => 'spa',
+    ]);
+
+    expect($exitCode)->toBe(0);
+
+    $document->refresh();
+
+    expect($document->content)->toBeNull()
+        ->and(data_get($document->metadata, 'ocr_processed'))->toBeTrue()
+        ->and(data_get($document->metadata, 'ocr_error'))->toBe('OCR no extrajo texto útil del archivo.');
+});

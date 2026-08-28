@@ -14,7 +14,6 @@ abstract class TestCase extends BaseTestCase
         }
 
         config([
-            'app.key' => str_repeat('0', 32),
             'database.default' => 'sqlite',
             'database.connections.sqlite.database' => ':memory:',
             'cache.default' => 'array',

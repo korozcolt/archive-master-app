@@ -17,7 +17,7 @@ return new class extends Migration
             $table->foreignId('document_id')->constrained()->cascadeOnDelete();
             $table->foreignId('document_version_id')->constrained()->cascadeOnDelete();
             $table->foreignId('triggered_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->enum('provider', ['openai', 'gemini']);
+            $table->enum('provider', ['openai', 'gemini', 'nvidia']);
             $table->string('model');
             $table->enum('status', ['queued', 'running', 'success', 'failed', 'skipped'])->default('queued');
             $table->enum('task', ['summarize', 'extract', 'classify', 'embed']);

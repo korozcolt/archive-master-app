@@ -142,10 +142,18 @@ return [
         'index-settings' => [
             'documents' => [
                 'displayedAttributes' => ['id'],
+                // El orden fija la prioridad de relevancia en Meilisearch.
+                // Los identificadores exactos van primero (un escaneo de codigo
+                // de barras debe encontrar su documento antes que cualquier
+                // coincidencia de texto) y el contenido OCR al final, porque es
+                // largo y ruidoso.
                 'searchableAttributes' => [
                     'title',
                     'document_number',
+                    'barcode',
+                    'qrcode',
                     'description',
+                    'physical_location',
                     'historical_reference_code',
                     'historical_box',
                     'historical_folder',

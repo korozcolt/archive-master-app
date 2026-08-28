@@ -2,6 +2,9 @@
 
 namespace App\Livewire\Portal;
 
+use App\Enums\ArchivePhase;
+use App\Enums\DocumentAccessLevel;
+use App\Enums\Role;
 use App\Enums\SlaStatus;
 use App\Models\Document;
 use App\Models\User;
@@ -15,9 +18,13 @@ class Dashboard extends Component
     public function render(): View
     {
         $user = Auth::user();
+        $isArchivePortal = $this->isArchivePortalUser($user);
+
+        if ($isArchivePortal) {
+            return $this->renderArchiveDashboard($user);
+        }
 
         $baseQuery = $this->visibleDocumentsQuery($user);
-
         $recentDocuments = (clone $baseQuery)
             ->with([
                 'status',
@@ -69,28 +76,24 @@ class Dashboard extends Component
             ->limit(5)
             ->get();
 
-        $isArchivePortal = $this->isArchivePortalUser($user);
-
-        $archiveSummary = cache()->remember("portal_archive_summary_{$user->id}", 60, function () use ($baseQuery) {
-            return [
-                'historical_total' => (clone $baseQuery)
-                    ->where('metadata->entry_mode', 'historical')
-                    ->count(),
-                'historical_without_location' => (clone $baseQuery)
-                    ->where('metadata->entry_mode', 'historical')
-                    ->whereNull('physical_location_id')
-                    ->count(),
-                'historical_restricted' => (clone $baseQuery)
-                    ->where('metadata->entry_mode', 'historical')
-                    ->whereIn('access_level', ['reservado', 'clasificado_confidencial'])
-                    ->count(),
-                'historical_recent' => (clone $baseQuery)
-                    ->where('metadata->entry_mode', 'historical')
-                    ->latest()
-                    ->limit(5)
-                    ->get(),
-            ];
-        });
+        $archiveSummary = [
+            'historical_total' => (clone $baseQuery)
+                ->where('metadata->entry_mode', 'historical')
+                ->count(),
+            'historical_without_location' => (clone $baseQuery)
+                ->where('metadata->entry_mode', 'historical')
+                ->whereNull('physical_location_id')
+                ->count(),
+            'historical_restricted' => (clone $baseQuery)
+                ->where('metadata->entry_mode', 'historical')
+                ->whereIn('access_level', ['reservado', 'clasificado_confidencial'])
+                ->count(),
+            'historical_recent' => (clone $baseQuery)
+                ->where('metadata->entry_mode', 'historical')
+                ->latest()
+                ->limit(5)
+                ->get(),
+        ];
 
         return view('livewire.portal.dashboard', [
             'user' => $user,
@@ -105,6 +108,55 @@ class Dashboard extends Component
     private function visibleDocumentsQuery(User $user): Builder
     {
         return Document::query()->visibleToPortalUser($user);
+    }
+
+    private function renderArchiveDashboard(User $user): View
+    {
+        $baseQuery = $this->archiveDocumentsQuery($user);
+
+        $archiveSummary = cache()->remember("archive_portal_summary_{$user->id}", 60, function () use ($baseQuery) {
+            return [
+                'historical_total' => (clone $baseQuery)->count(),
+                'historical_without_location' => (clone $baseQuery)
+                    ->whereNull('physical_location_id')
+                    ->count(),
+                'historical_restricted' => (clone $baseQuery)
+                    ->whereIn('access_level', [
+                        DocumentAccessLevel::Reservado->value,
+                        DocumentAccessLevel::ClasificadoConfidencial->value,
+                    ])
+                    ->count(),
+                'historical_recent' => (clone $baseQuery)
+                    ->latest()
+                    ->limit(5)
+                    ->get(),
+            ];
+        });
+
+        return view('livewire.portal.dashboard', [
+            'user' => $user,
+            'summary' => [
+                'total' => 0,
+                'sent' => 0,
+                'received' => 0,
+                'pending' => 0,
+                'warning' => 0,
+                'overdue' => 0,
+                'ready_for_archive' => 0,
+                'archive_pending_classification' => 0,
+            ],
+            'recentDocuments' => collect(),
+            'slaAttentionDocuments' => collect(),
+            'isArchivePortal' => true,
+            'archiveSummary' => $archiveSummary,
+        ])->layout('layouts.app');
+    }
+
+    private function archiveDocumentsQuery(User $user): Builder
+    {
+        return Document::query()
+            ->where('company_id', $user->company_id)
+            ->whereIn('archive_phase', [ArchivePhase::Central->value, ArchivePhase::Historico->value]);
     }
 
     private function receivedDocumentsQuery(User $user): Builder
@@ -133,11 +185,11 @@ class Dashboard extends Component
 
     private function isArchivePortalUser(User $user): bool
     {
-        return $user->hasRole(\App\Enums\Role::ArchiveManager->value)
+        return $user->hasAnyRole([Role::ArchiveManager->value, Role::ArchiveOperator->value])
             && ! $user->hasAnyRole([
-                \App\Enums\Role::SuperAdmin->value,
-                \App\Enums\Role::Admin->value,
-                \App\Enums\Role::BranchAdmin->value,
+                Role::SuperAdmin->value,
+                Role::Admin->value,
+                Role::BranchAdmin->value,
             ]);
     }
 }

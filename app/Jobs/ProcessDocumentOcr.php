@@ -21,7 +21,18 @@ class ProcessDocumentOcr implements ShouldQueue
 
     public int $tries = 2;
 
-    public int $timeout = 180;
+    /**
+     * Los escaneos del archivo superan con frecuencia las 100 páginas, y cada
+     * una exige renderizado a imagen más OCR. Con 180 segundos esos documentos
+     * morían por SIGKILL antes de terminar: su texto nunca se extraía, fallaban
+     * de forma indefinida, y dejaban atrás su directorio temporal —un SIGKILL
+     * no permite ejecutar el bloque finally de OCRService que lo limpia.
+     *
+     * Debe mantenerse por debajo de REDIS_QUEUE_RETRY_AFTER (1200 s en
+     * producción), o la cola reencolaría el trabajo mientras aún se ejecuta y
+     * el mismo documento se procesaría por duplicado.
+     */
+    public int $timeout = 900;
 
     public function __construct(
         public int $documentId,
@@ -64,12 +75,20 @@ class ProcessDocumentOcr implements ShouldQueue
             return;
         }
 
+        $extractedText = trim((string) ($result['extracted_text'] ?? ''));
+
+        if ($extractedText === '') {
+            $this->storeOcrError($document, 'OCR no extrajo texto útil del archivo.', $fingerprint);
+
+            return;
+        }
+
         $metadata['ocr_processed'] = true;
         $metadata['ocr_error'] = null;
         $metadata['ocr_source_path'] = $filePath;
         $metadata['ocr_source_fingerprint'] = $fingerprint;
         $metadata['ocr_result'] = [
-            'extracted_text' => $result['extracted_text'],
+            'extracted_text' => $extractedText,
             'confidence' => $result['confidence'] ?? null,
             'language' => $result['language'] ?? $this->language,
             'word_count' => data_get($result, 'metadata.word_count'),
@@ -80,7 +99,7 @@ class ProcessDocumentOcr implements ShouldQueue
         ];
 
         $document->forceFill([
-            'content' => (string) ($result['extracted_text'] ?? ''),
+            'content' => $extractedText,
             'metadata' => $metadata,
         ])->save();
 

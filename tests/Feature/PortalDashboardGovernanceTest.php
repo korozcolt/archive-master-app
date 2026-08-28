@@ -7,6 +7,7 @@ use App\Models\Status;
 use App\Models\User;
 use Database\Seeders\ColombiaDocumentGovernanceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 
 uses(RefreshDatabase::class);
@@ -21,7 +22,7 @@ it('shows sla and archive operational trays in the portal dashboard', function (
     ]);
 
     $role = Role::firstOrCreate([
-        'name' => RoleEnum::ArchiveManager->value,
+        'name' => RoleEnum::OfficeManager->value,
         'guard_name' => 'web',
     ]);
     $user->assignRole($role);
@@ -99,4 +100,43 @@ it('shows archive focused actions for archive managers on the portal dashboard',
         ->assertSee('Carga histórica')
         ->assertSee('Ver archivo central')
         ->assertDontSee('Nuevo Documento');
+});
+
+it('loads the archive portal dashboard without the expensive portal visibility count', function () {
+    $company = Company::factory()->create();
+    $user = User::factory()->create([
+        'company_id' => $company->id,
+    ]);
+
+    $role = Role::firstOrCreate([
+        'name' => RoleEnum::ArchiveOperator->value,
+        'guard_name' => 'web',
+    ]);
+    $user->assignRole($role);
+
+    Document::factory()
+        ->count(3)
+        ->create([
+            'company_id' => $company->id,
+            'created_by' => $user->id,
+            'assigned_to' => null,
+            'archive_phase' => \App\Enums\ArchivePhase::Central->value,
+            'metadata' => ['entry_mode' => 'historical'],
+        ]);
+
+    $queries = [];
+    DB::listen(function ($query) use (&$queries): void {
+        $queries[] = $query->sql;
+    });
+
+    $this->actingAs($user)
+        ->get('/portal')
+        ->assertSuccessful()
+        ->assertSee('Archivo Central');
+
+    expect(collect($queries)->contains(
+        fn (string $sql): bool => str_contains($sql, 'select count(*) as aggregate from `documents`')
+            && str_contains($sql, 'json_extract')
+            && str_contains($sql, 'entry_mode')
+    ))->toBeFalse();
 });

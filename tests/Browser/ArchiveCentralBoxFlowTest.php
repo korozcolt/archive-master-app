@@ -66,7 +66,7 @@ afterEach(function (): void {
 
 function createArchiveCentralBrowserScenario(object $testCase, string $prefix): array
 {
-    $company = Company::factory()->create(['name' => "{$prefix} Empresa"]);
+    $company = Company::factory()->create(['name' => "{$prefix} AGUAS"]);
     $testCase->archiveDuskCompanyId = $company->id;
 
     $branch = Branch::factory()->create(['company_id' => $company->id]);

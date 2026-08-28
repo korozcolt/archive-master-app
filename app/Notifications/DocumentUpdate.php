@@ -19,15 +19,40 @@ class DocumentUpdate extends Notification implements ShouldQueue
 
     public $timeout = 60;
 
+    public int $documentId;
+
+    public int $updatedById;
+
+    /**
+     * @var array<string, mixed>
+     */
+    public array $documentSnapshot;
+
+    /**
+     * @var array<string, mixed>
+     */
+    public array $updatedBySnapshot;
+
     /**
      * Create a new notification instance.
      */
     public function __construct(
-        public Document $document,
-        public User $updatedBy,
+        Document $document,
+        User $updatedBy,
         public array $changes = [],
-        public ?string $comment = null
+        public ?string $comment = null,
     ) {
+        $this->documentId = $document->id;
+        $this->updatedById = $updatedBy->id;
+        $this->documentSnapshot = [
+            'company_id' => $document->company_id,
+            'company_name' => $document->company?->name ?? 'N/A',
+            'document_number' => $document->document_number,
+            'title' => $document->title,
+        ];
+        $this->updatedBySnapshot = [
+            'name' => $updatedBy->name,
+        ];
         $this->onQueue('notifications');
     }
 
@@ -46,14 +71,14 @@ class DocumentUpdate extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $subject = 'Document Updated: '.$this->document->title;
+        $subject = 'Document Updated: '.$this->documentSnapshot['title'];
 
         $message = (new MailMessage)
             ->subject($subject)
             ->greeting('Hello '.$notifiable->name)
-            ->line('The document "'.$this->document->title.'" has been updated by '.$this->updatedBy->name.'.')
-            ->line('Document Number: '.$this->document->document_number)
-            ->line('Company: '.($this->document->company->name ?? 'N/A'));
+            ->line('The document "'.$this->documentSnapshot['title'].'" has been updated by '.$this->updatedBySnapshot['name'].'.')
+            ->line('Document Number: '.$this->documentSnapshot['document_number'])
+            ->line('Company: '.$this->documentSnapshot['company_name']);
 
         // Add changes information
         if (! empty($this->changes)) {
@@ -72,7 +97,7 @@ class DocumentUpdate extends Notification implements ShouldQueue
         }
 
         // Add action button
-        $viewUrl = URL::signedRoute('documents.show', ['document' => $this->document->id]);
+        $viewUrl = URL::signedRoute('documents.show', ['document' => $this->documentId]);
         $message->action('View Document', $viewUrl);
 
         $message->line('Thank you for using our document management system!');
@@ -88,14 +113,14 @@ class DocumentUpdate extends Notification implements ShouldQueue
     public function toArray(object $notifiable): array
     {
         return [
-            'document_id' => $this->document->id,
-            'document_number' => $this->document->document_number,
-            'document_title' => $this->document->title,
-            'updated_by_id' => $this->updatedBy->id,
-            'updated_by_name' => $this->updatedBy->name,
+            'document_id' => $this->documentId,
+            'document_number' => $this->documentSnapshot['document_number'],
+            'document_title' => $this->documentSnapshot['title'],
+            'updated_by_id' => $this->updatedById,
+            'updated_by_name' => $this->updatedBySnapshot['name'],
             'changes' => $this->changes,
             'comment' => $this->comment,
-            'company_id' => $this->document->company_id,
+            'company_id' => $this->documentSnapshot['company_id'],
             'updated_at' => now()->toISOString(),
         ];
     }
@@ -105,7 +130,7 @@ class DocumentUpdate extends Notification implements ShouldQueue
      */
     public function uniqueId(): string
     {
-        return 'document_update_'.$this->document->id.'_'.now()->timestamp;
+        return 'document_update_'.$this->documentId.'_'.now()->timestamp;
     }
 
     /**
@@ -134,8 +159,8 @@ class DocumentUpdate extends Notification implements ShouldQueue
     public function failed(\Throwable $exception): void
     {
         Log::error('DocumentUpdate notification failed', [
-            'document_id' => $this->document->id,
-            'updated_by_id' => $this->updatedBy->id,
+            'document_id' => $this->documentId,
+            'updated_by_id' => $this->updatedById,
             'exception' => $exception->getMessage(),
         ]);
     }
