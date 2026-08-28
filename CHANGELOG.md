@@ -7,14 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed - 2026-08-28
+### Investigated - 2026-08-28
 
-- **La aplicación se construía con PHP 8.2.27 pese a apuntar a 8.4.** `nixpacks.toml` declaraba `NIXPACKS_PHP_VERSION = "8.4"`, pero Nixpacks no lee esa variable para elegir la versión: la deduce de la restricción `require.php` de `composer.json`, que seguía en `^8.2`. El plan de construcción resolvía el paquete Nix genérico `php` en lugar de `php84`.
-  - Corregido en `composer.json` (`^8.2` → `^8.4`) y anotado en `nixpacks.toml` para que no se vuelva a intentar arreglar ahí.
-  - **Verificado construyendo las dos imágenes** con Nixpacks sobre el mismo código y comparándolas: la suite completa da **5 fallos y 505 pruebas en verde con 2.091 aserciones, cifras idénticas bajo 8.2 y bajo 8.4**. PHP 8.4 no cambia el comportamiento de esta base de código.
-  - Única diferencia entre las imágenes: PHP 8.4 saca `imap` del núcleo. La aplicación no lo usa en ninguna parte ni ninguna dependencia lo declara, así que no afecta.
-  - `composer.lock` se deja intacto a propósito: `composer update --lock` intenta reresolver el árbol completo y choca con conflictos entre `nette/utils`, `laravel-lang` y `league/config`, lo que cambiaría versiones sin necesidad. El desfase del hash solo produce un aviso, y la construcción con 8.4 se verificó funcionando con el bloqueo tal cual.
+- **La aplicación se construye con PHP 8.2.27 aunque el proyecto apunta a 8.4, y de momento no puede subir.** Dos causas encadenadas:
+  1. `nixpacks.toml` declaraba `NIXPACKS_PHP_VERSION = "8.4"`, pero Nixpacks no lee esa variable para elegir la versión: la deduce de `require.php` en `composer.json`, que sigue en `^8.2`. Verificado con `nixpacks plan`: con `^8.2` resuelve el paquete Nix `php` (8.2.27) y con `^8.4` resuelve `php84` (8.4.2). La variable de Node sí funciona, lo que hace la trampa más creíble.
+  2. **Pero corregir eso rompe la aplicación.** El `php84` del pin de nixpkgs que usa Nixpacks 1.41 (`e24b4c09…`, del 2025-01-15) está compilado **sin los plugins sha2 de mysqlnd**:
+     - 8.2 carga `auth_plugin_caching_sha2_password` y `auth_plugin_sha256_password`
+     - 8.4 no carga ninguno de los dos
 
+     MySQL 8 autentica con `caching_sha2_password` por defecto, así que la imagen 8.4 arranca, nginx y php-fpm levantan y sirve páginas estáticas, **pero no conecta con la base de datos**: `SQLSTATE[HY000] [2054] The server requested authentication method unknown to the client`. Un despliegue así habría dejado el archivo inaccesible.
+- **Cómo se comprobó:** se construyeron las dos imágenes con Nixpacks sobre el mismo código y se conectó desde cada una contra el MySQL real de producción, con el mismo host, usuario y red. 8.2 conecta; 8.4 falla de forma reproducible. La suite completa da cifras idénticas en ambas (5 fallos, 505 en verde, 2.091 aserciones), es decir, **el código es compatible con 8.4; lo que no lo es, es el empaquetado de PHP**.
+- El cambio de `composer.json` queda **revertido**. La trampa está documentada en `nixpacks.toml` para que nadie la repita.
+- Caminos posibles para subir de verdad, ninguno aplicado todavía: fijar un pin de nixpkgs más reciente cuyo `php84` traiga los plugins, sustituir Nixpacks por un `Dockerfile` propio con una imagen oficial de PHP, o —descartable— cambiar el usuario de MySQL a `mysql_native_password`, que debilita la autenticación y desaparece en MySQL 9.
 ### Changed - 2026-08-28
 
 - **La rama de despliegue del cliente pasa a ser `integration/aguas-de-sucre-into-main`,** y queda documentada en `CLAUDE.md` la arquitectura multicliente que lo justifica: `main` es el núcleo común del producto y cada cliente vive en su propia rama de integración, diferenciándose por seeds y no por código. Hasta ahora esa estructura no estaba escrita en ninguna parte, y la divergencia entre ramas parecía desorden histórico cuando en realidad respondía a un modelo deliberado.

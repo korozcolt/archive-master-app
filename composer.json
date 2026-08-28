@@ -6,7 +6,7 @@
     "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {
-        "php": "^8.4",
+        "php": "^8.2",
         "barryvdh/laravel-dompdf": "*",
         "codeat3/blade-teeny-icons": "^1.11",
         "darkaonline/l5-swagger": "^9.0",
