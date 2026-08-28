@@ -975,27 +975,144 @@ class Document extends Model
     }
 
     /**
-     * Buscar documentos aplicando la estrategia de coincidencia por frecuencia.
+     * Tope de documentos que se recuperan del indice para acotar por titulo.
+     *
+     * Coincide con el maxTotalHits por defecto de Meilisearch: pedir mas no
+     * traeria nada adicional.
+     */
+    private const TOPE_EXPEDIENTE = 1000;
+
+    /**
+     * Cualquier termino unido por guiones se trata como una unidad.
+     *
+     * Cubre las formas del archivo -LP-ADS-001-2024, G100-1395-2024, R-2464,
+     * DOC-AGU-20260713094648-5265- y tambien palabras compuestas como
+     * "pre-contractual". No se exige que lleve digitos a proposito: quien
+     * escribe un guion esta escribiendo una sola cosa, y partirla en pedazos
+     * es justamente el defecto que se corrige aqui.
+     */
+    private const PATRON_IDENTIFICADOR = '/^[\p{L}\d]+(?:-[\p{L}\d]+)+$/u';
+
+    /**
+     * Buscar documentos.
      *
      * Se sobrescribe aqui, y no en cada punto de llamada, porque hay siete
      * repartidos entre el portal, la API, la busqueda avanzada y el panel:
      * poniendolo en el modelo, cualquier busqueda futura lo hereda sin que
      * nadie tenga que acordarse.
      *
-     * Meilisearch descarta terminos cuando no hay resultados para todos. Su
-     * estrategia por defecto ("last") descarta el ultimo que escribio el
-     * usuario, que suele ser justo el que anadio para afinar: buscar
-     * "factura aguas 2026" devolveria todas las facturas de aguas de
-     * cualquier ano. Con "frequency" descarta el termino mas comun -"aguas"-
-     * y conserva el mas especifico.
+     * Hay dos comportamientos, y cual se aplica depende de si el usuario
+     * escribio un identificador:
+     *
+     * 1. Sin identificador se mantiene la estrategia "frequency". Meilisearch
+     *    descarta terminos cuando no hay resultados para todos, y su estrategia
+     *    por defecto ("last") descarta el ultimo que escribio el usuario, que
+     *    suele ser justo el que anadio para afinar: "factura aguas 2026"
+     *    devolveria todas las facturas de aguas de cualquier ano. Con
+     *    "frequency" descarta el mas comun -"aguas"- y conserva el especifico.
+     *
+     * 2. Con identificador se busca como frase exacta. Sin comillas Meilisearch
+     *    parte LP-ADS-001-2024 en LP + ADS + 001 + 2024, y como esas piezas
+     *    salen en miles de documentos, cualquier numero arrastraba medio
+     *    archivo: se midio que devolvia mas de 1000 resultados donde solo habia
+     *    186 documentos con ese numero. Entre comillas la busqueda es exacta;
+     *    se verificaron 250 resultados de tres licitaciones sin un solo falso
+     *    positivo.
+     *
+     *    Las palabras sueltas que acompanen al identificador se aplican **solo
+     *    contra el titulo**. Buscarlas en el texto completo no distingue nada:
+     *    todos los documentos de un expediente de contratacion mencionan la
+     *    palabra "contrato" en su contenido, asi que exigirla no filtraba. En
+     *    el titulo si: de los 186 documentos de LP-ADS-001-2024, dos lo llevan
+     *    en el titulo y uno de ellos es el contrato.
      *
      * @param  string  $query
      * @param  callable|null  $callback
      */
     public static function search($query = '', $callback = null): \Laravel\Scout\Builder
     {
-        return static::buscarConScout($query, $callback)
-            ->options(['matchingStrategy' => 'frequency']);
+        $consulta = trim((string) $query);
+
+        [$identificadores, $palabras] = static::separarIdentificadores($consulta);
+
+        if ($identificadores === []) {
+            return static::buscarConScout($consulta, $callback)
+                ->options(['matchingStrategy' => 'frequency']);
+        }
+
+        $frase = collect($identificadores)
+            ->map(fn (string $id): string => '"'.$id.'"')
+            ->implode(' ');
+
+        $busqueda = static::buscarConScout($frase, $callback)
+            ->options(['matchingStrategy' => 'all']);
+
+        if ($palabras === []) {
+            return $busqueda;
+        }
+
+        return $busqueda->whereIn('id', static::idsConPalabrasEnTitulo($frase, $palabras));
+    }
+
+    /**
+     * Separar la consulta en identificadores y palabras corrientes.
+     *
+     * @return array{0: list<string>, 1: list<string>}
+     */
+    private static function separarIdentificadores(string $consulta): array
+    {
+        $identificadores = [];
+        $palabras = [];
+
+        foreach (preg_split('/\s+/u', $consulta, -1, PREG_SPLIT_NO_EMPTY) ?: [] as $termino) {
+            // El usuario que ya entrecomilla esta pidiendo exactitud a mano:
+            // se respeta su intencion tratandolo como identificador.
+            $limpio = trim($termino, '"\'');
+
+            if ($limpio !== '' && preg_match(self::PATRON_IDENTIFICADOR, $limpio) === 1) {
+                $identificadores[] = $limpio;
+
+                continue;
+            }
+
+            if ($limpio !== '') {
+                $palabras[] = $limpio;
+            }
+        }
+
+        return [$identificadores, $palabras];
+    }
+
+    /**
+     * De los documentos del expediente, cuales llevan esas palabras en el titulo.
+     *
+     * El LIKE con comodin inicial esta acotado por whereKey a los documentos que
+     * el indice ya devolvio -cientos, no las 45.000 filas de la tabla-, asi que
+     * no incurre en el escaneo completo que hay que evitar sobre `documents`.
+     *
+     * @param  list<string>  $palabras
+     * @return list<int>
+     */
+    private static function idsConPalabrasEnTitulo(string $frase, array $palabras): array
+    {
+        $idsExpediente = static::buscarConScout($frase)
+            ->options(['matchingStrategy' => 'all'])
+            ->take(self::TOPE_EXPEDIENTE)
+            ->keys();
+
+        if ($idsExpediente->isEmpty()) {
+            return [];
+        }
+
+        return static::query()
+            ->whereKey($idsExpediente)
+            ->where(function (Builder $consulta) use ($palabras): void {
+                foreach ($palabras as $palabra) {
+                    $consulta->where('title', 'like', '%'.$palabra.'%');
+                }
+            })
+            ->pluck('id')
+            ->all();
     }
 
     /**
