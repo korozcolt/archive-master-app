@@ -76,3 +76,51 @@ it('separa el identificador de las palabras sueltas que lo acompanan', function 
 it('no falla con una consulta vacia', function (): void {
     expect(Document::search('')->query)->toBe('');
 });
+
+/**
+ * La coma separa unidades y todas deben cumplirse. Es la sintaxis que pidio el
+ * cliente y la unica que se ofrece: no hay nada que aprender, se escribe igual
+ * que una lista, y en un teclado espanol sale sin combinaciones raras -- que no
+ * es un detalle menor, porque en los registros hay un usuario intentando
+ * agrupar terminos a base de comillas y un signo de mas.
+ */
+it('trata cada segmento separado por coma como una unidad', function (): void {
+    $busqueda = Document::search('LP-2105-2024, ACTA DE INICIO');
+
+    expect($busqueda->query)->toBe('"LP-2105-2024"')
+        ->and($busqueda->whereIns)->toHaveKey('id');
+});
+
+it('sin coma no obliga a nadie a aprenderla', function (): void {
+    // Mismo anclaje; la diferencia es que las palabras se exigen sueltas en vez
+    // de como frase, lo que da un resultado menos preciso pero valido.
+    $busqueda = Document::search('LP-2105-2024 ACTA DE INICIO');
+
+    expect($busqueda->query)->toBe('"LP-2105-2024"')
+        ->and($busqueda->whereIns)->toHaveKey('id');
+});
+
+it('ancla en el primer segmento cuando ninguno es un identificador', function (): void {
+    $busqueda = Document::search('ACTA DE INICIO, 2024');
+
+    expect($busqueda->query)->toBe('"ACTA DE INICIO"')
+        ->and($busqueda->whereIns)->toHaveKey('id');
+});
+
+it('ancla en el identificador aunque no vaya primero', function (): void {
+    expect(Document::search('ACTA DE INICIO, LP-2105-2024')->query)->toBe('"LP-2105-2024"');
+});
+
+it('usa todos los identificadores como anclaje cuando hay varios', function (): void {
+    expect(Document::search('LP-2105-2024, G100-1395-2024')->query)
+        ->toBe('"LP-2105-2024" "G100-1395-2024"');
+});
+
+it('ignora comas sueltas y espacios de sobra', function (): void {
+    expect(Document::search('  LP-2105-2024 ,, ,  ACTA DE INICIO ,  ')->query)
+        ->toBe('"LP-2105-2024"');
+});
+
+it('no cambia nada si la consulta con comas viene vacia', function (): void {
+    expect(Document::search(' , , ')->query)->toBe(', ,');
+});

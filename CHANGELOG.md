@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-08-28
+
+- **Un número de licitación devolvía medio archivo.** Meilisearch partía `LP-ADS-001-2024` en `LP` + `ADS` + `001` + `2024`, y como esas piezas aparecen en miles de documentos, cualquier identificador arrastraba resultados sin relación. Medido sobre `UO-PSPR-ADS-001-2022`: **más de 400 resultados de los cuales solo 22 contenían realmente el número**.
+  - Ahora **cualquier término unido por guiones se busca como frase exacta**. La misma consulta baja a 35 resultados. Se verificaron tres licitaciones documento por documento contra su texto almacenado: **250 coincidencias, ningún falso positivo**.
+  - La regla no exige que lleve dígitos a propósito: quien escribe un guion está escribiendo una sola cosa, así que `pre-contractual` también se conserva entero en lugar de partirse en `pre` y `contractual`.
+- **Nueva sintaxis de coma, a petición del cliente.** `LP-2105-2024, ACTA DE INICIO` exige el identificador **y** que el título contenga esa frase completa y en ese orden. Se eligió la coma frente a comillas u operadores porque no hay nada que aprender, se escribe igual que una lista y en un teclado español sale sin combinaciones raras — en los registros hay un usuario intentando agrupar términos a base de comillas y un signo de más, peleando con el buscador.
+  - Quien no use comas no nota ningún cambio: `LP-2105-2024 ACTA DE INICIO` sigue funcionando, exigiendo las palabras sueltas en el título en vez de la frase completa. La coma afina, no obliga.
+- **Las palabras que acompañan a un identificador se aplican solo contra el título, nunca contra el cuerpo.** Exigirlas en el texto no filtraba nada: todos los documentos de un expediente de contratación mencionan la palabra «contrato» en su contenido. Contra el título sí: de los 186 documentos de `LP-ADS-001-2024`, exactamente dos la llevan en el título y uno es el contrato. Con `UO-PSPR-ADS-001-2022, CONTRATO` el resultado es **un único documento**.
+  - Se apoya en el título y no en el tipo documental porque en esta instancia el tipo no es fiable: hay documentos que no son contratos clasificados como «Contrato» por compartir carpeta con uno.
+- **Aparece el «sin resultados».** Antes el buscador siempre devolvía algo aunque no cumpliera la consulta. Ahora `LP-ADS-001-2024, ACTA DE INAUGURACION` devuelve cero. Es el comportamiento correcto, pero los usuarios lo van a notar y conviene avisarles antes de que lo reporten como fallo.
+- **El despliegue no sincronizaba los ajustes de Scout.** Cualquier cambio en `config/scout.php` —orden de campos, atributos filtrables— se quedaba en el repositorio sin llegar nunca a Meilisearch, y una consulta que dependiera del ajuste nuevo fallaba con `Attribute X is not filterable`. `deploy-bootstrap.sh` ahora ejecuta `scout:sync-index-settings`, sin abortar el arranque si falla.
+- Verificación: **21 pruebas nuevas** que fijan la sintaxis, y las pruebas de búsqueda existentes pasan de 35 a 56 en verde con el mismo único fallo preexistente en ambas. Cero regresiones. Latencias contra producción entre 25 y 121 ms.
+- La sintaxis queda documentada en `CLAUDE.md` como comportamiento de producto: vive en `Document::search()`, la heredan los siete puntos de llamada y aplica a cualquier instancia, no solo a Aguas de Sucre.
+
 ### Investigated - 2026-08-28
 
 - **La aplicación se construye con PHP 8.2.27 aunque el proyecto apunta a 8.4, y de momento no puede subir.** Dos causas encadenadas:

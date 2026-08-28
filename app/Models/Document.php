@@ -1033,82 +1033,139 @@ class Document extends Model
     {
         $consulta = trim((string) $query);
 
-        [$identificadores, $palabras] = static::separarIdentificadores($consulta);
+        [$anclaje, $exigenciasDeTitulo] = static::analizarConsulta($consulta);
 
-        if ($identificadores === []) {
+        if ($anclaje === '') {
             return static::buscarConScout($consulta, $callback)
                 ->options(['matchingStrategy' => 'frequency']);
         }
 
-        $frase = collect($identificadores)
-            ->map(fn (string $id): string => '"'.$id.'"')
-            ->implode(' ');
-
-        $busqueda = static::buscarConScout($frase, $callback)
+        $busqueda = static::buscarConScout($anclaje, $callback)
             ->options(['matchingStrategy' => 'all']);
 
-        if ($palabras === []) {
+        if ($exigenciasDeTitulo === []) {
             return $busqueda;
         }
 
-        return $busqueda->whereIn('id', static::idsConPalabrasEnTitulo($frase, $palabras));
+        return $busqueda->whereIn('id', static::idsConTitulosQueCumplen($anclaje, $exigenciasDeTitulo));
     }
 
     /**
-     * Separar la consulta en identificadores y palabras corrientes.
+     * Descomponer lo que escribio el usuario en dos partes.
      *
-     * @return array{0: list<string>, 1: list<string>}
+     * Devuelve la consulta que se manda al indice -el "anclaje"- y la lista de
+     * exigencias que ademas debe cumplir el titulo. Cadena vacia como anclaje
+     * significa que no hay nada especial que hacer y se sigue el camino de
+     * siempre.
+     *
+     * La coma separa unidades, y todas deben cumplirse. Es la unica sintaxis
+     * que se ofrece, a proposito: se eligio frente a comillas u operadores
+     * porque no hay nada que aprender, se escribe igual que una lista y en un
+     * teclado espanol sale sin combinaciones raras. Quien no ponga comas no
+     * nota ningun cambio.
+     *
+     *   LP-2105-2024, ACTA DE INICIO
+     *     -> anclaje "LP-2105-2024", el titulo debe contener "ACTA DE INICIO"
+     *        completo y en ese orden.
+     *
+     *   LP-2105-2024 ACTA DE INICIO
+     *     -> anclaje "LP-2105-2024", el titulo debe contener ACTA, DE e INICIO
+     *        sueltas, en cualquier orden. Menos preciso, pero se conserva
+     *        porque nadie deberia verse obligado a aprender la coma.
+     *
+     *   ACTA DE INICIO, 2024
+     *     -> sin identificador, el primer segmento va al indice y el resto
+     *        exige al titulo. La coma sigue significando lo mismo.
+     *
+     * @return array{0: string, 1: list<string>}
      */
-    private static function separarIdentificadores(string $consulta): array
+    private static function analizarConsulta(string $consulta): array
     {
+        if (str_contains($consulta, ',')) {
+            $segmentos = collect(explode(',', $consulta))
+                // El usuario que ya entrecomilla pide exactitud a mano: se
+                // respeta su intencion quitando solo las comillas sobrantes.
+                ->map(fn (string $segmento): string => trim($segmento, " \t\n\r\0\x0B\"'"))
+                ->filter(fn (string $segmento): bool => $segmento !== '')
+                ->values();
+
+            if ($segmentos->isEmpty()) {
+                return ['', []];
+            }
+
+            $identificadores = $segmentos->filter(
+                fn (string $s): bool => preg_match(self::PATRON_IDENTIFICADOR, $s) === 1
+            );
+
+            // Ancla el identificador si lo hay; si no, el primer segmento.
+            // Lo demas queda como exigencia sobre el titulo.
+            $anclajes = $identificadores->isNotEmpty() ? $identificadores : $segmentos->take(1);
+
+            return [
+                $anclajes->map(fn (string $s): string => '"'.$s.'"')->implode(' '),
+                $segmentos->reject(fn (string $s): bool => $anclajes->contains($s))->values()->all(),
+            ];
+        }
+
         $identificadores = [];
         $palabras = [];
 
         foreach (preg_split('/\s+/u', $consulta, -1, PREG_SPLIT_NO_EMPTY) ?: [] as $termino) {
-            // El usuario que ya entrecomilla esta pidiendo exactitud a mano:
-            // se respeta su intencion tratandolo como identificador.
             $limpio = trim($termino, '"\'');
 
-            if ($limpio !== '' && preg_match(self::PATRON_IDENTIFICADOR, $limpio) === 1) {
+            if ($limpio === '') {
+                continue;
+            }
+
+            if (preg_match(self::PATRON_IDENTIFICADOR, $limpio) === 1) {
                 $identificadores[] = $limpio;
 
                 continue;
             }
 
-            if ($limpio !== '') {
-                $palabras[] = $limpio;
-            }
+            $palabras[] = $limpio;
         }
 
-        return [$identificadores, $palabras];
+        if ($identificadores === []) {
+            return ['', []];
+        }
+
+        return [
+            collect($identificadores)->map(fn (string $id): string => '"'.$id.'"')->implode(' '),
+            $palabras,
+        ];
     }
 
     /**
-     * De los documentos del expediente, cuales llevan esas palabras en el titulo.
+     * De los documentos que devolvio el anclaje, cuales cumplen en el titulo.
+     *
+     * Cada exigencia se comprueba entera: una palabra suelta busca esa palabra,
+     * y un segmento separado por comas busca la frase completa y en su orden.
+     * Todas deben cumplirse.
      *
      * El LIKE con comodin inicial esta acotado por whereKey a los documentos que
      * el indice ya devolvio -cientos, no las 45.000 filas de la tabla-, asi que
      * no incurre en el escaneo completo que hay que evitar sobre `documents`.
      *
-     * @param  list<string>  $palabras
+     * @param  list<string>  $exigencias
      * @return list<int>
      */
-    private static function idsConPalabrasEnTitulo(string $frase, array $palabras): array
+    private static function idsConTitulosQueCumplen(string $anclaje, array $exigencias): array
     {
-        $idsExpediente = static::buscarConScout($frase)
+        $candidatos = static::buscarConScout($anclaje)
             ->options(['matchingStrategy' => 'all'])
             ->take(self::TOPE_EXPEDIENTE)
             ->keys();
 
-        if ($idsExpediente->isEmpty()) {
+        if ($candidatos->isEmpty()) {
             return [];
         }
 
         return static::query()
-            ->whereKey($idsExpediente)
-            ->where(function (Builder $consulta) use ($palabras): void {
-                foreach ($palabras as $palabra) {
-                    $consulta->where('title', 'like', '%'.$palabra.'%');
+            ->whereKey($candidatos)
+            ->where(function (Builder $consulta) use ($exigencias): void {
+                foreach ($exigencias as $exigencia) {
+                    $consulta->where('title', 'like', '%'.$exigencia.'%');
                 }
             })
             ->pluck('id')

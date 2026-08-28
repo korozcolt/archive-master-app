@@ -63,6 +63,64 @@ main                                  ← shared product core
    been synchronised by copying changes by hand, so the same fix exists under
    different hashes and commit counts are misleading.
 
+## Document Search Syntax
+
+This is product behaviour, not a client customisation. It lives in
+`Document::search()` so every entry point inherits it — the Filament table, the
+portal, the API and advanced search — and it applies to any instance.
+
+**Three rules, in order:**
+
+1. **Anything joined by hyphens is searched as an exact phrase.** `LP-ADS-001-2024`,
+   `G100-1395-2024`, `R-2464`, a document number, a barcode — and also ordinary
+   compound words such as `pre-contractual`. Someone typing a hyphen is typing one
+   thing.
+
+   Without this, Meilisearch splits `LP-ADS-001-2024` into `LP` + `ADS` + `001` +
+   `2024`; those fragments appear in thousands of documents, so a tender number
+   returned most of the archive. Measured before the fix: over 400 results for a
+   number that only 22 documents actually contained.
+
+2. **A comma separates units, and every unit must be satisfied.** This is the only
+   syntax offered to users, deliberately: nothing to learn, it reads like a list,
+   and it needs no awkward key combinations. Quotes and `field:` operators were
+   considered and rejected for that reason.
+
+   ```
+   LP-2105-2024, ACTA DE INICIO
+     → anchor on the identifier; the title must contain "ACTA DE INICIO" whole
+       and in that order
+
+   ACTA DE INICIO, 2024
+     → no identifier, so the first segment anchors and the rest constrain titles
+   ```
+
+3. **Words accompanying an identifier are matched against the title only, never
+   the body.** In a procurement file every document mentions "contrato" somewhere
+   in its text, so requiring it in the body filters nothing. Against titles it
+   does: of 186 documents under one tender, exactly two carry it in the title.
+
+**Queries with neither hyphens nor commas keep the previous behaviour** —
+`matchingStrategy: frequency` across all attributes. That keeps the blast radius
+of this logic to identifier searches.
+
+**Consequences worth knowing:**
+
+- "No results" is now possible where the engine previously always returned
+  something. That is correct, but users notice it and may report it as a bug.
+  Warn them before rolling it out.
+- The title is the field this leans on. Where titles are generic there is nothing
+  to narrow by. Do **not** substitute document type for it unless you have
+  verified the client classifies reliably — on the Aguas de Sucre instance,
+  non-contracts were filed as "Contrato" because they shared a folder with one.
+- `Document::search()` resolves the anchor eagerly when a query carries both an
+  identifier and extra words, rather than deferring everything to the builder.
+
+**Index settings are pushed by `scripts/deploy-bootstrap.sh` via
+`scout:sync-index-settings`.** Changing `config/scout.php` without that sync
+leaves the engine on the old settings, and any query depending on a new one fails
+with `Attribute X is not filterable` instead of working.
+
 ## Essential Commands
 
 ### Development Environment
