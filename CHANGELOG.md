@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-08-30
+
+- **Una tarea programada que muere sin soltar su candado bloqueaba 24 horas, en silencio.** `withoutOverlapping()` sin argumento usa ese vencimiento por defecto en Laravel. Si el proceso desaparece sin liberarlo —un corte de luz, un despliegue que releva el contenedor a media tanda— el programador se salta esa tarea durante un día entero sin que nada lo indique: la aplicación responde, las búsquedas van, los respaldos corren, y la tarea simplemente no avanza.
+  - Ocurrió **tres veces en tres días** con el OCR (un despliegue y dos apagones) y costó unas **18 horas** de procesamiento. Se detectó solo porque se pidió una revisión manual.
+  - Las **14 tareas programadas** usaban el valor por defecto, no solo la del OCR. Ahora cada una lleva un vencimiento explícito acorde a su frecuencia: 10 minutos para la expiración de solicitudes, 30 para las de cada quince minutos y las horarias, 120 para el OCR, 180 para la indexación y la optimización semanal.
+  - El OCR lleva **120 minutos y no menos**: una tanda de 50 documentos tarda lo que tarden, y se ha visto una corriendo casi tres horas con escaneos de cientos de páginas. Un vencimiento corto dejaría arrancar una segunda instancia sobre los mismos documentos, que es justo lo que el candado evita.
+  - Tres pruebas nuevas fijan la política y **se verificó que fallan** al restaurar el valor por defecto, no solo que pasan con el arreglo.
+- Para la recuperación inmediata, sin esperar al vencimiento, el host ejecuta `archive-ocr-vigilancia`: comprueba si el OCR dejó de avanzar y libera el candado en cuanto confirma que no hay ningún proceso vivo.
+
 ### Fixed - 2026-08-28
 
 - **Un número de licitación devolvía medio archivo.** Meilisearch partía `LP-ADS-001-2024` en `LP` + `ADS` + `001` + `2024`, y como esas piezas aparecen en miles de documentos, cualquier identificador arrastraba resultados sin relación. Medido sobre `UO-PSPR-ADS-001-2022`: **más de 400 resultados de los cuales solo 22 contenían realmente el número**.
