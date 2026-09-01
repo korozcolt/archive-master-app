@@ -191,6 +191,70 @@ return [
                 'typoTolerance' => [
                     'disableOnAttributes' => ['content'],
                 ],
+                /*
+                 * Sinonimos: plurales y equivalencias de los tipos documentales.
+                 *
+                 * Estaban configurados directamente en el indice y no en el
+                 * repositorio, asi que nadie podia revisarlos y una instancia
+                 * nueva no los heredaba. Se traen aqui para que `scout:sync-index-settings`
+                 * los mantenga alineados en cada despliegue.
+                 *
+                 * Hacen falta porque sin ellos el plural no encuentra nada: los
+                 * titulos dicen "DECLARACION DE RENTA" y nadie escribio nunca
+                 * "DECLARACIONES" en uno. Buscando el plural, la tolerancia a
+                 * erratas emparejaba "DECLARACIONES" con "ACLARACION" y devolvia
+                 * documentos sin relacion. La entrada `declaracion` faltaba y era
+                 * justo la que pedia el cliente.
+                 *
+                 * La lista es curada a proposito. Generar plurales por regla
+                 * produce basura -"presupuestals", "estudioss", "documentoss"-
+                 * porque muchas de las palabras frecuentes ya son plurales o son
+                 * adjetivos.
+                 */
+                'synonyms' => [
+                    'acta' => ['actas'],
+                    'actas' => ['acta'],
+                    'anexo' => ['anexos'],
+                    'anexos' => ['anexo'],
+                    'cdp' => ['certificado de disponibilidad presupuestal'],
+                    'certificacion' => ['certificaciones', 'certificado', 'certificados'],
+                    'certificaciones' => ['certificacion', 'certificado', 'certificados'],
+                    'certificado' => ['certificados', 'certificacion', 'certificaciones'],
+                    'certificados' => ['certificado', 'certificacion', 'certificaciones'],
+                    'circular' => ['circulares'],
+                    'circulares' => ['circular'],
+                    'citacion' => ['citaciones'],
+                    'citaciones' => ['citacion'],
+                    'comprobante' => ['comprobantes'],
+                    'comprobantes' => ['comprobante'],
+                    'comunicacion' => ['comunicaciones'],
+                    'comunicaciones' => ['comunicacion'],
+                    'contrato' => ['contratos'],
+                    'contratos' => ['contrato'],
+                    'declaracion' => ['declaraciones'],
+                    'declaraciones' => ['declaracion'],
+                    'egreso' => ['egresos'],
+                    'egresos' => ['egreso'],
+                    'factura' => ['facturas'],
+                    'facturas' => ['factura'],
+                    'informe' => ['informes'],
+                    'informes' => ['informe'],
+                    'invitacion' => ['invitaciones'],
+                    'invitaciones' => ['invitacion'],
+                    'memorando' => ['memorandos'],
+                    'memorandos' => ['memorando'],
+                    'oficio' => ['oficios'],
+                    'oficios' => ['oficio'],
+                    'poliza' => ['polizas'],
+                    'polizas' => ['poliza'],
+                    'pqrs' => ['peticiones quejas reclamos sugerencias'],
+                    'propuesta' => ['propuestas'],
+                    'propuestas' => ['propuesta'],
+                    'resolucion' => ['resoluciones'],
+                    'resoluciones' => ['resolucion'],
+                    'solicitud' => ['solicitudes'],
+                    'solicitudes' => ['solicitud'],
+                ],
                 'searchCutoffMs' => 1000,
             ],
         ],
