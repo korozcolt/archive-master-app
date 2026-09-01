@@ -1031,7 +1031,7 @@ class Document extends Model
      */
     public static function search($query = '', $callback = null): \Laravel\Scout\Builder
     {
-        $consulta = trim((string) $query);
+        $consulta = static::normalizarConsulta((string) $query);
 
         [$anclaje, $exigenciasDeTitulo] = static::analizarConsulta($consulta);
 
@@ -1048,6 +1048,66 @@ class Document extends Model
         }
 
         return $busqueda->whereIn('id', static::idsConTitulosQueCumplen($anclaje, $exigenciasDeTitulo));
+    }
+
+    /**
+     * Reconstruir el identificador que el usuario quiso escribir.
+     *
+     * Nadie teclea "UO-PSPR-ADS-001-2020". Teclea lo que ve en el papel, que
+     * lleva "No.", espacios donde no van y guiones sueltos al final:
+     *
+     *   UO-PSPR-ADS- No. 001-2020      ->  0 resultados
+     *   UO-PSPR-ADS No 001 2020        ->  0 resultados
+     *   UO-PSPR-ADS-001-2020           ->  6 resultados, los correctos
+     *
+     * El documento existe; solo hay que entender lo que le pidieron. Y no basta
+     * con partir la consulta y buscar los trozos por separado, porque sueltos no
+     * distinguen nada: en este archivo "001" devuelve mas de mil documentos y
+     * "2020" otros tantos, mientras que el identificador entero devuelve seis.
+     * Por eso se reengancha en vez de trocear.
+     *
+     * El ruido ordinal solo se quita cuando va seguido de digitos. Sin esa
+     * condicion, buscar un documento titulado "NUMERO DE RADICADO" se quedaria
+     * en "de radicado".
+     *
+     * Las consultas bien escritas pasan intactas: "acta de inicio" y
+     * "LP-ADS-001-2024, CONTRATO" salen tal cual entraron.
+     */
+    private static function normalizarConsulta(string $consulta): string
+    {
+        $texto = trim($consulta);
+
+        if ($texto === '') {
+            return '';
+        }
+
+        // "No." / "N°" / "Nº" / "num." / "numero" / "#", solo ante digitos.
+        $texto = preg_replace('/\b(?:n[oº°]\.?|n\.|n[uú]m(?:ero)?\.?)\s*(?=\d)/iu', '', $texto) ?? $texto;
+        $texto = preg_replace('/#\s*(?=\d)/', '', $texto) ?? $texto;
+
+        // "UO - PSPR - ADS" y "UO-PSPR-ADS- 001" acaban pegados.
+        $texto = preg_replace('/\s*-\s*/', '-', $texto) ?? $texto;
+        $texto = preg_replace('/-\s+/', '-', $texto) ?? $texto;
+
+        // Un numero suelto detras de un identificador le pertenece:
+        // "UO-PSPR-ADS 001 2020" -> "UO-PSPR-ADS-001-2020".
+        $piezas = [];
+
+        foreach (preg_split('/\s+/u', trim($texto), -1, PREG_SPLIT_NO_EMPTY) ?: [] as $pieza) {
+            $anterior = $piezas !== [] ? $piezas[count($piezas) - 1] : null;
+
+            if (preg_match('/^\d+$/', $pieza) === 1
+                && $anterior !== null
+                && preg_match(self::PATRON_IDENTIFICADOR, $anterior) === 1) {
+                $piezas[count($piezas) - 1] = $anterior.'-'.$pieza;
+
+                continue;
+            }
+
+            $piezas[] = $pieza;
+        }
+
+        return trim(implode(' ', $piezas));
     }
 
     /**

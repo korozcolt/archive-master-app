@@ -124,3 +124,45 @@ it('ignora comas sueltas y espacios de sobra', function (): void {
 it('no cambia nada si la consulta con comas viene vacia', function (): void {
     expect(Document::search(' , , ')->query)->toBe(', ,');
 });
+
+/**
+ * Normalizacion de identificadores mal escritos.
+ *
+ * El cliente viene de buscar en Dropbox y espera que el buscador entienda lo
+ * que quiso decir. Un usuario escribio literalmente "UO-PSPR-ADS- No. 001-2020"
+ * y no obtuvo nada, cuando el expediente existe y tiene seis documentos.
+ *
+ * Trocear la consulta no sirve: sueltos, "001" devuelve mas de mil documentos
+ * de este archivo y "2020" otros tantos. Hay que reconstruir el identificador,
+ * no repartirlo.
+ */
+it('reconstruye un identificador escrito como aparece en el papel', function (string $escrito): void {
+    expect(Document::search($escrito)->query)->toBe('"UO-PSPR-ADS-001-2020"');
+})->with([
+    'con No. y guion suelto' => 'UO-PSPR-ADS- No. 001-2020',
+    'con No y todo separado' => 'UO-PSPR-ADS No 001 2020',
+    'con espacios entre guiones' => 'UO - PSPR - ADS - 001 - 2020',
+    'con simbolo de grado' => 'UO-PSPR-ADS- N° 001-2020',
+    'con espacios de sobra' => 'UO-PSPR-ADS-  001-2020',
+    'ya bien escrito' => 'UO-PSPR-ADS-001-2020',
+]);
+
+it('no destroza una consulta que solo menciona la palabra numero', function (string $escrito): void {
+    // El ruido ordinal se quita unicamente cuando va seguido de digitos. Sin esa
+    // condicion, buscar el documento titulado "NUMERO DE RADICADO" se quedaria
+    // en "de radicado".
+    expect(Document::search($escrito)->query)->toBe($escrito);
+})->with([
+    'numero de radicado',
+    'no tengo el numero',
+    'acta de inicio',
+]);
+
+it('quita el ruido ordinal cuando de verdad precede a un numero', function (): void {
+    expect(Document::search('RESOLUCION N° 405')->query)->toBe('RESOLUCION 405');
+});
+
+it('deja intactas las consultas que ya venian bien formadas', function (): void {
+    expect(Document::search('LP-ADS-001-2024')->query)->toBe('"LP-ADS-001-2024"')
+        ->and(Document::search('LP-ADS-001-2024, CONTRATO')->query)->toBe('"LP-ADS-001-2024"');
+});

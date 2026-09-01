@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-09-01
+
+- **Un identificador escrito como aparece en el papel no encontraba nada.** Un usuario buscó literalmente `UO-PSPR-ADS- No. 001-2020` y obtuvo **cero resultados**, cuando ese expediente existe y tiene seis documentos. El buscador exigía la forma canónica exacta, `UO-PSPR-ADS-001-2020`, que nadie teclea: la gente escribe lo que ve en el documento, con «No.», espacios de más y guiones sueltos al final.
+  - Ahora la consulta se normaliza antes de buscar. Se retira el ruido ordinal (`No.`, `N°`, `Nº`, `núm.`, `#`), se pegan los espacios alrededor de los guiones y se reenganchan los trozos numéricos sueltos que van detrás de un identificador.
+  - **Reconstruir y no trocear** es lo importante: sueltos, esos fragmentos no distinguen nada. Medido en este archivo, `001` devuelve más de mil documentos y `2020` otros tantos, mientras que el identificador entero devuelve seis.
+  - El ruido ordinal se quita **solo cuando va seguido de dígitos**. Sin esa condición, buscar el documento titulado «NUMERO DE RADICADO» se quedaría en «de radicado».
+- Verificado contra producción: `UO-PSPR-ADS- No. 001-2020` y `UO-PSPR-ADS No 001 2020` pasan de 0 a los 6 documentos correctos, en 4-26 ms. Las consultas ya bien escritas y las de texto corriente salen idénticas a como entraban.
+- **11 pruebas nuevas**, incluidas las tres que vigilan que no se destroce una consulta que solo menciona la palabra «numero». Las pruebas de búsqueda pasan de 59 a 70 en verde, con el mismo único fallo preexistente. Cero regresiones.
+
 ### Fixed - 2026-08-30
 
 - **Una tarea programada que muere sin soltar su candado bloqueaba 24 horas, en silencio.** `withoutOverlapping()` sin argumento usa ese vencimiento por defecto en Laravel. Si el proceso desaparece sin liberarlo —un corte de luz, un despliegue que releva el contenedor a media tanda— el programador se salta esa tarea durante un día entero sin que nada lo indique: la aplicación responde, las búsquedas van, los respaldos corren, y la tarea simplemente no avanza.
