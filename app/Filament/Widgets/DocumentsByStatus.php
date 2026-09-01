@@ -27,7 +27,7 @@ class DocumentsByStatus extends ChartWidget
         // Obtener todos los estados de la empresa
         $statuses = Status::where('company_id', $companyId)
             ->where('active', true)
-            ->orderBy('name')
+            ->ordenadoPorNombre()
             ->get();
             
         $labels = [];

@@ -45,7 +45,7 @@ class StatusController extends BaseApiController
     {
         $statuses = Status::where('company_id', Auth::user()->company_id)
             ->where('active', true)
-            ->orderBy('name')
+            ->ordenadoPorNombre()
             ->get();
 
         return $this->successResponse($statuses);

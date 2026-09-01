@@ -143,12 +143,17 @@ class UserDocumentController extends Controller
             ->withQueryString(); // Mantener parámetros de búsqueda en paginación
 
         // Obtener listas para filtros
+        //
+        // ordenadoPorNombre() y no orderBy('name'): en estos modelos el nombre
+        // es una columna JSON y MySQL la ordena por su representacion interna,
+        // con lo que el desplegable salia en un orden que al usuario le parecia
+        // aleatorio.
         $categories = Category::where('company_id', $user->company_id)
-            ->orderBy('name')
+            ->ordenadoPorNombre()
             ->get();
 
         $statuses = Status::where('company_id', $user->company_id)
-            ->orderBy('name')
+            ->ordenadoPorNombre()
             ->get();
 
         $departments = Department::query()
@@ -204,7 +209,7 @@ class UserDocumentController extends Controller
         $categories = Category::query()
             ->where('company_id', $user->company_id)
             ->where('active', true)
-            ->orderBy('name')
+            ->ordenadoPorNombre()
             ->get();
 
         $producerDepartments = Department::query()

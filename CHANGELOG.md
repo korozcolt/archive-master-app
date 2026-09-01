@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed - 2026-09-01
 
+- **Las categorías del portal salían en un orden aparentemente aleatorio.** En `Category`, `Status` y `Tag` el nombre es una columna de tipo `json` con la forma `{"es": "Actas de Reunión"}`, y MySQL no ordena las columnas JSON como texto sino por su representación interna. El `orderBy('name')` que ya existía no fallaba: ordenaba por algo que el usuario no ve. Entre 51 categorías salía «Actos Administrativos, Actas de Reunión, Seguridad y Salud, Correspondencia Recibida, Procesos Jurídicos…».
+  - Nuevo ámbito `ordenadoPorNombre()` en los tres modelos traducibles, que ordena por el texto del idioma activo con respaldo en español. Aplicado en los ocho sitios que ordenaban esos modelos: el listado del portal, la carga histórica, la API de estados, el servicio de caché y el widget del panel.
+  - Verificado contra producción: las 51 categorías salen en orden y con los acentos donde corresponde — *Actas, Actas de Reunión, Actos Administrativos, Acuerdos, Archivo y Gestión, Atención al Ciudadano, Categoría Inactiva, Comunicaciones Internas…*
+  - No se tocaron los `orderBy('name')` sobre `User`, `Department` ni `Company`: en esos el nombre es texto plano y ya ordenaban bien.
+
+### Fixed - 2026-09-01
+
 - **Un identificador escrito como aparece en el papel no encontraba nada.** Un usuario buscó literalmente `UO-PSPR-ADS- No. 001-2020` y obtuvo **cero resultados**, cuando ese expediente existe y tiene seis documentos. El buscador exigía la forma canónica exacta, `UO-PSPR-ADS-001-2020`, que nadie teclea: la gente escribe lo que ve en el documento, con «No.», espacios de más y guiones sueltos al final.
   - Ahora la consulta se normaliza antes de buscar. Se retira el ruido ordinal (`No.`, `N°`, `Nº`, `núm.`, `#`), se pegan los espacios alrededor de los guiones y se reenganchan los trozos numéricos sueltos que van detrás de un identificador.
   - **Reconstruir y no trocear** es lo importante: sueltos, esos fragmentos no distinguen nada. Medido en este archivo, `001` devuelve más de mil documentos y `2020` otros tantos, mientras que el identificador entero devuelve seis.
