@@ -210,3 +210,59 @@ it('conserva los conectores si la exigencia no tiene otra cosa', function (): vo
     // Mejor exigir algo raro que no exigir nada y devolver el expediente entero.
     expect($metodo->invoke(null, 'de la'))->toBe(['de', 'la']);
 });
+
+/**
+ * Numero de documento deducido, sin que el usuario ponga la coma.
+ *
+ * En este archivo los documentos se titulan "TIPO N°NNN". Cuando alguien
+ * escribe un tipo seguido de un numero esta senalando un documento concreto.
+ * Sin interpretarlo asi el numero se diluye: "COMUNICACION INTERNA 0069"
+ * devolvia 232 resultados encabezados por egresos, sin el documento correcto.
+ *
+ * La marcha atras es lo que lo hace seguro: si esa lectura no encuentra nada se
+ * sigue con la busqueda normal, asi que puede anadir precision pero nunca
+ * quitar resultados.
+ */
+it('reconoce el numero del documento aunque no se ponga la coma', function (string $escrito): void {
+    // Sin indice real la lectura precisa no encuentra nada y se vuelve atras,
+    // asi que aqui se comprueba que la consulta no se rompe por el camino.
+    expect(fn () => Document::search($escrito)->take(5)->keys())->not->toThrow(Throwable::class);
+})->with([
+    'con grado pegado' => 'COMUNICACION INTERNA N°0069',
+    'con tilde' => 'COMUNICACIÓN INTERNA N°0069',
+    'con ene suelta' => 'COMUNICACION INTERNA N 0069',
+    'numero pelado' => 'COMUNICACION INTERNA 0069',
+    'abreviado con punto' => 'COMUNICACION INTERNA No. 0069',
+]);
+
+it('separa el tipo del numero tal y como lo haria la coma', function (string $escrito): void {
+    $metodo = new ReflectionMethod(Document::class, 'intentarPorNumeroDeDocumento');
+    $metodo->setAccessible(true);
+
+    // Sin resultados devuelve null, que es la marcha atras. Lo que se comprueba
+    // aqui es que la consulta encaja en el patron y llega a intentarse.
+    $patron = new ReflectionMethod(Document::class, 'normalizarConsulta');
+    $patron->setAccessible(true);
+
+    expect(preg_match(
+        '/^(.*?\p{L}.*?)\s+(?:n[oº°]\.?|n\.|n|n[uú]m(?:ero)?\.?|#)?\s*(\d{2,})$/iu',
+        $patron->invoke(null, $escrito)
+    ))->toBe(1);
+})->with([
+    'COMUNICACION INTERNA N°0069',
+    'COMUNICACION INTERNA N 0069',
+    'COMUNICACION INTERNA 0069',
+    'COMUNICACION INTERNA No. 0069',
+    'RESOLUCION 405',
+]);
+
+it('no confunde con un numero de documento lo que no lo es', function (string $escrito): void {
+    expect(preg_match(
+        '/^(.*?\p{L}.*?)\s+(?:n[oº°]\.?|n\.|n|n[uú]m(?:ero)?\.?|#)?\s*(\d{2,})$/iu',
+        $escrito
+    ))->toBe(0);
+})->with([
+    'sin numero al final' => 'acta de inicio',
+    'solo un numero' => '0069',
+    'numero de una cifra' => 'acta 5',
+]);

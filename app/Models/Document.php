@@ -1036,7 +1036,9 @@ class Document extends Model
         [$anclaje, $exigenciasDeTitulo] = static::analizarConsulta($consulta);
 
         if ($anclaje === '') {
-            return static::buscarConScout($consulta, $callback)
+            $porNumero = static::intentarPorNumeroDeDocumento($consulta, $callback);
+
+            return $porNumero ?? static::buscarConScout($consulta, $callback)
                 ->options(['matchingStrategy' => 'frequency']);
         }
 
@@ -1048,6 +1050,48 @@ class Document extends Model
         }
 
         return $busqueda->whereIn('id', static::idsConTitulosQueCumplen($anclaje, $exigenciasDeTitulo));
+    }
+
+    /**
+     * "COMUNICACION INTERNA N°0069" sin coma: el numero identifica el documento.
+     *
+     * En este archivo los documentos se titulan "TIPO N°NNN": comunicaciones
+     * internas y externas, resoluciones, egresos. Cuando alguien escribe un tipo
+     * seguido de un numero esta senalando un documento concreto, no pidiendo
+     * texto libre. Sin interpretarlo asi el numero se diluye: se midio que
+     * "COMUNICACION INTERNA 0069" devolvia 232 resultados encabezados por
+     * egresos, sin el documento correcto por ninguna parte.
+     *
+     * Es la misma lectura que da la coma, deducida en vez de escrita, y se
+     * aplica solo cuando la consulta termina en un numero.
+     *
+     * **Si esa lectura no encuentra nada se devuelve null y se sigue con la
+     * busqueda de siempre.** Esa marcha atras es lo que la hace segura: puede
+     * anadir precision, nunca quitar resultados. "contratos 2024" seguira
+     * comportandose como hoy si ningun titulo lleva ese ano.
+     */
+    private static function intentarPorNumeroDeDocumento(string $consulta, $callback): ?\Laravel\Scout\Builder
+    {
+        if (preg_match('/^(.*?\p{L}.*?)\s+(?:n[oº°]\.?|n\.|n|n[uú]m(?:ero)?\.?|#)?\s*(\d{2,})$/iu', trim($consulta), $partes) !== 1) {
+            return null;
+        }
+
+        $tipo = trim($partes[1]);
+        $numero = $partes[2];
+
+        if ($tipo === '') {
+            return null;
+        }
+
+        $ids = static::idsConTitulosQueCumplen($tipo, [$numero]);
+
+        if ($ids === []) {
+            return null;
+        }
+
+        return static::buscarConScout($tipo, $callback)
+            ->options(['matchingStrategy' => 'all'])
+            ->whereIn('id', $ids);
     }
 
     /**
