@@ -1081,6 +1081,17 @@ class Document extends Model
             return '';
         }
 
+        // Sin un guion no hay identificador que rearmar, y tocar la consulta
+        // solo hace dano. Se midio con "COMUNICACION INTERNA N°0069": quitando
+        // el ordinal, "0069" queda como numero suelto, la tolerancia a erratas
+        // lo confunde con 0093, 0089 y 0098, y el documento correcto desaparece
+        // entre 232 resultados. Dejandola intacta, Meilisearch la tokeniza igual
+        // que al titulo. Los ordinales se resuelven al comparar con el titulo,
+        // donde se normalizan los dos lados a la vez.
+        if (! str_contains($texto, '-')) {
+            return preg_replace('/\s+/', ' ', $texto) ?? $texto;
+        }
+
         // "No." / "N°" / "Nº" / "num." / "numero" / "#", solo ante digitos.
         $texto = preg_replace('/\b(?:n[oº°]\.?|n\.|n[uú]m(?:ero)?\.?)\s*(?=\d)/iu', '', $texto) ?? $texto;
         $texto = preg_replace('/#\s*(?=\d)/', '', $texto) ?? $texto;

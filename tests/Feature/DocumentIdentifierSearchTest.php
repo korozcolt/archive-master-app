@@ -158,8 +158,13 @@ it('no destroza una consulta que solo menciona la palabra numero', function (str
     'acta de inicio',
 ]);
 
-it('quita el ruido ordinal cuando de verdad precede a un numero', function (): void {
-    expect(Document::search('RESOLUCION N° 405')->query)->toBe('RESOLUCION 405');
+it('deja intacta una consulta sin guiones, aunque lleve ordinal', function (): void {
+    // Sin identificador que rearmar, tocar la consulta solo hace dano: quitando
+    // el ordinal, el numero suelto se confunde con otros parecidos y el
+    // documento correcto se pierde. Los ordinales se resuelven al comparar con
+    // el titulo, normalizando los dos lados.
+    expect(Document::search('RESOLUCION N° 405')->query)->toBe('RESOLUCION N° 405')
+        ->and(Document::search('COMUNICACION INTERNA N°0069')->query)->toBe('COMUNICACION INTERNA N°0069');
 });
 
 it('deja intactas las consultas que ya venian bien formadas', function (): void {
