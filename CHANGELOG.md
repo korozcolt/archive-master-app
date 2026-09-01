@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed - 2026-09-01
 
+- **`/admin/advanced-searches` devolvía error 500 desde hacía casi dos meses.** La página abría con 200 y reventaba en la primera petición de Livewire con `Unable to find component: [app.filament.widgets.advanced-search-stats-widget]`.
+  - Causa: el commit `150a22f` (9 de julio) desactivó el descubrimiento automático de widgets para no cargar los 25 del proyecto en cada petición, y lo sustituyó por una lista explícita en `AdminPanelProvider`. Esa lista solo recogió los cuatro del tablero, y `AdvancedSearchStatsWidget` lo usa `ListAdvancedSearches` como widget de cabecera. Un widget que falta ahí no produce un aviso: produce un 500.
+  - No tiene relación con los cambios de búsqueda; se descubrió mientras se desplegaban.
+  - Tres pruebas nuevas recorren **recursivamente** las páginas de recurso y exigen que todo widget usado esté registrado. La primera versión usaba `glob('**/*.php')`, que en PHP no expande de forma recursiva: no miraba ningún archivo y pasaba en vacío. Se detectó al quitar el widget a propósito y ver que seguía en verde. Ahora la comprobación falla si el recorrido no encuentra nada.
+
+### Fixed - 2026-09-01
+
 
 - **Dos búsquedas reales no encontraban documentos que sí existen**, ambas por comparar contra el título crudo:
   - `CMA-ADS-016-2023, OTROSI N°4` devolvía cero pese a existir el documento titulado exactamente «OTROSI N°4». **Regresión introducida por la sintaxis de coma**: el normalizador quitaba el `N°` de la consulta pero el título seguía teniéndolo, así que «otrosi 4» no aparecía dentro de «OTROSI N°4».
