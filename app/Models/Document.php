@@ -1197,15 +1197,32 @@ class Document extends Model
     }
 
     /**
+     * Conectores que no aportan nada al comparar con un titulo.
+     *
+     * Un usuario pidio "ACTA DE SUSPENSION N°1" y el documento se titula "ACTA
+     * SUSPENSION N°1", sin el "DE". Exigir cada palabra dejaba fuera el
+     * documento correcto por una preposicion.
+     */
+    private const CONECTORES = ['de', 'del', 'la', 'las', 'el', 'los', 'y', 'e', 'en', 'a', 'al', 'con', 'para', 'por'];
+
+    /**
      * De los documentos que devolvio el anclaje, cuales cumplen en el titulo.
      *
-     * Cada exigencia se comprueba entera: una palabra suelta busca esa palabra,
-     * y un segmento separado por comas busca la frase completa y en su orden.
-     * Todas deben cumplirse.
+     * La comparacion se hace sobre una forma normalizada de **ambos lados**, no
+     * del titulo crudo. Es lo que evita dos fallos que se vieron en uso real:
      *
-     * El LIKE con comodin inicial esta acotado por whereKey a los documentos que
-     * el indice ya devolvio -cientos, no las 45.000 filas de la tabla-, asi que
-     * no incurre en el escaneo completo que hay que evitar sobre `documents`.
+     *   - "OTROSI N°4" no encontraba el documento titulado "OTROSI N°4". La
+     *     consulta llegaba aqui ya sin el "N°" y el titulo si lo tenia, con lo
+     *     que "otrosi 4" no aparecia dentro de "OTROSI N°4". Normalizando los
+     *     dos lados, ambos quedan en "otrosi 4".
+     *   - "ACTA DE SUSPENSION N°1" no encontraba "ACTA SUSPENSION N°1" por una
+     *     preposicion de mas. Los conectores se descartan.
+     *
+     * Se compara en PHP y no con un LIKE en SQL porque normalizar acentos,
+     * ordinales y puntuacion dentro de la consulta seria una expresion enorme y
+     * distinta en MySQL y en SQLite. Los candidatos son los que ya devolvio el
+     * indice -cientos como mucho-, asi que traer su titulo no cuesta nada y
+     * ademas evita el LIKE con comodin inicial sobre `documents`.
      *
      * @param  list<string>  $exigencias
      * @return list<int>
@@ -1221,15 +1238,65 @@ class Document extends Model
             return [];
         }
 
+        $buscadas = collect($exigencias)
+            ->flatMap(fn (string $exigencia): array => static::palabrasSignificativas($exigencia))
+            ->unique()
+            ->values();
+
+        if ($buscadas->isEmpty()) {
+            return $candidatos->all();
+        }
+
         return static::query()
             ->whereKey($candidatos)
-            ->where(function (Builder $consulta) use ($exigencias): void {
-                foreach ($exigencias as $exigencia) {
-                    $consulta->where('title', 'like', '%'.$exigencia.'%');
-                }
+            ->pluck('title', 'id')
+            ->filter(function (?string $titulo) use ($buscadas): bool {
+                $normalizado = static::formaComparable((string) $titulo);
+
+                return $buscadas->every(fn (string $palabra): bool => str_contains($normalizado, $palabra));
             })
-            ->pluck('id')
+            ->keys()
+            ->map(fn ($id): int => (int) $id)
             ->all();
+    }
+
+    /**
+     * Palabras que de verdad discriminan dentro de una exigencia de titulo.
+     *
+     * @return list<string>
+     */
+    private static function palabrasSignificativas(string $texto): array
+    {
+        $palabras = preg_split('/\s+/u', static::formaComparable($texto), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        $utiles = array_values(array_filter(
+            $palabras,
+            fn (string $palabra): bool => ! in_array($palabra, self::CONECTORES, true)
+        ));
+
+        // Si la exigencia era solo conectores -alguien buscando "de la"- se
+        // conservan: mejor exigir algo raro que no exigir nada.
+        return $utiles !== [] ? $utiles : $palabras;
+    }
+
+    /**
+     * Reducir un texto a lo comparable: sin acentos, ordinales ni puntuacion.
+     */
+    private static function formaComparable(string $texto): string
+    {
+        $t = mb_strtolower(trim($texto));
+
+        $t = strtr($t, [
+            'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ü' => 'u', 'ñ' => 'n',
+        ]);
+
+        // "n°4", "no. 4", "num 4" y "#4" son la misma cosa que "4".
+        $t = preg_replace('/\b(?:n[oº°]\.?|n\.|n[uú]m(?:ero)?\.?)\s*(?=\d)/u', '', $t) ?? $t;
+
+        // Cualquier otro signo separa palabras en vez de pegarlas.
+        $t = preg_replace('/[^\p{L}\p{N}]+/u', ' ', $t) ?? $t;
+
+        return trim(preg_replace('/\s+/', ' ', $t) ?? $t);
     }
 
     /**

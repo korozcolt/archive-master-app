@@ -166,3 +166,42 @@ it('deja intactas las consultas que ya venian bien formadas', function (): void 
     expect(Document::search('LP-ADS-001-2024')->query)->toBe('"LP-ADS-001-2024"')
         ->and(Document::search('LP-ADS-001-2024, CONTRATO')->query)->toBe('"LP-ADS-001-2024"');
 });
+
+/**
+ * Tolerancia al comparar con el titulo.
+ *
+ * Dos fallos vistos en uso real, ambos por comparar contra el titulo crudo:
+ *   - "OTROSI N°4" no encontraba el documento titulado "OTROSI N°4", porque la
+ *     consulta llegaba normalizada sin el "N°" y el titulo si lo llevaba.
+ *   - "ACTA DE SUSPENSION N°1" no encontraba "ACTA SUSPENSION N°1" por una
+ *     preposicion de mas.
+ */
+it('reduce a la misma forma un titulo y una consulta que dicen lo mismo', function (string $a, string $b): void {
+    $forma = new ReflectionMethod(Document::class, 'formaComparable');
+    $forma->setAccessible(true);
+
+    expect($forma->invoke(null, $a))->toBe($forma->invoke(null, $b));
+})->with([
+    'ordinal con grado' => ['OTROSI N°4', 'otrosi 4'],
+    'ordinal abreviado' => ['ACTA No. 1', 'acta 1'],
+    'ordinal con numeral' => ['ACTA #1', 'acta 1'],
+    'acentos' => ['GESTIÓN DOCUMENTAL', 'gestion documental'],
+    'puntuacion' => ['ACTA-SUSPENSION, N°1', 'acta suspension 1'],
+    'espacios de sobra' => ['  OTROSI   N°4  ', 'otrosi 4'],
+]);
+
+it('descarta los conectores al exigir palabras en el titulo', function (): void {
+    $metodo = new ReflectionMethod(Document::class, 'palabrasSignificativas');
+    $metodo->setAccessible(true);
+
+    expect($metodo->invoke(null, 'ACTA DE SUSPENSION N°1'))->toBe(['acta', 'suspension', '1'])
+        ->and($metodo->invoke(null, 'OTROSI N°4'))->toBe(['otrosi', '4']);
+});
+
+it('conserva los conectores si la exigencia no tiene otra cosa', function (): void {
+    $metodo = new ReflectionMethod(Document::class, 'palabrasSignificativas');
+    $metodo->setAccessible(true);
+
+    // Mejor exigir algo raro que no exigir nada y devolver el expediente entero.
+    expect($metodo->invoke(null, 'de la'))->toBe(['de', 'la']);
+});

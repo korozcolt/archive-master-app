@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed - 2026-09-01
 
+
+- **Dos búsquedas reales no encontraban documentos que sí existen**, ambas por comparar contra el título crudo:
+  - `CMA-ADS-016-2023, OTROSI N°4` devolvía cero pese a existir el documento titulado exactamente «OTROSI N°4». **Regresión introducida por la sintaxis de coma**: el normalizador quitaba el `N°` de la consulta pero el título seguía teniéndolo, así que «otrosi 4» no aparecía dentro de «OTROSI N°4».
+  - `ACTA DE SUSPENSION N°1` no encontraba «ACTA SUSPENSION N°1» —sin el «DE»— porque se exigía cada palabra de la consulta y sobraba una preposición.
+  - Ahora la comparación se hace sobre una forma normalizada de **ambos lados**: sin acentos, sin ordinales (`N°`, `No.`, `núm.`, `#`) y con la puntuación convertida en separador. Además se descartan los conectores (`de`, `la`, `el`, `y`, `en`…), salvo que la exigencia no tenga otra cosa.
+  - Se compara en PHP y no con un `LIKE` en SQL porque normalizar acentos, ordinales y puntuación dentro de la consulta sería una expresión enorme y distinta en MySQL y en SQLite. Los candidatos son los que ya devolvió el índice, así que traer su título no cuesta nada y de paso evita el `LIKE` con comodín inicial sobre `documents`.
+  - Verificado contra producción: ambos casos pasan de 0 a encontrar el documento correcto, y las búsquedas que ya funcionaban siguen igual — incluida `LP-ADS-001-2024, ACTA DE INAUGURACION`, que sigue devolviendo cero porque esa acta no existe.
 - **Las categorías del portal salían en un orden aparentemente aleatorio.** En `Category`, `Status` y `Tag` el nombre es una columna de tipo `json` con la forma `{"es": "Actas de Reunión"}`, y MySQL no ordena las columnas JSON como texto sino por su representación interna. El `orderBy('name')` que ya existía no fallaba: ordenaba por algo que el usuario no ve. Entre 51 categorías salía «Actos Administrativos, Actas de Reunión, Seguridad y Salud, Correspondencia Recibida, Procesos Jurídicos…».
   - Nuevo ámbito `ordenadoPorNombre()` en los tres modelos traducibles, que ordena por el texto del idioma activo con respaldo en español. Aplicado en los ocho sitios que ordenaban esos modelos: el listado del portal, la carga histórica, la API de estados, el servicio de caché y el widget del panel.
   - Verificado contra producción: las 51 categorías salen en orden y con los acentos donde corresponde — *Actas, Actas de Reunión, Actos Administrativos, Acuerdos, Archivo y Gestión, Atención al Ciudadano, Categoría Inactiva, Comunicaciones Internas…*
