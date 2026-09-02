@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-09-02
+
+- **Tres búsquedas reales que devolvían cero o de menos**, todas por el mismo motivo de fondo: las palabras que acompañan a un identificador se exigían **solo contra el título**, y en este archivo los títulos son escuetos («Egreso 102», «NOTA BANCARIA N° 54»).
+  - `egreso 1290` devolvía **1** de los **5** que existen. La numeración se reinicia cada año, así que ese número existe una vez por año —2020, 2021, 2022, 2024 y 2025, cada uno en su caja— y el usuario los quiere todos. Se buscaba «egreso» y se filtraba después por el número, pero eso recuperaba los mil primeros de los 7.756 egresos y filtraba sobre esa ventana. Ahora se intenta antes la consulta entera como frase exacta, que es selectiva de por sí, y salen los cinco —incluidos el de doble espacio y el escrito en mayúsculas—.
+  - `egresos, dian` y `egresos, dian, 2024` devolvían **0**, cuando hay al menos 16 egresos de 2024 que mencionan la DIAN. Ningún título de egreso dice más que su número, así que la exigencia solo podía cumplirse en el contenido. Ahora, si el título no da nada, se delega en el motor para buscar en todo el documento. Pasan a **351** y **44**.
+  - `extractos bancarios, julio` devolvía **0**. El mes no existe en ningún metadato y el título lo escribe en cifras: `EXTRACTO BANCARIO N°26 31-07-2020`. Se traduce el nombre del mes a su número, solo en ese sentido —al revés sería temerario, porque «07» aparece en importes y en cualquier cifra—. Pasa a **21**, y `extractos bancarios, julio, 2024` a **2**.
+- **El año del documento entra al índice, y además como atributo filtrable.** `received_at` guarda la fecha de **carga** y vale 2026 para los 45.306, porque todo el fondo histórico se subió este año; el año real lo declaró quien cargó cada caja y está en **44.365 documentos, el 97,9%**. Se indexa el declarado y no uno deducido del texto: un egreso de 2021 que menciona una factura de 2024 llevaría 2024 en su contenido. Ser filtrable es la diferencia entre «documentos que mencionan 2024» y «documentos de 2024».
+- De paso entran al índice la caja, el estante, la bahía, la ruta de ubicación y el departamento de custodia, que la carga histórica ya guardaba sin usar. Permiten preguntar qué hay en una caja concreta, que es como habla quien trabaja el archivo físico.
+- **Requiere reindexar** los 45.306 documentos para que los campos nuevos existan en el motor. No toca la base de datos ni los archivos; conviene lanzarlo fuera de horario.
+
 ### Fixed - 2026-09-01
 
 - **`/admin/advanced-searches` devolvía error 500 desde hacía casi dos meses.** La página abría con 200 y reventaba en la primera petición de Livewire con `Unable to find component: [app.filament.widgets.advanced-search-stats-widget]`.

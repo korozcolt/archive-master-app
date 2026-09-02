@@ -160,6 +160,11 @@ return [
                     'historical_volume',
                     'historical_keywords_text',
                     'historical_department_name',
+                    'historical_year',
+                    'historical_shelf',
+                    'historical_bay',
+                    'historical_box_location',
+                    'historical_custody_department',
                     'tags',
                     'category_name',
                     'status_name',
@@ -181,6 +186,11 @@ return [
                     'priority',
                     'is_confidential',
                     'is_archived',
+                    // Filtrable ademas de buscable, que es la diferencia entre
+                    // "documentos que mencionan 2024" y "documentos de 2024".
+                    // `received_at` no sirve para esto: guarda la fecha de carga
+                    // y vale 2026 para los 45.306.
+                    'historical_year',
                 ],
                 'sortableAttributes' => [
                     'created_at',

@@ -947,6 +947,28 @@ class Document extends Model
             'historical_folder' => $this->metadata['historical']['folder'] ?? null,
             'historical_volume' => $this->metadata['historical']['volume'] ?? null,
             'historical_keywords_text' => $this->metadata['historical']['keywords_text'] ?? null,
+            // El ano del documento, que es el unico que sirve: `received_at`
+            // guarda la fecha de CARGA y vale 2026 para los 45.306, porque todo
+            // el fondo historico se subio este ano. El ano real lo declaro quien
+            // cargo cada caja y esta en 44.365 documentos, el 97,9%.
+            //
+            // Se indexa el declarado y no uno deducido del texto: un egreso de
+            // 2021 que menciona una factura de 2024 llevaria 2024 en su
+            // contenido, y su ano es 2021.
+            //
+            // Va como entero para poder filtrar por el ademas de buscarlo, que
+            // es la diferencia entre "documentos que mencionan 2024" y
+            // "documentos de 2024".
+            'historical_year' => ($anio = $this->metadata['historical']['year'] ?? null) !== null
+                ? (int) $anio
+                : null,
+            // La caja y el estante ya estaban guardados y sin usar. Con esto se
+            // puede preguntar que hay en una caja concreta, que es como habla
+            // quien trabaja el archivo fisico.
+            'historical_shelf' => $this->metadata['historical']['shelf'] ?? null,
+            'historical_bay' => $this->metadata['historical']['bay'] ?? null,
+            'historical_box_location' => $this->metadata['historical']['box_location_path'] ?? null,
+            'historical_custody_department' => $this->metadata['historical']['custody_department_name'] ?? null,
             'physical_location' => $this->physical_location,
             'priority' => $this->priority?->value,
             'is_confidential' => $this->is_confidential,
@@ -1069,6 +1091,15 @@ class Document extends Model
      * busqueda de siempre.** Esa marcha atras es lo que la hace segura: puede
      * anadir precision, nunca quitar resultados. "contratos 2024" seguira
      * comportandose como hoy si ningun titulo lleva ese ano.
+     *
+     * Se intenta primero la consulta entera como frase exacta, porque cuando el
+     * titulo la contiene tal cual es a la vez lo mas preciso y lo unico completo.
+     * Buscar el tipo y filtrar despues por el numero tropieza con el tope de
+     * TOPE_EXPEDIENTE: "egreso 1290" recuperaba los mil primeros de los 7.756
+     * egresos y filtraba sobre esa ventana, devolviendo **uno** de los cinco que
+     * existen. Son cinco porque la numeracion se reinicia cada ano -uno de 2020,
+     * 2021, 2022, 2024 y 2025- y el usuario los quiere todos. Como frase salen
+     * los cinco, incluidos el que lleva doble espacio y el escrito en mayusculas.
      */
     private static function intentarPorNumeroDeDocumento(string $consulta, $callback): ?\Laravel\Scout\Builder
     {
@@ -1081,6 +1112,17 @@ class Document extends Model
 
         if ($tipo === '') {
             return null;
+        }
+
+        $frase = '"'.trim($consulta).'"';
+
+        if (static::buscarConScout($frase)
+            ->options(['matchingStrategy' => 'all'])
+            ->take(1)
+            ->keys()
+            ->isNotEmpty()) {
+            return static::buscarConScout($frase, $callback)
+                ->options(['matchingStrategy' => 'all']);
         }
 
         $ids = static::idsConTitulosQueCumplen($tipo, [$numero]);
@@ -1302,17 +1344,84 @@ class Document extends Model
             return $candidatos->all();
         }
 
-        return static::query()
+        $porTitulo = static::query()
             ->whereKey($candidatos)
             ->pluck('title', 'id')
             ->filter(function (?string $titulo) use ($buscadas): bool {
                 $normalizado = static::formaComparable((string) $titulo);
 
-                return $buscadas->every(fn (string $palabra): bool => str_contains($normalizado, $palabra));
+                return $buscadas->every(function (string $palabra) use ($normalizado): bool {
+                    foreach (static::formasDeLaPalabra($palabra) as $forma) {
+                        if (str_contains($normalizado, $forma)) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                });
             })
             ->keys()
             ->map(fn ($id): int => (int) $id)
             ->all();
+
+        if ($porTitulo !== []) {
+            return $porTitulo;
+        }
+
+        // El titulo se prueba primero porque es donde la exigencia discrimina de
+        // verdad: en un expediente de contratacion todos los documentos dicen
+        // "contrato" en su texto, asi que exigirlo ahi no filtra nada.
+        //
+        // Pero hay exigencias que solo pueden vivir en el contenido, y devolver
+        // cero seria mentir sobre un archivo que si las tiene. Ejemplos medidos:
+        // "egresos, dian, 2024" -hay al menos 16 egresos de 2024 que mencionan
+        // la DIAN, y ningun titulo de egreso dice mas que "Egreso 102"- y
+        // "extractos bancarios, julio" -el mes no existe en ningun metadato, solo
+        // puede estar en el texto-.
+        //
+        // Se delega en el motor en vez de recorrer `content` con un LIKE: esa
+        // columna guarda el texto OCR completo de 45.000 documentos y el comodin
+        // inicial obligaria al escaneo que hay que evitar sobre `documents`.
+        return static::buscarConScout(trim($anclaje.' '.implode(' ', $exigencias)))
+            ->options(['matchingStrategy' => 'all'])
+            ->take(self::TOPE_EXPEDIENTE)
+            ->keys()
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+    }
+
+    /**
+     * Como puede aparecer una palabra en un titulo, ademas de tal cual.
+     *
+     * Nadie escribe "extractos bancarios, 07": escribe julio. Pero el titulo dice
+     * "EXTRACTO BANCARIO N°26 31-07-2020", con el mes en cifras. Son dos formas
+     * de la misma cosa, y sin traducirlas la busqueda devuelve cero sobre un
+     * archivo que si tiene esos documentos -hay extractos de julio de 2020 y de
+     * 2022-.
+     *
+     * Solo se traduce en un sentido, del nombre al numero. Al reves seria
+     * temerario: "07" aparece en importes, en numeros de documento y en mitad de
+     * cualquier cifra, y convertirlo en "julio" ensuciaria mas de lo que ayuda.
+     *
+     * El numero se busca rodeado de guiones porque asi es como aparece en la
+     * fecha -31-07-2020-; suelto coincidiria con cualquier "07" del titulo.
+     *
+     * @return list<string>
+     */
+    private static function formasDeLaPalabra(string $palabra): array
+    {
+        $meses = [
+            'enero' => '01', 'febrero' => '02', 'marzo' => '03', 'abril' => '04',
+            'mayo' => '05', 'junio' => '06', 'julio' => '07', 'agosto' => '08',
+            'septiembre' => '09', 'setiembre' => '09', 'octubre' => '10',
+            'noviembre' => '11', 'diciembre' => '12',
+        ];
+
+        if (! isset($meses[$palabra])) {
+            return [$palabra];
+        }
+
+        return [$palabra, '-'.$meses[$palabra].'-'];
     }
 
     /**

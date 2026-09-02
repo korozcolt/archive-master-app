@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Models\Company;
 use App\Models\Document;
+use App\Models\Status;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -266,3 +269,45 @@ it('no confunde con un numero de documento lo que no lo es', function (string $e
     'solo un numero' => '0069',
     'numero de una cifra' => 'acta 5',
 ]);
+
+/**
+ * "egreso 1290" tiene que traer los cinco, no uno.
+ *
+ * La numeracion de egresos se reinicia cada ano, asi que ese numero existe una
+ * vez por ano -2020, 2021, 2022, 2024 y 2025- y el usuario los quiere todos.
+ * Buscar el tipo y filtrar despues por el numero devolvia **uno**: se recuperaban
+ * los mil primeros de los 7.756 egresos y se filtraba sobre esa ventana. Ahora se
+ * intenta antes la consulta entera como frase exacta, que es selectiva de por si.
+ *
+ * OJO CON EL ALCANCE DE ESTAS PRUEBAS: la rama de la frase no se puede ejercitar
+ * aqui. El motor de coleccion que usan las pruebas no entiende las comillas de
+ * frase -las trata como texto literal-, asi que siempre cae al camino de
+ * respaldo. Lo que se comprueba abajo es que ese respaldo sigue intacto; que la
+ * frase devuelve los cinco esta verificado contra el indice real de produccion,
+ * no aqui.
+ */
+it('sigue deduciendo el numero cuando la frase no encuentra nada', function (): void {
+    $empresa = Company::factory()->create();
+    $usuario = User::factory()->create(['company_id' => $empresa->id]);
+    $estado = Status::factory()->create(['company_id' => $empresa->id]);
+
+    $documento = Document::factory()->create([
+        'company_id' => $empresa->id,
+        'status_id' => $estado->id,
+        'created_by' => $usuario->id,
+        'title' => 'COMUNICACION INTERNA N°0069 CARLOS NUNEZ',
+    ]);
+
+    $busqueda = Document::search('COMUNICACION INTERNA 0069');
+
+    // El tipo va al indice y el numero queda como exigencia sobre el titulo,
+    // que es lo que rescata al documento cuando la frase entera no coincide
+    // -aqui no coincide porque el titulo lleva el "N°" entre medias-.
+    expect($busqueda->query)->toBe('COMUNICACION INTERNA')
+        ->and($busqueda->whereIns['id'] ?? [])->toContain($documento->id);
+});
+
+it('no confunde con un numero una consulta que no termina en cifras', function (): void {
+    expect(Document::search('egreso mensual')->query)->toBe('egreso mensual')
+        ->and(Document::search('egreso mensual')->options['matchingStrategy'])->toBe('frequency');
+});
