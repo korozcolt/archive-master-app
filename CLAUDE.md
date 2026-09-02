@@ -36,6 +36,33 @@ Archive Master is a Laravel 12-based enterprise document management system with 
 - **Testing**: Pest PHP
 - **API**: Laravel Sanctum + Swagger/OpenAPI
 
+## Branch Architecture (Multi-Client)
+
+Archive Master is a **product deployed to several clients**. Clients are separated
+**by branch**, and they differ by **seeds**, not by application code.
+
+```
+main                                  ← shared product core
+ ├── integration/aguas-de-sucre-into-main    ← client: Aguas de Sucre (deployed to archive-ads)
+ └── integration/transportes-gonzalez        ← client: Transportes González (planned)
+```
+
+**Rules that follow from this:**
+
+1. **Generic fixes belong in `main`.** Search engine behaviour, OCR, memory limits,
+   performance indexes — anything not specific to one client must reach `main` so the
+   next client inherits it. Leaving such a fix only on a client branch guarantees a
+   future regression when the next client is created.
+2. **Client-specific changes stay on that client's integration branch.** Seeds,
+   branding, client-requested workflow tweaks.
+3. **Production for Aguas de Sucre deploys from `integration/aguas-de-sucre-into-main`.**
+   That is the branch Dokploy tracks. Do not point deployments at `main` or at
+   historical branches such as `codex/aguas-de-sucre`.
+4. When measuring how far two branches have drifted, **compare content**
+   (`git diff --name-status`), never commit counts. These branches have historically
+   been synchronised by copying changes by hand, so the same fix exists under
+   different hashes and commit counts are misleading.
+
 ## Essential Commands
 
 ### Development Environment
