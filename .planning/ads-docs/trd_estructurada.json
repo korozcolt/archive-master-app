@@ -1,0 +1,916 @@
+{
+  "empresa": "AGUAS DE SUCRE S.A. E.S.P.",
+  "nit": "",
+  "ciudad": "Sincelejo, Sucre, Colombia",
+  "oficinas": [
+    {
+      "codigo": "G100",
+      "nombre": "GERENCIA",
+      "series": [
+        {
+          "codigo": "G100-2",
+          "nombre": "ACTAS",
+          "subseries": [
+            {
+              "codigo": "G100-2-01",
+              "nombre": "Actas de Asamblea de Accionistas",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Citación",
+                "Acta",
+                "Anexos"
+              ]
+            },
+            {
+              "codigo": "G100-2-08",
+              "nombre": "Actas de Comité Directivo PDA",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Citación",
+                "Acta",
+                "Anexos",
+                "Acto administrativo de creación"
+              ]
+            },
+            {
+              "codigo": "G100-2-12",
+              "nombre": "Actas de Junta Directiva",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Citación",
+                "Acta",
+                "Anexos"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "G100-3",
+          "nombre": "ACTOS ADMINISTRATIVOS",
+          "subseries": [
+            {
+              "codigo": "G100-3-01",
+              "nombre": "Resoluciones",
+              "ag": 2,
+              "ac": 20,
+              "disposicion": "CT",
+              "soporte": "Papel",
+              "tipos": [
+                "Resoluciones"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "G100-4",
+          "nombre": "CERTIFICADOS",
+          "subseries": [
+            {
+              "codigo": "G100-4-01",
+              "nombre": "Certificados",
+              "ag": 2,
+              "ac": 0,
+              "disposicion": "E",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Solicitud",
+                "Certificado"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "G100-5",
+          "nombre": "CIRCULARES",
+          "subseries": [
+            {
+              "codigo": "G100-5-01",
+              "nombre": "Circulares",
+              "ag": 2,
+              "ac": 5,
+              "disposicion": "S",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Circular"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "G100-16",
+          "nombre": "INFORMES",
+          "subseries": [
+            {
+              "codigo": "G100-16-01",
+              "nombre": "Informe a Entes de Control",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Oficio Remisorio",
+                "Informe",
+                "Anexos"
+              ]
+            },
+            {
+              "codigo": "G100-16-07",
+              "nombre": "Informe de Gestión del Patrimonio Autónomo",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Oficio Remisorio",
+                "Informe",
+                "Anexos"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "G100-24",
+          "nombre": "PLANES",
+          "subseries": [
+            {
+              "codigo": "G100-24-05",
+              "nombre": "Plan Estratégico de Inversiones",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Plan",
+                "Informe bimestral de avance",
+                "Informe de cierre",
+                "Anexos"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "G100-28",
+          "nombre": "REGISTROS",
+          "subseries": [
+            {
+              "codigo": "G100-28-04",
+              "nombre": "Registro de Certificados de Disponibilidad de Recursos",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "E",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "CDR"
+              ]
+            },
+            {
+              "codigo": "G100-28-05",
+              "nombre": "Registro de Documentos de Constitución de la Empresa",
+              "ag": 2,
+              "ac": 20,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Escrituras públicas de constitución",
+                "Inscripción en cámara de comercio",
+                "Inscripción en registro único tributario"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "codigo": "SAF140",
+      "nombre": "SUBGERENCIA ADMINISTRATIVA Y FINANCIERA",
+      "series": [
+        {
+          "codigo": "SAF140-2",
+          "nombre": "ACTAS",
+          "subseries": [
+            {
+              "codigo": "SAF140-2-02",
+              "nombre": "Actas de Comité de Adquisiciones",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Citación",
+                "Acta",
+                "Anexos",
+                "Acto administrativo de creación"
+              ]
+            },
+            {
+              "codigo": "SAF140-2-04",
+              "nombre": "Actas de Comité de Brigadistas",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Citación",
+                "Acta",
+                "Anexos",
+                "Acto administrativo de creación"
+              ]
+            },
+            {
+              "codigo": "SAF140-2-06",
+              "nombre": "Actas de Comité de Convivencia Laboral",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Citación",
+                "Acta",
+                "Anexos",
+                "Acto administrativo de creación"
+              ]
+            },
+            {
+              "codigo": "SAF140-2-09",
+              "nombre": "Actas de Comité Evaluador de Baja de Bienes",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Citación",
+                "Acta",
+                "Anexos",
+                "Acto administrativo de creación"
+              ]
+            },
+            {
+              "codigo": "SAF140-2-10",
+              "nombre": "Actas de Comité Paritario de Seguridad y Salud en el Trabajo",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Citación",
+                "Acta",
+                "Anexos",
+                "Acto administrativo de creación"
+              ]
+            },
+            {
+              "codigo": "SAF140-2-11",
+              "nombre": "Actas de Comité Técnico de Sostenibilidad Contable",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Citación",
+                "Acta",
+                "Anexos",
+                "Acto administrativo de creación"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "SAF140-4",
+          "nombre": "CERTIFICADOS",
+          "subseries": [
+            {
+              "codigo": "SAF140-4-02",
+              "nombre": "Certificados de Disponibilidad Presupuestal",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "E",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "CDP",
+                "Solicitud",
+                "Registro presupuestal"
+              ]
+            },
+            {
+              "codigo": "SAF140-4-03",
+              "nombre": "Certificados Laborales",
+              "ag": 2,
+              "ac": 0,
+              "disposicion": "E",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Solicitud",
+                "Certificado"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "SAF140-5",
+          "nombre": "CIRCULARES",
+          "subseries": [
+            {
+              "codigo": "SAF140-5-01",
+              "nombre": "Circulares",
+              "ag": 2,
+              "ac": 5,
+              "disposicion": "S",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Circular"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "SAF140-6",
+          "nombre": "COMPROBANTES CONTABLES",
+          "subseries": [
+            {
+              "codigo": "SAF140-6-01",
+              "nombre": "Comprobantes de Egresos",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "E",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Comprobante de egreso",
+                "Orden de pago",
+                "CDP",
+                "RP",
+                "Formato solicitud de pago",
+                "Cuenta de cobro o factura",
+                "Informe de actividades",
+                "Certificado de cumplimiento",
+                "Pago de Seguridad social",
+                "Certificado de cuenta bancaria",
+                "Soporte de pago de banco"
+              ]
+            },
+            {
+              "codigo": "SAF140-6-02",
+              "nombre": "Comprobantes de Ingreso",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "E",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Comprobante de Ingreso",
+                "Orden de pago FIA"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "SAF140-7",
+          "nombre": "CONCILIACIONES",
+          "subseries": [
+            {
+              "codigo": "SAF140-7-01",
+              "nombre": "Conciliaciones Bancarias",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "E",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Extracto bancario",
+                "Copia libros de banco",
+                "Conciliación bancaria"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "SAF140-12",
+          "nombre": "DECLARACIONES TRIBUTARIAS",
+          "subseries": [
+            {
+              "codigo": "SAF140-12-01",
+              "nombre": "Declaración de Impuesto de Industria y Comercio",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "E",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Declaración"
+              ]
+            },
+            {
+              "codigo": "SAF140-12-02",
+              "nombre": "Declaraciones de Renta y Complementarios",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "E",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Declaración"
+              ]
+            },
+            {
+              "codigo": "SAF140-12-03",
+              "nombre": "Declaraciones de Retención en la Fuente",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "E",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Declaración mensual"
+              ]
+            },
+            {
+              "codigo": "SAF140-12-04",
+              "nombre": "Declaración y Pago de Estampillas",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "E",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Declaración y pago de estampillas"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "SAF140-14",
+          "nombre": "ESTADOS FINANCIEROS",
+          "subseries": [
+            {
+              "codigo": "SAF140-14-01",
+              "nombre": "Estados Financieros",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Balance general",
+                "Estado de resultados",
+                "Estado de cambios en el patrimonio",
+                "Estado de cambios en la situación financiera",
+                "Estado de flujo de efectivo",
+                "Estados financieros consolidados"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "SAF140-15",
+          "nombre": "HISTORIAS LABORALES",
+          "subseries": [
+            {
+              "codigo": "SAF140-15-01",
+              "nombre": "Historias Laborales",
+              "ag": 2,
+              "ac": 80,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Copia acto administrativo de nombramiento",
+                "Oficio de notificación de nombramiento",
+                "Documentos de identificación",
+                "Hoja de vida formato único función pública",
+                "Copia de documento de identidad",
+                "Copia de libreta militar",
+                "Copia de tarjeta profesional",
+                "Copias de diplomas",
+                "Copias de actas de grado",
+                "Certificaciones de experiencia"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "codigo": "ST130",
+      "nombre": "SUBGERENCIA TÉCNICA",
+      "series": [
+        {
+          "codigo": "ST130-16",
+          "nombre": "INFORMES",
+          "subseries": [
+            {
+              "codigo": "ST130-16-09",
+              "nombre": "Informes de Gestión",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Informe",
+                "Anexos"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "ST130-24",
+          "nombre": "PLANES",
+          "subseries": [
+            {
+              "codigo": "ST130-24-06",
+              "nombre": "Plan de Gestión Integral de Residuos Sólidos - PGIRS",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Plan",
+                "Acta de aprobación",
+                "Anexos"
+              ]
+            },
+            {
+              "codigo": "ST130-24-07",
+              "nombre": "Plan de Ordenamiento del Recurso Hídrico - PORH",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Plan",
+                "Acta de aprobación",
+                "Anexos"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "codigo": "SAP150",
+      "nombre": "ASEGURAMIENTO DE LA PRESTACIÓN DEL SERVICIO",
+      "series": [
+        {
+          "codigo": "SAP150-21",
+          "nombre": "PETICIONES, QUEJAS Y RECLAMOS",
+          "subseries": [
+            {
+              "codigo": "SAP150-21-01",
+              "nombre": "Peticiones, Quejas, Reclamos y Sugerencias - PQRS",
+              "ag": 2,
+              "ac": 5,
+              "disposicion": "E",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Petición/Queja/Reclamo/Sugerencia",
+                "Respuesta",
+                "Anexos"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "SAP150-24",
+          "nombre": "PLANES",
+          "subseries": [
+            {
+              "codigo": "SAP150-24-03",
+              "nombre": "Plan Anticorrupción y de Atención al Ciudadano",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Plan",
+                "Informe de seguimiento",
+                "Anexos"
+              ]
+            },
+            {
+              "codigo": "SAP150-24-04",
+              "nombre": "Plan de Gestión Social",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Plan",
+                "Informe de seguimiento",
+                "Anexos"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "codigo": "CAI120",
+      "nombre": "CONTROL Y AUDITORÍA INTERNA",
+      "series": [
+        {
+          "codigo": "CAI120-1",
+          "nombre": "AUDITORÍAS",
+          "subseries": [
+            {
+              "codigo": "CAI120-1-01",
+              "nombre": "Informes de Auditoría Interna",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Plan de auditoría",
+                "Informe de auditoría",
+                "Hallazgos",
+                "Plan de mejoramiento"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "CAI120-18",
+          "nombre": "MANUALES",
+          "subseries": [
+            {
+              "codigo": "CAI120-18-02",
+              "nombre": "Manual del Sistema de Control Interno",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Manual",
+                "Resolución de adopción",
+                "Anexos"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "codigo": "SG110",
+      "nombre": "SECRETARÍA GENERAL",
+      "series": [
+        {
+          "codigo": "SG110-2",
+          "nombre": "ACTAS",
+          "subseries": [
+            {
+              "codigo": "SG110-2-03",
+              "nombre": "Actas de Comité de Archivo",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Citación",
+                "Acta",
+                "Anexos",
+                "Acto administrativo de creación"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "SG110-9",
+          "nombre": "CONTRATOS",
+          "subseries": [
+            {
+              "codigo": "SG110-9-01",
+              "nombre": "Contratos de Arrendamiento",
+              "ag": 2,
+              "ac": 20,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Estudios previos",
+                "Certificado de disponibilidad presupuestal",
+                "Contrato",
+                "Registro presupuestal",
+                "Garantías",
+                "Acta de inicio",
+                "Informes",
+                "Acta de liquidación"
+              ]
+            },
+            {
+              "codigo": "SG110-9-08",
+              "nombre": "Contratos de Obra",
+              "ag": 2,
+              "ac": 20,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Estudios previos",
+                "CDP",
+                "Contrato",
+                "Registro presupuestal",
+                "Garantías",
+                "Acta de inicio",
+                "Informes de avance",
+                "Acta de liquidación"
+              ]
+            },
+            {
+              "codigo": "SG110-9-10",
+              "nombre": "Contratos de Suministro",
+              "ag": 2,
+              "ac": 20,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Estudios previos",
+                "CDP",
+                "Contrato",
+                "Registro presupuestal",
+                "Garantías",
+                "Acta de inicio",
+                "Informes",
+                "Acta de liquidación"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "SG110-11",
+          "nombre": "CORRESPONDENCIA",
+          "subseries": [
+            {
+              "codigo": "SG110-11-01",
+              "nombre": "Correspondencia Recibida",
+              "ag": 2,
+              "ac": 5,
+              "disposicion": "E",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Comunicación recibida",
+                "Anexos"
+              ]
+            },
+            {
+              "codigo": "SG110-11-02",
+              "nombre": "Correspondencia Enviada",
+              "ag": 2,
+              "ac": 5,
+              "disposicion": "E",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Comunicación enviada",
+                "Anexos"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "SG110-13",
+          "nombre": "DERECHOS DE PETICIÓN",
+          "subseries": [
+            {
+              "codigo": "SG110-13-01",
+              "nombre": "Derechos de Petición",
+              "ag": 2,
+              "ac": 5,
+              "disposicion": "E",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Derecho de petición",
+                "Respuesta",
+                "Anexos"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "SG110-17",
+          "nombre": "INSTRUMENTOS ARCHIVÍSTICOS",
+          "subseries": [
+            {
+              "codigo": "SG110-17-01",
+              "nombre": "Cuadro de Clasificación Documental - CCD",
+              "ag": 2,
+              "ac": 20,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "CCD",
+                "Resolución de adopción",
+                "Acta de aprobación"
+              ]
+            },
+            {
+              "codigo": "SG110-17-02",
+              "nombre": "Tabla de Retención Documental - TRD",
+              "ag": 2,
+              "ac": 20,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "TRD",
+                "Resolución de adopción",
+                "Acta de aprobación del Consejo Departamental de Archivo"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "SG110-18",
+          "nombre": "MANUALES",
+          "subseries": [
+            {
+              "codigo": "SG110-18-04",
+              "nombre": "Manual de Gestión Documental",
+              "ag": 2,
+              "ac": 0,
+              "disposicion": "CT",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Manual",
+                "Resolución de adopción"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "SG110-26",
+          "nombre": "PROCESOS JURÍDICOS",
+          "subseries": [
+            {
+              "codigo": "SG110-26-01",
+              "nombre": "Procesos Contenciosos Administrativos",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "S",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Auto inhibitorio",
+                "Auto de apertura",
+                "Citación de notificación",
+                "Edicto",
+                "Práctica de pruebas ordenadas",
+                "Recursos de apelación",
+                "Fallo de primera instancia",
+                "Fallo de segunda instancia",
+                "Resolución"
+              ]
+            },
+            {
+              "codigo": "SG110-26-02",
+              "nombre": "Procesos Disciplinarios",
+              "ag": 2,
+              "ac": 10,
+              "disposicion": "S",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Queja/Informe",
+                "Auto inhibitorio",
+                "Auto de apertura",
+                "Fallo de primera instancia",
+                "Fallo de segunda instancia",
+                "Resolución"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "SG110-27",
+          "nombre": "RECURSOS DE AMPARO Y TUTELAS",
+          "subseries": [
+            {
+              "codigo": "SG110-27-01",
+              "nombre": "Tutelas",
+              "ag": 2,
+              "ac": 5,
+              "disposicion": "S",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Tutela",
+                "Respuesta",
+                "Fallo",
+                "Impugnación"
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "SG110-28",
+          "nombre": "REGISTROS",
+          "subseries": [
+            {
+              "codigo": "SG110-28-11",
+              "nombre": "Registro de Supervisión de Contratos",
+              "ag": 2,
+              "ac": 0,
+              "disposicion": "E",
+              "soporte": "Papel/Electrónico",
+              "tipos": [
+                "Informe de actividades",
+                "Certificados de satisfacción",
+                "Informes de supervisión"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

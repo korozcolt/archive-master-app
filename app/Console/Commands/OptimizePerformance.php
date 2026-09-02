@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class OptimizePerformance extends Command
@@ -28,7 +29,7 @@ class OptimizePerformance extends Command
     /**
      * The console command description.
      */
-    protected $description = 'Optimizar el rendimiento del sistema (cache, base de datos, archivos)';
+    protected $description = 'Optimizar el rendimiento del sistema (cache, base de datos, archivos) v1.0.1';
 
     /**
      * Execute the console command.

@@ -50,6 +50,12 @@
 @endphp
 
 <div class="space-y-6">
+    @if($activeGrant)
+        <x-ui.alert type="info" title="Acceso temporal activo">
+            Tu acceso a este documento expira el {{ $activeGrant->expires_at->format('d/m/Y H:i') }}.
+        </x-ui.alert>
+    @endif
+
     <section class="rounded-2xl border border-white/70 bg-white p-5 shadow-sm motion-safe:animate-fade-in-up motion-safe:animate-duration-300 dark:border-slate-800 dark:bg-slate-900 am-motion-safe">
         <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
             <div class="min-w-0">
@@ -68,11 +74,11 @@
                 </p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
-                @if($document->created_by == Auth::id() || $document->assigned_to == Auth::id())
+                @can('update', $document)
                     <a href="{{ route('documents.edit', $document) }}" class="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
                         Editar
                     </a>
-                @endif
+                @endcan
                 @if($hasPreview)
                     <a href="{{ route('documents.download', $document) }}" class="inline-flex h-10 items-center justify-center rounded-xl border border-sky-300/20 bg-gradient-to-r from-sky-500 to-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:from-sky-400 hover:to-indigo-500 motion-safe:hover:animate-jump motion-safe:hover:animate-duration-200 am-motion-safe">
                         Descargar

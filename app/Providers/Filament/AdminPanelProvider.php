@@ -44,28 +44,25 @@ class AdminPanelProvider extends PanelProvider
             ->pages([
                 Pages\Dashboard::class,
             ])
-            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
+            // El descubrimiento automatico se desactivo para no cargar los 25
+            // widgets del proyecto en cada peticion. A cambio, esta lista tiene
+            // que incluir **todos** los que se usen, no solo los del tablero:
+            // Livewire resuelve por aqui los widgets de cabecera de las paginas
+            // de recurso, y uno que falte no da un aviso sino un error 500.
+            //
+            // Eso ocurrio con AdvancedSearchStatsWidget, que usa
+            // ListAdvancedSearches como widget de cabecera y quedo fuera de la
+            // lista al desactivar el descubrimiento: /admin/advanced-searches
+            // respondia 200 al abrirse y reventaba en la primera peticion de
+            // Livewire con "Unable to find component".
+            //
+            // ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
-                \App\Filament\Widgets\ProductivityStatsWidget::class,
-                \App\Filament\Widgets\QuickActionsWidget::class,
-                \App\Filament\Widgets\NotificationsWidget::class,
                 \App\Filament\Widgets\StatsOverview::class,
-                \App\Filament\Widgets\CompanyStatsWidget::class,
-                \App\Filament\Widgets\DocumentsByStatus::class,
-                \App\Filament\Widgets\CategoryDepartmentWidget::class,
+                \App\Filament\Widgets\QuickActionsWidget::class,
                 \App\Filament\Widgets\RecentDocuments::class,
-                \App\Filament\Widgets\UserActivityWidget::class,
-                \App\Filament\Widgets\OverdueDocuments::class,
                 \App\Filament\Widgets\WorkflowStatsWidget::class,
-                \App\Filament\Widgets\RecentActivity::class,
-                // Phase 3: Reports & Analytics Widgets
-                \App\Filament\Widgets\ReportsAnalyticsWidget::class,
-                \App\Filament\Widgets\DocumentsTrendChart::class,
-                \App\Filament\Widgets\DepartmentDistributionChart::class,
-                \App\Filament\Widgets\SlaComplianceChart::class,
-                // Phase 3 Week 6: Advanced Reports & Performance Metrics
-                \App\Filament\Widgets\PerformanceMetricsWidget::class,
-                \App\Filament\Widgets\PerformanceTrendsChart::class,
+                \App\Filament\Widgets\AdvancedSearchStatsWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,

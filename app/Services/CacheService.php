@@ -144,7 +144,7 @@ class CacheService
                 ->where('active', true)
                 ->with('children')
                 ->whereNull('parent_id')
-                ->orderBy('name')
+                ->ordenadoPorNombre()
                 ->get();
         }, 120, $companyId); // Cache por 2 horas
     }
@@ -159,7 +159,7 @@ class CacheService
 
             return \App\Models\Status::where('company_id', $companyId)
                 ->where('active', true)
-                ->orderBy('name')
+                ->ordenadoPorNombre()
                 ->get();
         }, 120, $companyId); // Cache por 2 horas
     }

@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'mock_mode' => env('AI_MOCK_MODE', true),
+    'mock_mode' => env('AI_MOCK_MODE', false),
 
     'timeouts' => [
         'request_seconds' => (int) env('AI_REQUEST_TIMEOUT', 30),
@@ -19,6 +19,10 @@ return [
         ],
         'gemini' => [
             'default_model' => env('AI_GEMINI_MODEL', 'gemini-2.0-flash'),
+        ],
+        'nvidia' => [
+            'base_url' => env('AI_NVIDIA_BASE_URL', 'https://integrate.api.nvidia.com/v1'),
+            'default_model' => env('AI_NVIDIA_MODEL', 'moonshotai/kimi-k2.6'),
         ],
     ],
 

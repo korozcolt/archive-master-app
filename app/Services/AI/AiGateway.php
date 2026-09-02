@@ -7,6 +7,7 @@ use App\Models\CompanyAiSetting;
 use App\Models\DocumentVersion;
 use App\Services\AI\Contracts\AiProviderContract;
 use App\Services\AI\Providers\GeminiProvider;
+use App\Services\AI\Providers\NvidiaProvider;
 use App\Services\AI\Providers\OpenAiProvider;
 use RuntimeException;
 
@@ -14,7 +15,8 @@ class AiGateway
 {
     public function __construct(
         private OpenAiProvider $openAiProvider,
-        private GeminiProvider $geminiProvider
+        private GeminiProvider $geminiProvider,
+        private NvidiaProvider $nvidiaProvider,
     ) {}
 
     public function summarize(DocumentVersion $version): array
@@ -65,6 +67,22 @@ class AiGateway
         ]);
     }
 
+    public function extractAccounting(DocumentVersion $version): array
+    {
+        $setting = $this->resolveEnabledSettingForVersion($version);
+        $provider = $this->providerByName($setting->provider)->withConfiguration([
+            'api_key' => $setting->api_key_encrypted,
+            'model' => $this->defaultModelForProvider($setting->provider),
+            'provider' => $setting->provider,
+        ]);
+        $inputText = $this->resolveInputText($version, (bool) $setting->redact_pii);
+
+        return $provider->extractAccounting($inputText, [
+            'document_version_id' => $version->id,
+            'document_id' => $version->document_id,
+        ]);
+    }
+
     public function testProvider(Company $company, string $sampleText): array
     {
         $setting = $this->resolveEnabledSetting($company);
@@ -110,6 +128,7 @@ class AiGateway
         return match ($provider) {
             'openai' => $this->openAiProvider,
             'gemini' => $this->geminiProvider,
+            'nvidia' => $this->nvidiaProvider,
             default => throw new RuntimeException('Proveedor de IA no soportado: '.$provider),
         };
     }
@@ -119,6 +138,7 @@ class AiGateway
         return match ($provider) {
             'openai' => config('ai.providers.openai.default_model'),
             'gemini' => config('ai.providers.gemini.default_model'),
+            'nvidia' => config('ai.providers.nvidia.default_model'),
             default => 'unknown',
         };
     }

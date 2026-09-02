@@ -13,16 +13,39 @@ class DocumentUpdated
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    public int $documentId;
+
+    public int $updatedById;
+
+    /**
+     * @var array<string, mixed>
+     */
+    public array $documentSnapshot;
+
+    /**
+     * @var array<string, mixed>
+     */
+    public array $updatedBySnapshot;
+
     /**
      * Create a new event instance.
      */
     public function __construct(
-        public Document $document,
-        public User $updatedBy,
+        Document $document,
+        User $updatedBy,
         public array $changes = [],
-        public ?string $comment = null
+        public ?string $comment = null,
     ) {
-        //
+        $this->documentId = $document->id;
+        $this->updatedById = $updatedBy->id;
+        $this->documentSnapshot = [
+            'company_id' => $document->company_id,
+            'document_number' => $document->document_number,
+            'title' => $document->title,
+        ];
+        $this->updatedBySnapshot = [
+            'name' => $updatedBy->name,
+        ];
     }
 
     /**
@@ -33,8 +56,8 @@ class DocumentUpdated
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('document.'.$this->document->id),
-            new PrivateChannel('company.'.$this->document->company_id),
+            new PrivateChannel('document.'.$this->documentId),
+            new PrivateChannel('company.'.$this->documentSnapshot['company_id']),
         ];
     }
 
@@ -44,12 +67,12 @@ class DocumentUpdated
     public function broadcastWith(): array
     {
         return [
-            'document_id' => $this->document->id,
-            'document_number' => $this->document->document_number,
-            'document_title' => $this->document->title,
+            'document_id' => $this->documentId,
+            'document_number' => $this->documentSnapshot['document_number'],
+            'document_title' => $this->documentSnapshot['title'],
             'updated_by' => [
-                'id' => $this->updatedBy->id,
-                'name' => $this->updatedBy->name,
+                'id' => $this->updatedById,
+                'name' => $this->updatedBySnapshot['name'],
             ],
             'changes' => $this->changes,
             'comment' => $this->comment,

@@ -1,5 +1,25 @@
 [variables]
 NIXPACKS_NODE_VERSION = "22"
+# OJO, dos trampas encadenadas aqui:
+#
+# 1. Nixpacks NO lee esta variable para elegir la version de PHP: la toma de
+#    la restriccion "require.php" de composer.json. La de Node si funciona,
+#    lo que lo hace mas confuso. Verificado con `nixpacks plan`: con ^8.2
+#    resuelve el paquete `php` (8.2.27) y con ^8.4 resuelve `php84` (8.4.2).
+#
+# 2. Aun asi NO se puede subir a 8.4 hoy. El `php84` del pin de nixpkgs que
+#    usa nixpacks 1.41 esta compilado SIN los plugins sha2 de mysqlnd:
+#      8.2 -> auth_plugin_caching_sha2_password, auth_plugin_sha256_password
+#      8.4 -> ninguno de los dos
+#    MySQL 8 autentica con caching_sha2_password por defecto, asi que la
+#    aplicacion arranca y sirve paginas pero NO conecta con la base:
+#      SQLSTATE[HY000] [2054] The server requested authentication method
+#      unknown to the client [caching_sha2_password]
+#    Comprobado construyendo ambas imagenes y conectando desde cada una
+#    contra el MySQL real: 8.2 conecta, 8.4 falla.
+#
+# Mientras no cambie eso, la version efectiva es 8.2 y este valor queda
+# como declaracion de intencion.
 NIXPACKS_PHP_VERSION = "8.4"
 NODE_ENV = "production"
 COMPOSER_ALLOW_SUPERUSER = "1"

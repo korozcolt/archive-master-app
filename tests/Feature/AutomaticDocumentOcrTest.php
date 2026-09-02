@@ -139,3 +139,46 @@ it('processes automatic ocr job and stores extracted content for the document', 
         ->and(data_get($document->metadata, 'ocr_result.word_count'))->toBe(5)
         ->and(data_get($document->metadata, 'ocr_error'))->toBeNull();
 });
+
+it('stores an automatic ocr error when the extractor returns empty text', function () {
+    Storage::fake('local');
+
+    $document = makeAutomaticOcrDocument([
+        'file_path' => 'documents/ocr/empty-job.pdf',
+        'content' => null,
+    ]);
+
+    Storage::disk('local')->put($document->file_path, 'archivo-vacio');
+
+    $ocrService = mock(OCRService::class, function (MockInterface $mock) use ($document): void {
+        $mock->shouldReceive('processFile')
+            ->once()
+            ->with($document->file_path, 'spa')
+            ->andReturn([
+                'success' => true,
+                'extracted_text' => '',
+                'confidence' => 0,
+                'language' => 'spa',
+                'metadata' => [
+                    'word_count' => 0,
+                    'document_type' => 'documento',
+                    'entities' => [],
+                    'keywords' => [],
+                ],
+            ]);
+    });
+
+    $job = app(ProcessDocumentOcr::class, [
+        'documentId' => $document->id,
+        'force' => false,
+        'language' => 'spa',
+    ]);
+
+    $job->handle($ocrService);
+
+    $document->refresh();
+
+    expect($document->content)->toBeNull()
+        ->and(data_get($document->metadata, 'ocr_processed'))->toBeTrue()
+        ->and(data_get($document->metadata, 'ocr_error'))->toBe('OCR no extrajo texto útil del archivo.');
+});

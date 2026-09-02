@@ -29,7 +29,26 @@ return [
     |
     */
 
-    'prefix' => env('SCOUT_PREFIX', ''),
+    /*
+     * Sin prefijo, y a proposito.
+     *
+     * El unico modelo buscable de la aplicacion es Document, y fija su indice
+     * en `documents` con un `searchableAs()` explicito, que no pasa por este
+     * prefijo. `scout:sync-index-settings` si lo aplica, asi que con
+     * SCOUT_PREFIX definido el comando escribia los ajustes -sinonimos,
+     * atributos buscables, atributos filtrables- en un indice
+     * `<prefijo>documents` vacio, mientras el indice real con los 45.000
+     * documentos se quedaba con lo que hubiera.
+     *
+     * Costo real: los sinonimos que hacen falta para que "declaraciones"
+     * encuentre "DECLARACION DE RENTA" estaban en el repositorio y no en el
+     * motor. Cada cliente nuevo heredaba el fallo.
+     *
+     * No se lee de env para que el fallo no pueda reaparecer configurando la
+     * variable en un panel. Separar clientes es cosa de la rama y de su propia
+     * instancia de Meilisearch, no de este prefijo.
+     */
+    'prefix' => '',
 
     /*
     |--------------------------------------------------------------------------
@@ -142,16 +161,29 @@ return [
         'index-settings' => [
             'documents' => [
                 'displayedAttributes' => ['id'],
+                // El orden fija la prioridad de relevancia en Meilisearch.
+                // Los identificadores exactos van primero (un escaneo de codigo
+                // de barras debe encontrar su documento antes que cualquier
+                // coincidencia de texto) y el contenido OCR al final, porque es
+                // largo y ruidoso.
                 'searchableAttributes' => [
                     'title',
                     'document_number',
+                    'barcode',
+                    'qrcode',
                     'description',
+                    'physical_location',
                     'historical_reference_code',
                     'historical_box',
                     'historical_folder',
                     'historical_volume',
                     'historical_keywords_text',
                     'historical_department_name',
+                    'historical_year',
+                    'historical_shelf',
+                    'historical_bay',
+                    'historical_box_location',
+                    'historical_custody_department',
                     'tags',
                     'category_name',
                     'status_name',
@@ -163,6 +195,7 @@ return [
                     'content',
                 ],
                 'filterableAttributes' => [
+                    'id',
                     'company_id',
                     'category_id',
                     'status_id',
@@ -172,6 +205,11 @@ return [
                     'priority',
                     'is_confidential',
                     'is_archived',
+                    // Filtrable ademas de buscable, que es la diferencia entre
+                    // "documentos que mencionan 2024" y "documentos de 2024".
+                    // `received_at` no sirve para esto: guarda la fecha de carga
+                    // y vale 2026 para los 45.306.
+                    'historical_year',
                 ],
                 'sortableAttributes' => [
                     'created_at',
@@ -181,6 +219,70 @@ return [
                 ],
                 'typoTolerance' => [
                     'disableOnAttributes' => ['content'],
+                ],
+                /*
+                 * Sinonimos: plurales y equivalencias de los tipos documentales.
+                 *
+                 * Estaban configurados directamente en el indice y no en el
+                 * repositorio, asi que nadie podia revisarlos y una instancia
+                 * nueva no los heredaba. Se traen aqui para que `scout:sync-index-settings`
+                 * los mantenga alineados en cada despliegue.
+                 *
+                 * Hacen falta porque sin ellos el plural no encuentra nada: los
+                 * titulos dicen "DECLARACION DE RENTA" y nadie escribio nunca
+                 * "DECLARACIONES" en uno. Buscando el plural, la tolerancia a
+                 * erratas emparejaba "DECLARACIONES" con "ACLARACION" y devolvia
+                 * documentos sin relacion. La entrada `declaracion` faltaba y era
+                 * justo la que pedia el cliente.
+                 *
+                 * La lista es curada a proposito. Generar plurales por regla
+                 * produce basura -"presupuestals", "estudioss", "documentoss"-
+                 * porque muchas de las palabras frecuentes ya son plurales o son
+                 * adjetivos.
+                 */
+                'synonyms' => [
+                    'acta' => ['actas'],
+                    'actas' => ['acta'],
+                    'anexo' => ['anexos'],
+                    'anexos' => ['anexo'],
+                    'cdp' => ['certificado de disponibilidad presupuestal'],
+                    'certificacion' => ['certificaciones', 'certificado', 'certificados'],
+                    'certificaciones' => ['certificacion', 'certificado', 'certificados'],
+                    'certificado' => ['certificados', 'certificacion', 'certificaciones'],
+                    'certificados' => ['certificado', 'certificacion', 'certificaciones'],
+                    'circular' => ['circulares'],
+                    'circulares' => ['circular'],
+                    'citacion' => ['citaciones'],
+                    'citaciones' => ['citacion'],
+                    'comprobante' => ['comprobantes'],
+                    'comprobantes' => ['comprobante'],
+                    'comunicacion' => ['comunicaciones'],
+                    'comunicaciones' => ['comunicacion'],
+                    'contrato' => ['contratos'],
+                    'contratos' => ['contrato'],
+                    'declaracion' => ['declaraciones'],
+                    'declaraciones' => ['declaracion'],
+                    'egreso' => ['egresos'],
+                    'egresos' => ['egreso'],
+                    'factura' => ['facturas'],
+                    'facturas' => ['factura'],
+                    'informe' => ['informes'],
+                    'informes' => ['informe'],
+                    'invitacion' => ['invitaciones'],
+                    'invitaciones' => ['invitacion'],
+                    'memorando' => ['memorandos'],
+                    'memorandos' => ['memorando'],
+                    'oficio' => ['oficios'],
+                    'oficios' => ['oficio'],
+                    'poliza' => ['polizas'],
+                    'polizas' => ['poliza'],
+                    'pqrs' => ['peticiones quejas reclamos sugerencias'],
+                    'propuesta' => ['propuestas'],
+                    'propuestas' => ['propuesta'],
+                    'resolucion' => ['resoluciones'],
+                    'resoluciones' => ['resolucion'],
+                    'solicitud' => ['solicitudes'],
+                    'solicitudes' => ['solicitud'],
                 ],
                 'searchCutoffMs' => 1000,
             ],

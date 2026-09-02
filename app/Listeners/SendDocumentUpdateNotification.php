@@ -3,6 +3,7 @@
 namespace App\Listeners;
 
 use App\Events\DocumentUpdated;
+use App\Models\Document;
 use App\Models\User;
 use App\Notifications\DocumentUpdate;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -36,13 +37,25 @@ class SendDocumentUpdateNotification implements ShouldQueue
      */
     public function handle(DocumentUpdated $event): void
     {
+        $document = Document::query()->find($event->documentId);
+        $updatedBy = User::query()->find($event->updatedById);
+
+        if (! $document || ! $updatedBy) {
+            Log::info('Skipped stale document update notification', [
+                'document_id' => $event->documentId,
+                'updated_by' => $event->updatedById,
+            ]);
+
+            return;
+        }
+
         try {
-            $this->sendNotifications($event);
+            $this->sendNotifications($document, $updatedBy, $event->changes, $event->comment);
         } catch (\Exception $e) {
             Log::error('Failed to send document update notifications', [
-                'document_id' => $event->document->id,
-                'updated_by' => $event->updatedBy->id,
-                'error' => $e->getMessage()
+                'document_id' => $event->documentId,
+                'updated_by' => $event->updatedById,
+                'error' => $e->getMessage(),
             ]);
 
             throw $e; // Re-throw para que el job se reintente
@@ -52,19 +65,15 @@ class SendDocumentUpdateNotification implements ShouldQueue
     /**
      * Send notifications to relevant users
      */
-    private function sendNotifications(DocumentUpdated $event): void
+    private function sendNotifications(Document $document, User $updatedBy, array $changes, ?string $comment): void
     {
-        $document = $event->document;
-        $updatedBy = $event->updatedBy;
-        $changes = $event->changes;
-
         // Obtener usuarios que deben ser notificados
         $usersToNotify = $this->getUsersToNotify($document, $updatedBy);
 
         foreach ($usersToNotify as $user) {
             try {
                 // Verificar permisos antes de enviar
-                if (!$user->can('view', $document)) {
+                if (! $user->can('view', $document)) {
                     continue;
                 }
 
@@ -72,20 +81,20 @@ class SendDocumentUpdateNotification implements ShouldQueue
                     $document,
                     $updatedBy,
                     $changes,
-                    $event->comment
+                    $comment
                 ));
 
                 Log::info('Document update notification sent', [
                     'document_id' => $document->id,
                     'user_id' => $user->id,
-                    'updated_by' => $updatedBy->id
+                    'updated_by' => $updatedBy->id,
                 ]);
 
             } catch (\Exception $e) {
                 Log::error('Failed to send notification to user', [
                     'document_id' => $document->id,
                     'user_id' => $user->id,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -147,10 +156,10 @@ class SendDocumentUpdateNotification implements ShouldQueue
     public function failed(DocumentUpdated $event, \Throwable $exception): void
     {
         Log::error('SendDocumentUpdateNotification listener failed', [
-            'document_id' => $event->document->id,
-            'updated_by' => $event->updatedBy->id,
+            'document_id' => $event->documentId,
+            'updated_by' => $event->updatedById,
             'error' => $exception->getMessage(),
-            'trace' => $exception->getTraceAsString()
+            'trace' => $exception->getTraceAsString(),
         ]);
     }
 }

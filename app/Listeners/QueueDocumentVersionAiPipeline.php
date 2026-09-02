@@ -27,9 +27,11 @@ class QueueDocumentVersionAiPipeline implements ShouldQueue
         }
 
         $promptVersion = (string) config('ai.prompt_versions.summarize', 'v1.0.0');
-        $model = $setting->provider === 'gemini'
-            ? (string) config('ai.providers.gemini.default_model')
-            : (string) config('ai.providers.openai.default_model');
+        $model = (string) match ($setting->provider) {
+            'gemini' => config('ai.providers.gemini.default_model'),
+            'nvidia' => config('ai.providers.nvidia.default_model'),
+            default => config('ai.providers.openai.default_model'),
+        };
 
         $run = DocumentAiRun::query()->create([
             'company_id' => $version->document->company_id,

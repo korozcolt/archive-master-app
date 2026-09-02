@@ -12,5 +12,7 @@ interface AiProviderContract
 
     public function classify(string $text, array $context = []): array;
 
+    public function extractAccounting(string $text, array $context = []): array;
+
     public function testConnection(): array;
 }

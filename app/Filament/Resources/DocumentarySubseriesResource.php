@@ -71,8 +71,14 @@ class DocumentarySubseriesResource extends Resource
                             ->label('Serie')
                             ->options(fn (Forms\Get $get): array => DocumentarySeries::query()
                                 ->where('company_id', $get('company_id') ?: Auth::user()?->company_id)
-                                ->when($get('department_id'), fn (Builder $query, $departmentId) => $query->where('department_id', $departmentId))
-                                ->when(blank($get('department_id')), fn (Builder $query) => $query->whereNull('department_id'))
+                                ->where(function (Builder $query) use ($get): void {
+                                    if ($get('department_id')) {
+                                        $query->where('department_id', $get('department_id'))
+                                            ->orWhereNull('department_id');
+                                    } else {
+                                        $query->whereNull('department_id');
+                                    }
+                                })
                                 ->orderBy('code')
                                 ->pluck('name', 'id')
                                 ->all())

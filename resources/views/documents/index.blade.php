@@ -70,8 +70,8 @@
                 </h1>
                 <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
                     {{ $isArchivePortal
-                        ? "Consulta y controla la carga histórica del archivo central. Total visible: {$documents->total()} documento(s)."
-                        : "Administra, filtra y consulta tus documentos. Total: {$documents->total()} documento(s)." }}
+                        ? "Consulta y controla la carga histórica del archivo central. Mostrando hasta {$documents->perPage()} documento(s) por página."
+                        : "Administra, filtra y consulta tus documentos. Mostrando hasta {$documents->perPage()} documento(s) por página." }}
                 </p>
             </div>
             <div class="flex flex-wrap items-center gap-3">
@@ -87,7 +87,7 @@
                         <span>Subir / Crear</span>
                     </a>
                 @endunless
-                @if($documents->total() > 0)
+                @if($documents->count() > 0)
                     <a href="{{ route('documents.export', request()->all()) }}"
                        class="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
                         Exportar CSV
@@ -260,6 +260,7 @@
                                 $documentFileExtension = \App\Support\FileExtensionIcon::extensionFromPath($document->file_path)
                                     ?: \App\Support\FileExtensionIcon::extensionFromPath($latestVersionForIcon?->file_path)
                                     ?: \App\Support\FileExtensionIcon::normalizeExtension($latestVersionForIcon?->file_extension);
+                                $hasDocumentAccess = $document->has_active_grant || $document->hasImplicitPortalAccess(Auth::user());
                             @endphp
                             <tr class="group hover:bg-slate-50/80 motion-safe:animate-fade-in-up motion-safe:animate-duration-300 dark:hover:bg-slate-800/40 am-motion-safe">
                                 <td class="px-6 py-4">
@@ -277,6 +278,9 @@
                                                 @if($document->is_confidential)
                                                     <span class="inline-flex items-center rounded-md border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700">Confidencial</span>
                                                 @endif
+                                                @unless($hasDocumentAccess)
+                                                    <span class="inline-flex items-center rounded-md border border-slate-300 bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300">Acceso restringido</span>
+                                                @endunless
                                             </div>
                                             @if($historicalProducer)
                                                 <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">
@@ -311,9 +315,9 @@
                                 <td class="px-4 py-4 text-right">
                                     <div class="flex justify-end gap-2 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
                                         <a href="{{ route('documents.show', $document) }}" class="rounded-lg px-2 py-1 text-xs font-medium text-sky-700 hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-slate-800">Ver</a>
-                                        @if($document->created_by == Auth::id() || $document->assigned_to == Auth::id())
+                                        @can('update', $document)
                                             <a href="{{ route('documents.edit', $document) }}" class="rounded-lg px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-slate-800">Editar</a>
-                                        @endif
+                                        @endcan
                                     </div>
                                 </td>
                             </tr>

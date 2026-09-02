@@ -52,11 +52,17 @@ describe('OCR Service', function () {
         $method->setAccessible(true);
 
         expect($method->invoke($service, 'es'))->toBe('spa')
+            ->and($method->invoke($service, 'spa'))->toBe('spa')
             ->and($method->invoke($service, 'en'))->toBe('eng')
+            ->and($method->invoke($service, 'eng'))->toBe('eng')
             ->and($method->invoke($service, 'fr'))->toBe('fra')
+            ->and($method->invoke($service, 'fra'))->toBe('fra')
             ->and($method->invoke($service, 'de'))->toBe('deu')
+            ->and($method->invoke($service, 'deu'))->toBe('deu')
             ->and($method->invoke($service, 'it'))->toBe('ita')
-            ->and($method->invoke($service, 'pt'))->toBe('por');
+            ->and($method->invoke($service, 'ita'))->toBe('ita')
+            ->and($method->invoke($service, 'pt'))->toBe('por')
+            ->and($method->invoke($service, 'por'))->toBe('por');
     });
 
     test('ocr service defaults to english for unknown language', function () {

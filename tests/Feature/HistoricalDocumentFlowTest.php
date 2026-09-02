@@ -136,6 +136,31 @@ function historicalFlowSetup(): array
     );
 }
 
+function historicalDocumentFor(array $setup, User $creator, array $overrides = []): Document
+{
+    return Document::factory()->create(array_merge([
+        'company_id' => $setup['company']->id,
+        'branch_id' => $setup['branch']->id,
+        'department_id' => $setup['archiveDepartment']->id,
+        'category_id' => $setup['category']->id,
+        'status_id' => $setup['archivedStatus']->id,
+        'created_by' => $creator->id,
+        'assigned_to' => null,
+        'archive_phase' => ArchivePhase::Central,
+        'access_level' => DocumentAccessLevel::Interno,
+        'is_archived' => true,
+        'physical_location_id' => $setup['location']->id,
+        'metadata' => [
+            'entry_mode' => 'historical',
+            'historical' => [
+                'workflow' => 'historical_upload',
+                'original_department_id' => $setup['producerDepartment']->id,
+                'original_department_name' => 'Gerencia',
+            ],
+        ],
+    ], $overrides));
+}
+
 it('allows archive manager to upload historical documents directly to a central archive box', function () {
     Storage::fake('local');
     Queue::fake();
@@ -266,7 +291,7 @@ it('allows archive operator to upload historical documents into an active box', 
         ->and($setup['location']->refresh()->capacity_used)->toBe(1);
 });
 
-it('rejects duplicate historical uploads from the same operator into the same box', function () {
+it('allows historical documents with the same title in the same box', function () {
     Storage::fake('local');
     Queue::fake();
     $setup = historicalFlowSetup();
@@ -293,14 +318,27 @@ it('rejects duplicate historical uploads from the same operator into the same bo
         ->post(route('documents.historical.store'), $payload)
         ->assertRedirect(route('documents.index', ['archive_phase' => ArchivePhase::Central->value]));
 
-    $payload['rows'][0]['file'] = UploadedFile::fake()->create('Egreso 239 retry.pdf', 100, 'application/pdf');
+    $firstDocument = Document::query()
+        ->where('title', 'EGRESO 239')
+        ->firstOrFail();
+
+    $payload['rows'][0]['file'] = UploadedFile::fake()->create('Egreso 239 soporte.pdf', 100, 'application/pdf');
 
     $this->actingAs($setup['archiveOperator'])
         ->post(route('documents.historical.store'), $payload)
-        ->assertSessionHasErrors('rows');
+        ->assertRedirect(route('documents.index', ['archive_phase' => ArchivePhase::Central->value]));
 
-    expect(Document::query()->where('title', 'EGRESO 239')->count())->toBe(1)
-        ->and($setup['location']->refresh()->capacity_used)->toBe(1);
+    $documents = Document::query()
+        ->where('title', 'EGRESO 239')
+        ->orderBy('id')
+        ->get();
+
+    expect($documents)->toHaveCount(2)
+        ->and($documents->pluck('document_number')->unique())->toHaveCount(2)
+        ->and($documents->pluck('physical_location_id')->unique()->all())->toBe([$setup['location']->id])
+        ->and($documents->pluck('documentary_type_id')->unique()->all())->toBe([$setup['documentaryType']->id])
+        ->and($documents->first()->document_number)->toBe($firstDocument->document_number)
+        ->and($setup['location']->refresh()->capacity_used)->toBe(2);
 });
 
 it('prevents archive operator from correcting a document physical location after upload', function () {
@@ -461,8 +499,16 @@ it('does not expose reserved historical documents to regular office users', func
         ],
     ]);
 
+    // Sin acceso implícito ni una solicitud de acceso aprobada, ve la vista
+    // restringida (metadatos básicos) en vez de un 403 puro, ya que sigue siendo
+    // de su misma empresa.
     $this->actingAs($setup['officeManager'])
         ->get(route('documents.show', $document))
+        ->assertOk()
+        ->assertViewIs('documents.show-restricted');
+
+    $this->actingAs($setup['officeManager'])
+        ->get(route('documents.download', $document))
         ->assertForbidden();
 
     expect(Document::query()
@@ -539,3 +585,112 @@ it('allows archive operator to view historical documents created by others', fun
         ->get(route('documents.show', $document))
         ->assertOk();
 });
+
+it('allows archive operators to edit historical documents they created', function () {
+    $setup = historicalFlowSetup();
+    $document = historicalDocumentFor($setup, $setup['archiveOperator'], [
+        'title' => 'Historico propio editable',
+    ]);
+
+    expect($setup['archiveOperator']->can('update', $document))->toBeTrue();
+
+    $this->actingAs($setup['archiveOperator'])
+        ->get(route('documents.show', $document))
+        ->assertOk()
+        ->assertSee(route('documents.edit', $document), false)
+        ->assertSee('Editar');
+
+    $this->actingAs($setup['archiveOperator'])
+        ->get(route('documents.edit', $document))
+        ->assertOk()
+        ->assertSee('Editar Documento');
+});
+
+it('prevents archive operators from editing historical documents created by others', function () {
+    $setup = historicalFlowSetup();
+    $otherOperator = User::factory()->create([
+        'company_id' => $setup['company']->id,
+        'branch_id' => $setup['branch']->id,
+        'department_id' => $setup['archiveDepartment']->id,
+        'is_active' => true,
+    ]);
+    $otherOperator->assignRole(Role::ArchiveOperator->value);
+
+    $document = historicalDocumentFor($setup, $otherOperator, [
+        'title' => 'Historico de otro operador',
+    ]);
+
+    expect($setup['archiveOperator']->can('view', $document))->toBeTrue()
+        ->and($setup['archiveOperator']->can('update', $document))->toBeFalse();
+
+    $this->actingAs($setup['archiveOperator'])
+        ->get(route('documents.show', $document))
+        ->assertOk()
+        ->assertDontSee(route('documents.edit', $document), false);
+
+    $this->actingAs($setup['archiveOperator'])
+        ->get(route('documents.edit', $document))
+        ->assertForbidden();
+});
+
+it('allows archive managers to edit any historical document in their company', function () {
+    $setup = historicalFlowSetup();
+    $document = historicalDocumentFor($setup, $setup['archiveOperator'], [
+        'title' => 'Historico editable por encargado',
+    ]);
+
+    expect($setup['archiveManager']->can('update', $document))->toBeTrue();
+
+    $this->actingAs($setup['archiveManager'])
+        ->get(route('documents.edit', $document))
+        ->assertOk()
+        ->assertSee('Editar Documento');
+});
+
+it('prevents office managers and regular users from editing historical documents', function () {
+    $setup = historicalFlowSetup();
+    $regularRole = SpatieRole::firstOrCreate(['name' => Role::RegularUser->value, 'guard_name' => 'web']);
+    $regularUser = User::factory()->create([
+        'company_id' => $setup['company']->id,
+        'branch_id' => $setup['branch']->id,
+        'department_id' => $setup['officeDepartment']->id,
+        'is_active' => true,
+    ]);
+    $regularUser->assignRole($regularRole);
+
+    $document = historicalDocumentFor($setup, $setup['archiveOperator'], [
+        'title' => 'Historico interno no editable por oficina',
+    ]);
+
+    expect($setup['officeManager']->can('view', $document))->toBeTrue()
+        ->and($setup['officeManager']->can('update', $document))->toBeFalse()
+        ->and($regularUser->can('update', $document))->toBeFalse();
+
+    $this->actingAs($setup['officeManager'])
+        ->get(route('documents.edit', $document))
+        ->assertForbidden();
+
+    $this->actingAs($regularUser)
+        ->get(route('documents.edit', $document))
+        ->assertForbidden();
+});
+
+it('keeps admin roles authorized to edit historical documents', function (string $roleName) {
+    $setup = historicalFlowSetup();
+    $role = SpatieRole::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
+    $adminUser = User::factory()->create([
+        'company_id' => $setup['company']->id,
+        'branch_id' => $setup['branch']->id,
+        'department_id' => $setup['archiveDepartment']->id,
+        'is_active' => true,
+    ]);
+    $adminUser->assignRole($role);
+
+    $document = historicalDocumentFor($setup, $setup['archiveOperator']);
+
+    expect($adminUser->can('update', $document))->toBeTrue();
+})->with([
+    Role::Admin->value,
+    Role::BranchAdmin->value,
+    Role::SuperAdmin->value,
+]);

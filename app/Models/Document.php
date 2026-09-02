@@ -35,7 +35,17 @@ use Spatie\Activitylog\Traits\LogsActivity;
  */
 class Document extends Model
 {
-    use HasFactory, LogsActivity, Searchable, SoftDeletes;
+    use HasFactory, LogsActivity, SoftDeletes;
+
+    /*
+     * search() se renombra al importar el trait para poder envolverlo mas
+     * abajo. Los metodos de un trait se aplanan dentro de la clase: sin este
+     * alias, declarar search() lo reemplazaria por completo y parent::search()
+     * apuntaria a Model, que no tiene ese metodo.
+     */
+    use Searchable {
+        search as protected buscarConScout;
+    }
 
     protected $fillable = [
         'company_id',
@@ -289,6 +299,20 @@ class Document extends Model
         return $this->hasMany(DocumentAiRun::class);
     }
 
+    public function accessRequests(): HasMany
+    {
+        return $this->hasMany(DocumentAccessRequest::class);
+    }
+
+    public function hasActiveAccessGrant(User $user): bool
+    {
+        return $this->accessRequests()
+            ->where('requested_by', $user->id)
+            ->where('status', 'approved')
+            ->where('expires_at', '>', now())
+            ->exists();
+    }
+
     // Scopes
     public function scopeInCompany($query, $companyId)
     {
@@ -378,6 +402,13 @@ class Document extends Model
                 ])) {
                     $builder->orWhereIn('archive_phase', [ArchivePhase::Central->value, ArchivePhase::Historico->value]);
                 }
+
+                $builder->orWhereHas('accessRequests', function (Builder $accessRequestQuery) use ($user): void {
+                    $accessRequestQuery
+                        ->where('requested_by', $user->id)
+                        ->where('status', 'approved')
+                        ->where('expires_at', '>', now());
+                });
             });
     }
 
@@ -387,6 +418,11 @@ class Document extends Model
             return false;
         }
 
+        return $this->hasImplicitPortalAccess($user) || $this->hasActiveAccessGrant($user);
+    }
+
+    public function hasImplicitPortalAccess(User $user): bool
+    {
         if ($this->isHistoricalEntry()) {
             return $this->canBeAccessedAsHistoricalBy($user);
         }
@@ -911,6 +947,28 @@ class Document extends Model
             'historical_folder' => $this->metadata['historical']['folder'] ?? null,
             'historical_volume' => $this->metadata['historical']['volume'] ?? null,
             'historical_keywords_text' => $this->metadata['historical']['keywords_text'] ?? null,
+            // El ano del documento, que es el unico que sirve: `received_at`
+            // guarda la fecha de CARGA y vale 2026 para los 45.306, porque todo
+            // el fondo historico se subio este ano. El ano real lo declaro quien
+            // cargo cada caja y esta en 44.365 documentos, el 97,9%.
+            //
+            // Se indexa el declarado y no uno deducido del texto: un egreso de
+            // 2021 que menciona una factura de 2024 llevaria 2024 en su
+            // contenido, y su ano es 2021.
+            //
+            // Va como entero para poder filtrar por el ademas de buscarlo, que
+            // es la diferencia entre "documentos que mencionan 2024" y
+            // "documentos de 2024".
+            'historical_year' => ($anio = $this->metadata['historical']['year'] ?? null) !== null
+                ? (int) $anio
+                : null,
+            // La caja y el estante ya estaban guardados y sin usar. Con esto se
+            // puede preguntar que hay en una caja concreta, que es como habla
+            // quien trabaja el archivo fisico.
+            'historical_shelf' => $this->metadata['historical']['shelf'] ?? null,
+            'historical_bay' => $this->metadata['historical']['bay'] ?? null,
+            'historical_box_location' => $this->metadata['historical']['box_location_path'] ?? null,
+            'historical_custody_department' => $this->metadata['historical']['custody_department_name'] ?? null,
             'physical_location' => $this->physical_location,
             'priority' => $this->priority?->value,
             'is_confidential' => $this->is_confidential,
@@ -936,6 +994,534 @@ class Document extends Model
     public function searchableAs(): string
     {
         return 'documents';
+    }
+
+    /**
+     * Tope de documentos que se recuperan del indice para acotar por titulo.
+     *
+     * Coincide con el maxTotalHits por defecto de Meilisearch: pedir mas no
+     * traeria nada adicional.
+     */
+    private const TOPE_EXPEDIENTE = 1000;
+
+    /**
+     * Cualquier termino unido por guiones se trata como una unidad.
+     *
+     * Cubre las formas del archivo -LP-ADS-001-2024, G100-1395-2024, R-2464,
+     * DOC-AGU-20260713094648-5265- y tambien palabras compuestas como
+     * "pre-contractual". No se exige que lleve digitos a proposito: quien
+     * escribe un guion esta escribiendo una sola cosa, y partirla en pedazos
+     * es justamente el defecto que se corrige aqui.
+     */
+    private const PATRON_IDENTIFICADOR = '/^[\p{L}\d]+(?:-[\p{L}\d]+)+$/u';
+
+    /**
+     * Buscar documentos.
+     *
+     * Se sobrescribe aqui, y no en cada punto de llamada, porque hay siete
+     * repartidos entre el portal, la API, la busqueda avanzada y el panel:
+     * poniendolo en el modelo, cualquier busqueda futura lo hereda sin que
+     * nadie tenga que acordarse.
+     *
+     * Hay dos comportamientos, y cual se aplica depende de si el usuario
+     * escribio un identificador:
+     *
+     * 1. Sin identificador se mantiene la estrategia "frequency". Meilisearch
+     *    descarta terminos cuando no hay resultados para todos, y su estrategia
+     *    por defecto ("last") descarta el ultimo que escribio el usuario, que
+     *    suele ser justo el que anadio para afinar: "factura aguas 2026"
+     *    devolveria todas las facturas de aguas de cualquier ano. Con
+     *    "frequency" descarta el mas comun -"aguas"- y conserva el especifico.
+     *
+     * 2. Con identificador se busca como frase exacta. Sin comillas Meilisearch
+     *    parte LP-ADS-001-2024 en LP + ADS + 001 + 2024, y como esas piezas
+     *    salen en miles de documentos, cualquier numero arrastraba medio
+     *    archivo: se midio que devolvia mas de 1000 resultados donde solo habia
+     *    186 documentos con ese numero. Entre comillas la busqueda es exacta;
+     *    se verificaron 250 resultados de tres licitaciones sin un solo falso
+     *    positivo.
+     *
+     *    Las palabras sueltas que acompanen al identificador se aplican **solo
+     *    contra el titulo**. Buscarlas en el texto completo no distingue nada:
+     *    todos los documentos de un expediente de contratacion mencionan la
+     *    palabra "contrato" en su contenido, asi que exigirla no filtraba. En
+     *    el titulo si: de los 186 documentos de LP-ADS-001-2024, dos lo llevan
+     *    en el titulo y uno de ellos es el contrato.
+     *
+     * @param  string  $query
+     * @param  callable|null  $callback
+     */
+    public static function search($query = '', $callback = null): \Laravel\Scout\Builder
+    {
+        $consulta = static::normalizarConsulta((string) $query);
+
+        [$anclaje, $exigenciasDeTitulo] = static::analizarConsulta($consulta);
+
+        if ($anclaje === '') {
+            $porNumero = static::intentarPorNumeroDeDocumento($consulta, $callback);
+
+            return $porNumero ?? static::buscarConScout($consulta, $callback)
+                ->options(['matchingStrategy' => 'frequency']);
+        }
+
+        $busqueda = static::buscarConScout($anclaje, $callback)
+            ->options(['matchingStrategy' => 'all']);
+
+        if ($exigenciasDeTitulo === []) {
+            return $busqueda;
+        }
+
+        return $busqueda->whereIn('id', static::idsConTitulosQueCumplen($anclaje, $exigenciasDeTitulo));
+    }
+
+    /**
+     * "COMUNICACION INTERNA N°0069" sin coma: el numero identifica el documento.
+     *
+     * En este archivo los documentos se titulan "TIPO N°NNN": comunicaciones
+     * internas y externas, resoluciones, egresos. Cuando alguien escribe un tipo
+     * seguido de un numero esta senalando un documento concreto, no pidiendo
+     * texto libre. Sin interpretarlo asi el numero se diluye: se midio que
+     * "COMUNICACION INTERNA 0069" devolvia 232 resultados encabezados por
+     * egresos, sin el documento correcto por ninguna parte.
+     *
+     * Es la misma lectura que da la coma, deducida en vez de escrita, y se
+     * aplica solo cuando la consulta termina en un numero.
+     *
+     * **Si esa lectura no encuentra nada se devuelve null y se sigue con la
+     * busqueda de siempre.** Esa marcha atras es lo que la hace segura: puede
+     * anadir precision, nunca quitar resultados. "contratos 2024" seguira
+     * comportandose como hoy si ningun titulo lleva ese ano.
+     *
+     * Se intenta primero la consulta entera como frase exacta, porque cuando el
+     * titulo la contiene tal cual es a la vez lo mas preciso y lo unico completo.
+     * Buscar el tipo y filtrar despues por el numero tropieza con el tope de
+     * TOPE_EXPEDIENTE: "egreso 1290" recuperaba los mil primeros de los 7.756
+     * egresos y filtraba sobre esa ventana, devolviendo **uno** de los cinco que
+     * existen. Son cinco porque la numeracion se reinicia cada ano -uno de 2020,
+     * 2021, 2022, 2024 y 2025- y el usuario los quiere todos. Como frase salen
+     * los cinco, incluidos el que lleva doble espacio y el escrito en mayusculas.
+     */
+    private static function intentarPorNumeroDeDocumento(string $consulta, $callback): ?\Laravel\Scout\Builder
+    {
+        if (preg_match('/^(.*?\p{L}.*?)\s+(?:n[oº°]\.?|n\.|n|n[uú]m(?:ero)?\.?|#)?\s*(\d{2,})$/iu', trim($consulta), $partes) !== 1) {
+            return null;
+        }
+
+        $tipo = trim($partes[1]);
+        $numero = $partes[2];
+
+        if ($tipo === '') {
+            return null;
+        }
+
+        $frase = '"'.trim($consulta).'"';
+
+        if (static::buscarConScout($frase)
+            ->options(['matchingStrategy' => 'all'])
+            ->take(1)
+            ->keys()
+            ->isNotEmpty()) {
+            return static::buscarConScout($frase, $callback)
+                ->options(['matchingStrategy' => 'all']);
+        }
+
+        $ids = static::idsConTitulosQueCumplen($tipo, [$numero]);
+
+        if ($ids === []) {
+            return null;
+        }
+
+        return static::buscarConScout($tipo, $callback)
+            ->options(['matchingStrategy' => 'all'])
+            ->whereIn('id', $ids);
+    }
+
+    /**
+     * Reconstruir el identificador que el usuario quiso escribir.
+     *
+     * Nadie teclea "UO-PSPR-ADS-001-2020". Teclea lo que ve en el papel, que
+     * lleva "No.", espacios donde no van y guiones sueltos al final:
+     *
+     *   UO-PSPR-ADS- No. 001-2020      ->  0 resultados
+     *   UO-PSPR-ADS No 001 2020        ->  0 resultados
+     *   UO-PSPR-ADS-001-2020           ->  6 resultados, los correctos
+     *
+     * El documento existe; solo hay que entender lo que le pidieron. Y no basta
+     * con partir la consulta y buscar los trozos por separado, porque sueltos no
+     * distinguen nada: en este archivo "001" devuelve mas de mil documentos y
+     * "2020" otros tantos, mientras que el identificador entero devuelve seis.
+     * Por eso se reengancha en vez de trocear.
+     *
+     * El ruido ordinal solo se quita cuando va seguido de digitos. Sin esa
+     * condicion, buscar un documento titulado "NUMERO DE RADICADO" se quedaria
+     * en "de radicado".
+     *
+     * Las consultas bien escritas pasan intactas: "acta de inicio" y
+     * "LP-ADS-001-2024, CONTRATO" salen tal cual entraron.
+     */
+    private static function normalizarConsulta(string $consulta): string
+    {
+        $texto = trim($consulta);
+
+        if ($texto === '') {
+            return '';
+        }
+
+        // Sin un guion no hay identificador que rearmar, y tocar la consulta
+        // solo hace dano. Se midio con "COMUNICACION INTERNA N°0069": quitando
+        // el ordinal, "0069" queda como numero suelto, la tolerancia a erratas
+        // lo confunde con 0093, 0089 y 0098, y el documento correcto desaparece
+        // entre 232 resultados. Dejandola intacta, Meilisearch la tokeniza igual
+        // que al titulo. Los ordinales se resuelven al comparar con el titulo,
+        // donde se normalizan los dos lados a la vez.
+        if (! str_contains($texto, '-')) {
+            return preg_replace('/\s+/', ' ', $texto) ?? $texto;
+        }
+
+        // "No." / "N°" / "Nº" / "num." / "numero" / "#", solo ante digitos.
+        $texto = preg_replace('/\b(?:n[oº°]\.?|n\.|n[uú]m(?:ero)?\.?)\s*(?=\d)/iu', '', $texto) ?? $texto;
+        $texto = preg_replace('/#\s*(?=\d)/', '', $texto) ?? $texto;
+
+        // "UO - PSPR - ADS" y "UO-PSPR-ADS- 001" acaban pegados.
+        $texto = preg_replace('/\s*-\s*/', '-', $texto) ?? $texto;
+        $texto = preg_replace('/-\s+/', '-', $texto) ?? $texto;
+
+        // Un numero suelto detras de un identificador le pertenece:
+        // "UO-PSPR-ADS 001 2020" -> "UO-PSPR-ADS-001-2020".
+        $piezas = [];
+
+        foreach (preg_split('/\s+/u', trim($texto), -1, PREG_SPLIT_NO_EMPTY) ?: [] as $pieza) {
+            $anterior = $piezas !== [] ? $piezas[count($piezas) - 1] : null;
+
+            if (preg_match('/^\d+$/', $pieza) === 1
+                && $anterior !== null
+                && preg_match(self::PATRON_IDENTIFICADOR, $anterior) === 1) {
+                $piezas[count($piezas) - 1] = $anterior.'-'.$pieza;
+
+                continue;
+            }
+
+            $piezas[] = $pieza;
+        }
+
+        return trim(implode(' ', $piezas));
+    }
+
+    /**
+     * Descomponer lo que escribio el usuario en dos partes.
+     *
+     * Devuelve la consulta que se manda al indice -el "anclaje"- y la lista de
+     * exigencias que ademas debe cumplir el titulo. Cadena vacia como anclaje
+     * significa que no hay nada especial que hacer y se sigue el camino de
+     * siempre.
+     *
+     * La coma separa unidades, y todas deben cumplirse. Es la unica sintaxis
+     * que se ofrece, a proposito: se eligio frente a comillas u operadores
+     * porque no hay nada que aprender, se escribe igual que una lista y en un
+     * teclado espanol sale sin combinaciones raras. Quien no ponga comas no
+     * nota ningun cambio.
+     *
+     *   LP-2105-2024, ACTA DE INICIO
+     *     -> anclaje "LP-2105-2024", el titulo debe contener "ACTA DE INICIO"
+     *        completo y en ese orden.
+     *
+     *   LP-2105-2024 ACTA DE INICIO
+     *     -> anclaje "LP-2105-2024", el titulo debe contener ACTA, DE e INICIO
+     *        sueltas, en cualquier orden. Menos preciso, pero se conserva
+     *        porque nadie deberia verse obligado a aprender la coma.
+     *
+     *   ACTA DE INICIO, 2024
+     *     -> sin identificador, el primer segmento va al indice y el resto
+     *        exige al titulo. La coma sigue significando lo mismo.
+     *
+     * @return array{0: string, 1: list<string>}
+     */
+    private static function analizarConsulta(string $consulta): array
+    {
+        if (str_contains($consulta, ',')) {
+            $segmentos = collect(explode(',', $consulta))
+                // El usuario que ya entrecomilla pide exactitud a mano: se
+                // respeta su intencion quitando solo las comillas sobrantes.
+                ->map(fn (string $segmento): string => trim($segmento, " \t\n\r\0\x0B\"'"))
+                ->filter(fn (string $segmento): bool => $segmento !== '')
+                ->values();
+
+            if ($segmentos->isEmpty()) {
+                return ['', []];
+            }
+
+            $identificadores = $segmentos->filter(
+                fn (string $s): bool => preg_match(self::PATRON_IDENTIFICADOR, $s) === 1
+            );
+
+            // Ancla el identificador si lo hay; si no, el primer segmento.
+            // Lo demas queda como exigencia sobre el titulo.
+            $anclajes = $identificadores->isNotEmpty() ? $identificadores : $segmentos->take(1);
+
+            return [
+                $anclajes->map(fn (string $s): string => '"'.$s.'"')->implode(' '),
+                $segmentos->reject(fn (string $s): bool => $anclajes->contains($s))->values()->all(),
+            ];
+        }
+
+        $identificadores = [];
+        $palabras = [];
+
+        foreach (preg_split('/\s+/u', $consulta, -1, PREG_SPLIT_NO_EMPTY) ?: [] as $termino) {
+            $limpio = trim($termino, '"\'');
+
+            if ($limpio === '') {
+                continue;
+            }
+
+            if (preg_match(self::PATRON_IDENTIFICADOR, $limpio) === 1) {
+                $identificadores[] = $limpio;
+
+                continue;
+            }
+
+            $palabras[] = $limpio;
+        }
+
+        if ($identificadores === []) {
+            return ['', []];
+        }
+
+        return [
+            collect($identificadores)->map(fn (string $id): string => '"'.$id.'"')->implode(' '),
+            $palabras,
+        ];
+    }
+
+    /**
+     * Conectores que no aportan nada al comparar con un titulo.
+     *
+     * Un usuario pidio "ACTA DE SUSPENSION N°1" y el documento se titula "ACTA
+     * SUSPENSION N°1", sin el "DE". Exigir cada palabra dejaba fuera el
+     * documento correcto por una preposicion.
+     */
+    private const CONECTORES = ['de', 'del', 'la', 'las', 'el', 'los', 'y', 'e', 'en', 'a', 'al', 'con', 'para', 'por'];
+
+    /**
+     * De los documentos que devolvio el anclaje, cuales cumplen en el titulo.
+     *
+     * La comparacion se hace sobre una forma normalizada de **ambos lados**, no
+     * del titulo crudo. Es lo que evita dos fallos que se vieron en uso real:
+     *
+     *   - "OTROSI N°4" no encontraba el documento titulado "OTROSI N°4". La
+     *     consulta llegaba aqui ya sin el "N°" y el titulo si lo tenia, con lo
+     *     que "otrosi 4" no aparecia dentro de "OTROSI N°4". Normalizando los
+     *     dos lados, ambos quedan en "otrosi 4".
+     *   - "ACTA DE SUSPENSION N°1" no encontraba "ACTA SUSPENSION N°1" por una
+     *     preposicion de mas. Los conectores se descartan.
+     *
+     * Se compara en PHP y no con un LIKE en SQL porque normalizar acentos,
+     * ordinales y puntuacion dentro de la consulta seria una expresion enorme y
+     * distinta en MySQL y en SQLite. Los candidatos son los que ya devolvio el
+     * indice -cientos como mucho-, asi que traer su titulo no cuesta nada y
+     * ademas evita el LIKE con comodin inicial sobre `documents`.
+     *
+     * @param  list<string>  $exigencias
+     * @return list<int>
+     */
+    private static function idsConTitulosQueCumplen(string $anclaje, array $exigencias): array
+    {
+        $candidatos = static::buscarConScout($anclaje)
+            ->options(['matchingStrategy' => 'all'])
+            ->take(self::TOPE_EXPEDIENTE)
+            ->keys();
+
+        if ($candidatos->isEmpty()) {
+            return [];
+        }
+
+        $buscadas = collect($exigencias)
+            ->flatMap(fn (string $exigencia): array => static::palabrasSignificativas($exigencia))
+            ->unique()
+            ->values();
+
+        if ($buscadas->isEmpty()) {
+            return $candidatos->all();
+        }
+
+        $porTitulo = static::query()
+            ->whereKey($candidatos)
+            ->pluck('title', 'id')
+            ->filter(function (?string $titulo) use ($buscadas, $anclaje): bool {
+                $normalizado = static::formaComparable((string) $titulo);
+
+                if (! static::tituloHablaDelAnclaje($normalizado, $anclaje)) {
+                    return false;
+                }
+
+                return $buscadas->every(function (string $palabra) use ($normalizado): bool {
+                    foreach (static::formasDeLaPalabra($palabra) as $forma) {
+                        if (str_contains($normalizado, $forma)) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                });
+            })
+            ->keys()
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+
+        if ($porTitulo !== []) {
+            return $porTitulo;
+        }
+
+        // El titulo se prueba primero porque es donde la exigencia discrimina de
+        // verdad: en un expediente de contratacion todos los documentos dicen
+        // "contrato" en su texto, asi que exigirlo ahi no filtra nada.
+        //
+        // Pero hay exigencias que solo pueden vivir en el contenido, y devolver
+        // cero seria mentir sobre un archivo que si las tiene. Ejemplos medidos:
+        // "egresos, dian, 2024" -hay al menos 16 egresos de 2024 que mencionan
+        // la DIAN, y ningun titulo de egreso dice mas que "Egreso 102"- y
+        // "extractos bancarios, julio" -el mes no existe en ningun metadato, solo
+        // puede estar en el texto-.
+        //
+        // Se delega en el motor en vez de recorrer `content` con un LIKE: esa
+        // columna guarda el texto OCR completo de 45.000 documentos y el comodin
+        // inicial obligaria al escaneo que hay que evitar sobre `documents`.
+        return static::buscarConScout(trim($anclaje.' '.implode(' ', $exigencias)))
+            ->options(['matchingStrategy' => 'all'])
+            ->take(self::TOPE_EXPEDIENTE)
+            ->keys()
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+    }
+
+    /**
+     * ¿El titulo trata de lo que el usuario pidio, o solo lo parece?
+     *
+     * El anclaje se busca en todo el documento, contenido OCR incluido, asi que
+     * entre los candidatos entran documentos que no hablan del asunto y solo lo
+     * mencionan de pasada. Si ademas su titulo lleva suelto el termino que se
+     * exige -tipicamente un ano-, ese documento cumplia el filtro y, por ser el
+     * unico, se llevaba por delante a todos los demas.
+     *
+     * Medido: "declaraciones de renta, 2024" devolvia **un** resultado, y era
+     * "RESPUESTA INVESTIGACION DISCIPLINARIA COMUNICACION G100-253-2024". Las
+     * quince declaraciones de renta desaparecian porque ninguna lleva el ano en
+     * el titulo. Exigiendo que el titulo hable del anclaje, ese documento queda
+     * fuera y la busqueda pasa al respaldo por contenido, que si las encuentra.
+     *
+     * Basta una palabra del anclaje: exigirlas todas dejaria fuera titulos
+     * legitimos que abrevian -"ACTA SUSPENSION" frente a "acta de suspension"-.
+     * Se compara tolerando el plural porque el archivo titula en singular
+     * -"DECLARACION DE RENTA", "CONTRATO N°12"- y la gente busca en plural.
+     */
+    private static function tituloHablaDelAnclaje(string $tituloNormalizado, string $anclaje): bool
+    {
+        $palabras = static::palabrasSignificativas(trim($anclaje, " \t\n\r\0\x0B\"'"));
+
+        if ($palabras === []) {
+            return true;
+        }
+
+        foreach ($palabras as $palabra) {
+            if (str_contains($tituloNormalizado, static::raizDe($palabra))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Quitar el plural para comparar con titulos escritos en singular.
+     *
+     * No es un lematizador ni pretende serlo: recorta "-es" y "-s" cuando queda
+     * una raiz de al menos cuatro letras, que es lo que hace falta aqui
+     * -"declaraciones" a "declaracion", "contratos" a "contrato", "egresos" a
+     * "egreso"-. El limite de longitud evita destrozar palabras cortas como
+     * "mes" o "gas".
+     */
+    private static function raizDe(string $palabra): string
+    {
+        foreach (['es', 's'] as $sufijo) {
+            if (str_ends_with($palabra, $sufijo) && mb_strlen($palabra) - mb_strlen($sufijo) >= 4) {
+                return mb_substr($palabra, 0, -mb_strlen($sufijo));
+            }
+        }
+
+        return $palabra;
+    }
+
+    /**
+     * Como puede aparecer una palabra en un titulo, ademas de tal cual.
+     *
+     * Nadie escribe "extractos bancarios, 07": escribe julio. Pero el titulo dice
+     * "EXTRACTO BANCARIO N°26 31-07-2020", con el mes en cifras. Son dos formas
+     * de la misma cosa, y sin traducirlas la busqueda devuelve cero sobre un
+     * archivo que si tiene esos documentos -hay extractos de julio de 2020 y de
+     * 2022-.
+     *
+     * Solo se traduce en un sentido, del nombre al numero. Al reves seria
+     * temerario: "07" aparece en importes, en numeros de documento y en mitad de
+     * cualquier cifra, y convertirlo en "julio" ensuciaria mas de lo que ayuda.
+     *
+     * El numero se busca rodeado de guiones porque asi es como aparece en la
+     * fecha -31-07-2020-; suelto coincidiria con cualquier "07" del titulo.
+     *
+     * @return list<string>
+     */
+    private static function formasDeLaPalabra(string $palabra): array
+    {
+        $meses = [
+            'enero' => '01', 'febrero' => '02', 'marzo' => '03', 'abril' => '04',
+            'mayo' => '05', 'junio' => '06', 'julio' => '07', 'agosto' => '08',
+            'septiembre' => '09', 'setiembre' => '09', 'octubre' => '10',
+            'noviembre' => '11', 'diciembre' => '12',
+        ];
+
+        if (! isset($meses[$palabra])) {
+            return [$palabra];
+        }
+
+        return [$palabra, '-'.$meses[$palabra].'-'];
+    }
+
+    /**
+     * Palabras que de verdad discriminan dentro de una exigencia de titulo.
+     *
+     * @return list<string>
+     */
+    private static function palabrasSignificativas(string $texto): array
+    {
+        $palabras = preg_split('/\s+/u', static::formaComparable($texto), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        $utiles = array_values(array_filter(
+            $palabras,
+            fn (string $palabra): bool => ! in_array($palabra, self::CONECTORES, true)
+        ));
+
+        // Si la exigencia era solo conectores -alguien buscando "de la"- se
+        // conservan: mejor exigir algo raro que no exigir nada.
+        return $utiles !== [] ? $utiles : $palabras;
+    }
+
+    /**
+     * Reducir un texto a lo comparable: sin acentos, ordinales ni puntuacion.
+     */
+    private static function formaComparable(string $texto): string
+    {
+        $t = mb_strtolower(trim($texto));
+
+        $t = strtr($t, [
+            'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ü' => 'u', 'ñ' => 'n',
+        ]);
+
+        // "n°4", "no. 4", "num 4" y "#4" son la misma cosa que "4".
+        $t = preg_replace('/\b(?:n[oº°]\.?|n\.|n[uú]m(?:ero)?\.?)\s*(?=\d)/u', '', $t) ?? $t;
+
+        // Cualquier otro signo separa palabras en vez de pegarlas.
+        $t = preg_replace('/[^\p{L}\p{N}]+/u', ' ', $t) ?? $t;
+
+        return trim(preg_replace('/\s+/', ' ', $t) ?? $t);
     }
 
     /**
