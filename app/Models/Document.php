@@ -1347,8 +1347,12 @@ class Document extends Model
         $porTitulo = static::query()
             ->whereKey($candidatos)
             ->pluck('title', 'id')
-            ->filter(function (?string $titulo) use ($buscadas): bool {
+            ->filter(function (?string $titulo) use ($buscadas, $anclaje): bool {
                 $normalizado = static::formaComparable((string) $titulo);
+
+                if (! static::tituloHablaDelAnclaje($normalizado, $anclaje)) {
+                    return false;
+                }
 
                 return $buscadas->every(function (string $palabra) use ($normalizado): bool {
                     foreach (static::formasDeLaPalabra($palabra) as $forma) {
@@ -1388,6 +1392,63 @@ class Document extends Model
             ->keys()
             ->map(fn ($id): int => (int) $id)
             ->all();
+    }
+
+    /**
+     * ¿El titulo trata de lo que el usuario pidio, o solo lo parece?
+     *
+     * El anclaje se busca en todo el documento, contenido OCR incluido, asi que
+     * entre los candidatos entran documentos que no hablan del asunto y solo lo
+     * mencionan de pasada. Si ademas su titulo lleva suelto el termino que se
+     * exige -tipicamente un ano-, ese documento cumplia el filtro y, por ser el
+     * unico, se llevaba por delante a todos los demas.
+     *
+     * Medido: "declaraciones de renta, 2024" devolvia **un** resultado, y era
+     * "RESPUESTA INVESTIGACION DISCIPLINARIA COMUNICACION G100-253-2024". Las
+     * quince declaraciones de renta desaparecian porque ninguna lleva el ano en
+     * el titulo. Exigiendo que el titulo hable del anclaje, ese documento queda
+     * fuera y la busqueda pasa al respaldo por contenido, que si las encuentra.
+     *
+     * Basta una palabra del anclaje: exigirlas todas dejaria fuera titulos
+     * legitimos que abrevian -"ACTA SUSPENSION" frente a "acta de suspension"-.
+     * Se compara tolerando el plural porque el archivo titula en singular
+     * -"DECLARACION DE RENTA", "CONTRATO N°12"- y la gente busca en plural.
+     */
+    private static function tituloHablaDelAnclaje(string $tituloNormalizado, string $anclaje): bool
+    {
+        $palabras = static::palabrasSignificativas(trim($anclaje, " \t\n\r\0\x0B\"'"));
+
+        if ($palabras === []) {
+            return true;
+        }
+
+        foreach ($palabras as $palabra) {
+            if (str_contains($tituloNormalizado, static::raizDe($palabra))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Quitar el plural para comparar con titulos escritos en singular.
+     *
+     * No es un lematizador ni pretende serlo: recorta "-es" y "-s" cuando queda
+     * una raiz de al menos cuatro letras, que es lo que hace falta aqui
+     * -"declaraciones" a "declaracion", "contratos" a "contrato", "egresos" a
+     * "egreso"-. El limite de longitud evita destrozar palabras cortas como
+     * "mes" o "gas".
+     */
+    private static function raizDe(string $palabra): string
+    {
+        foreach (['es', 's'] as $sufijo) {
+            if (str_ends_with($palabra, $sufijo) && mb_strlen($palabra) - mb_strlen($sufijo) >= 4) {
+                return mb_substr($palabra, 0, -mb_strlen($sufijo));
+            }
+        }
+
+        return $palabra;
     }
 
     /**

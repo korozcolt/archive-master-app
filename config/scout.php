@@ -29,7 +29,26 @@ return [
     |
     */
 
-    'prefix' => env('SCOUT_PREFIX', ''),
+    /*
+     * Sin prefijo, y a proposito.
+     *
+     * El unico modelo buscable de la aplicacion es Document, y fija su indice
+     * en `documents` con un `searchableAs()` explicito, que no pasa por este
+     * prefijo. `scout:sync-index-settings` si lo aplica, asi que con
+     * SCOUT_PREFIX definido el comando escribia los ajustes -sinonimos,
+     * atributos buscables, atributos filtrables- en un indice
+     * `<prefijo>documents` vacio, mientras el indice real con los 45.000
+     * documentos se quedaba con lo que hubiera.
+     *
+     * Costo real: los sinonimos que hacen falta para que "declaraciones"
+     * encuentre "DECLARACION DE RENTA" estaban en el repositorio y no en el
+     * motor. Cada cliente nuevo heredaba el fallo.
+     *
+     * No se lee de env para que el fallo no pueda reaparecer configurando la
+     * variable en un panel. Separar clientes es cosa de la rama y de su propia
+     * instancia de Meilisearch, no de este prefijo.
+     */
+    'prefix' => '',
 
     /*
     |--------------------------------------------------------------------------

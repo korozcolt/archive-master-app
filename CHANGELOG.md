@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-09-02 (segunda tanda)
+
+- **Los ajustes del índice se escribían en un índice vacío.** `scout:sync-index-settings` antepone `scout.prefix` al nombre del índice; el modelo no, porque `Document::searchableAs()` devuelve `documents` de forma explícita. Con `SCOUT_PREFIX` definido en producción, el comando escribía sinónimos, atributos buscables y atributos filtrables en `aguas-de-sucredocuments` —**0 documentos**— mientras el índice real con los 45.306 se quedaba con lo que hubiera de antes.
+  - Corrige lo afirmado en la entrada anterior: los sinónimos **no** se mantenían alineados en cada despliegue. Están hoy en el motor porque se aplicaron a mano.
+  - `scout.prefix` pasa a ser `''` fijo en el repositorio, sin leer de entorno, para que el fallo no pueda reaparecer definiendo la variable en un panel. Separar clientes es cosa de la rama y de su propia instancia de Meilisearch, y `Document` es el único modelo buscable de la aplicación.
+  - Una prueba exige que el nombre del índice del modelo y el que usará el comando coincidan; otra, que los sinónimos del plural sigan en `config/scout.php`.
+  - Efecto colateral que se arregla solo: el índice real tenía `displayedAttributes: ["*"]`, así que **cada resultado devolvía el documento entero —25 KB de media, con el texto OCR—**. Una búsqueda de 500 resultados movía 12 MB por HTTP. El despliegue lo deja en solo el `id`, como declara la configuración.
+- **Un título ajeno al asunto se llevaba por delante toda la respuesta.** `declaraciones de renta, 2024` devolvía **un** resultado, y era `RESPUESTA INVESTIGACION DISCIPLINARIA COMUNICACION G100-253-2024`: ese documento entraba entre los candidatos por su texto OCR y, al ser el único cuyo **título** contenía «2024», cumplía el filtro y las quince declaraciones desaparecían.
+  - Ahora un título solo cuenta si además habla del anclaje. Basta una palabra —exigirlas todas dejaría fuera `ACTA SUSPENSION` frente a «acta de suspensión»— y se compara tolerando el plural, porque el archivo titula en singular (`DECLARACION DE RENTA`, `CONTRATO N°12`) y la gente busca en plural.
+- **Sobre `declaraciones de renta, 2024`, el dato no existe.** Las quince declaraciones no llevan año en ninguna parte —ni en el título, ni en `historical_year`, vacío en las quince—. Los únicos años están sueltos dentro del OCR y son 2020, 2021, 2022 y 2023; solo una menciona 2024. Ninguna búsqueda por año puede resolverlo hasta que ese metadato se rellene.
+- **Los ceros vistos durante la reindexación eran carga, no un fallo de búsqueda.** La carga del servidor llegó a 52 y el stack se reinició; con `searchCutoffMs: 1000`, Meilisearch corta la consulta al segundo y responde vacío. Medido después, con carga normal, las mismas consultas responden.
+
 ### Fixed - 2026-09-02
 
 - **Tres búsquedas reales que devolvían cero o de menos**, todas por el mismo motivo de fondo: las palabras que acompañan a un identificador se exigían **solo contra el título**, y en este archivo los títulos son escuetos («Egreso 102», «NOTA BANCARIA N° 54»).

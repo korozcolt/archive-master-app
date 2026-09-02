@@ -311,3 +311,53 @@ it('no confunde con un numero una consulta que no termina en cifras', function (
     expect(Document::search('egreso mensual')->query)->toBe('egreso mensual')
         ->and(Document::search('egreso mensual')->options['matchingStrategy'])->toBe('frequency');
 });
+
+it('no acepta como coincidencia un titulo que no habla de lo que se pidio', function (string $titulo, bool $vale): void {
+    $metodo = new ReflectionMethod(Document::class, 'tituloHablaDelAnclaje');
+    $metodo->setAccessible(true);
+
+    expect($metodo->invoke(null, $titulo, '"declaraciones de renta"'))->toBe($vale);
+})->with([
+    // El caso medido en produccion: este documento entraba por su texto OCR y,
+    // como su titulo era el unico con "2024", se quedaba solo en la respuesta.
+    'ajeno al asunto' => ['respuesta investigacion disciplinaria comunicacion g100 253 2024 r 450', false],
+    'el documento real, titulado en singular' => ['declaracion de renta 100066477427391', true],
+    'basta una palabra del anclaje' => ['certificado de renta 2024', true],
+]);
+
+it('compara con titulos en singular aunque se busque en plural', function (string $plural, string $raiz): void {
+    $metodo = new ReflectionMethod(Document::class, 'raizDe');
+    $metodo->setAccessible(true);
+
+    expect($metodo->invoke(null, $plural))->toBe($raiz);
+})->with([
+    'declaraciones' => ['declaraciones', 'declaracion'],
+    'contratos' => ['contratos', 'contrato'],
+    'egresos' => ['egresos', 'egreso'],
+    'actas' => ['actas', 'acta'],
+    'ya singular' => ['renta', 'renta'],
+    'palabra corta que no se toca' => ['mes', 'mes'],
+    'numero' => ['2024', '2024'],
+]);
+
+it('sincroniza los ajustes contra el mismo indice que usa el modelo', function (): void {
+    $indice = (new Document)->searchableAs();
+
+    // El comando de Scout antepone `scout.prefix` al nombre del indice; el
+    // modelo no. Si dejan de coincidir, los sinonimos y los atributos
+    // filtrables se escriben en un indice vacio y nadie se entera.
+    expect(config('scout.prefix').$indice)->toBe($indice)
+        ->and(array_keys(config('scout.meilisearch.index-settings')))->toContain($indice);
+});
+
+it('mantiene en el repositorio los sinonimos que la busqueda necesita', function (string $palabra, string $equivalente): void {
+    $sinonimos = config('scout.meilisearch.index-settings.documents.synonyms');
+
+    expect($sinonimos[$palabra] ?? [])->toContain($equivalente);
+})->with([
+    // El archivo titula en singular y la gente busca en plural.
+    'declaracion' => ['declaracion', 'declaraciones'],
+    'declaraciones' => ['declaraciones', 'declaracion'],
+    'egresos' => ['egresos', 'egreso'],
+    'contratos' => ['contratos', 'contrato'],
+]);
